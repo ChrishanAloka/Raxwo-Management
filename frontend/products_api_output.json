@@ -1,0 +1,25 @@
+﻿
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : [{"_id":"68685b49e44231daae93137f","itemCode":"1751669577376-7303","itemName":"white
+                     rice","category":"rice","buyingPrice":3,"sellingPrice":4,"stock":53,"supplierName":
+                    "Masthuk","newStock":0,"changeHi...
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    X-Railway-Edge: railway/asia-southeast1-eqsg3a
+                    X-Railway-Request-Id: UhwL_gtzRyGU_E68DcO5xA
+                    Content-Length: 13203
+                    Content-Type: application/json; ch...
+Forms             : {}
+Headers           : {[Access-Control-Allow-Origin, *], [X-Railway-Edge, 
+                    railway/asia-southeast1-eqsg3a], [X-Railway-Request-Id, UhwL_gtzRyGU_E68DcO5xA], 
+                    [Content-Length, 13203]...}
+Images            : {}
+InputFields       : {}
+Links             : {}
+ParsedHtml        : mshtml.HTMLDocumentClass
+RawContentLength  : 13203
+
+
+
