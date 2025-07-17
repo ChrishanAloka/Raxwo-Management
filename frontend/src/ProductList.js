@@ -20,7 +20,7 @@ import { faPlus, faChartSimple, faFile, faFilePdf, faFileExcel, faSearch, faTime
 import { v4 as uuidv4 } from 'uuid';
 
 //const API_URL = 'https://raxwo-manage-backend-production.up.railway.app/api/products';
- const API_URL = 'http://localhost:5002/api/products';
+ const API_URL = 'https://raxwo-management.onrender.com/api/products';
 const CLICKED_PRODUCTS_API_URL = 'https://raxwo-manage-backend-production.up.railway.app/api/clicked-products';
 
 const ProductList = ({ darkMode }) => {
@@ -953,7 +953,7 @@ const ProductList = ({ darkMode }) => {
       // Optionally, add a unique uploadId if needed
       // formData.append('uploadId', uuidv4());
     
-      const response = await fetch('http://localhost:5002/api/product-uploads/bulk-upload',
+      const response = await fetch('https://raxwo-management.onrender.com/api/product-uploads/bulk-upload',
  {
         method: 'POST',
         body: formData
