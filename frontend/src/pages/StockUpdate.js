@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/StockUpdate.css"; // Ensure you have dark mode styles
 import EditProduct from '../EditProduct';
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/products";
+const API_URL = "http://localhost:5002/api/products";
 
 // Helper to compute stock from changeHistory
 function computeStockFromHistory(product) {

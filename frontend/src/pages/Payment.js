@@ -49,7 +49,7 @@ const Payment = ({ darkMode }) => {
     setCashierId(id || 'N/A');
     setCashierName(name || 'Unknown');
 
-    axios.get('https://raxwo-manage-backend-production.up.railway.app/api/products', {
+    axios.get('http://localhost:5002/api/products', {
       headers: {
         Authorization: `Bearer ${token}`,
       },

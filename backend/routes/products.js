@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
         .limit(limit)
         .lean();
       // Fetch paginated uploaded records
-      const uploadedRecords = await UploadedProduct.find(uploadFilter)
+      const uploadedRecords = await UploadedProduct.find(productFilter)
         .sort({ uploadedAt: 1 })
         .skip(skip)
         .limit(limit)
@@ -91,10 +91,11 @@ router.get('/', async (req, res) => {
           uploadedAt: rec.uploadedAt
         };
       });
+
       // Add source: 'main' to main products
       const mainWithSource = mainProducts.map(p => ({ ...p, source: 'main' }));
       // Merge: main products first, then uploaded
-      const all = [...mainWithSource, ...mappedUploads];
+      const all = [...mappedUploads, ...mainWithSource];
       res.json({
         records: all,
         total,
@@ -102,6 +103,13 @@ router.get('/', async (req, res) => {
         limit,
         totalPages: Math.ceil(total / limit)
       });
+
+      console.log("Main Products:");
+      console.log(mainProducts);
+
+      console.log("Mapped Uploads:");
+      console.log(mappedUploads);
+
     } else {
       // Old behavior: return all
     const products = await Product.find({ 
@@ -128,8 +136,15 @@ router.get('/', async (req, res) => {
         };
       });
       const mainProducts = products.map(p => ({ ...p, source: 'main' }));
-      const all = [...mainProducts, ...mappedUploads];
+      const all = [...mappedUploads, ...mainProducts ];
       res.json(all);
+
+      console.log("Main Products:");
+      console.log(mainProducts);
+
+      console.log("Mapped Uploads:");
+      console.log(mappedUploads);
+
     }
   } catch (err) {
     console.error('Error fetching products:', err);

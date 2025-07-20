@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import "./AddProductRepair.css";
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/productsRepair";
+const API_URL = "http://localhost:5002/api/productsRepair";
 
 const EditProductRepair = ({ repair, closeModal, darkMode }) => {
   const [formData, setFormData] = useState({
@@ -75,7 +75,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
   useEffect(() => {
     const fetchDeviceIssues = async () => {
       try {
-        const response = await fetch('https://raxwo-manage-backend-production.up.railway.app/api/deviceIssues');
+        const response = await fetch('http://localhost:5002/api/deviceIssues');
         if (response.ok) {
           const data = await response.json();
           setDeviceIssues(data);
@@ -91,7 +91,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
     if (!newIssue.trim()) return;
 
     try {
-      const response = await fetch('https://raxwo-manage-backend-production.up.railway.app/api/deviceIssues', {
+      const response = await fetch('http://localhost:5002/api/deviceIssues', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -539,17 +539,19 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
                     <table className="repair-cart-table">
                       <thead>
                         <tr>
-                          <th>Item Code</th>
+                          {/* <th>Item Code</th> */}
                           <th>Item Name</th>
-                          <th>Quantity</th>
+                          <th>Category</th>
+                          <th>Qty</th>
                           <th>Cost</th>
                         </tr>
                       </thead>
                       <tbody>
                         {formData.repairCart.map((item, index) => (
                           <tr key={index}>
-                            <td>{item.itemCode}</td>
+                            {/* <td>{item.itemCode.slice(0,4)}...</td> */}
                             <td>{item.itemName}</td>
+                            <td>{item.category}</td>
                             <td>{item.quantity}</td>
                             <td>Rs. {item.cost}</td>
                           </tr>

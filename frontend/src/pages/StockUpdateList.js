@@ -7,7 +7,7 @@ import "../styles/StockUpdateList.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus, faFile, faSearch, faFileExcel, faFilePdf, faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/products";
+const API_URL = "http://localhost:5002/api/products";
 
 const StockUpdateList = ({ darkMode }) => {
   const [products, setProducts] = useState([]);

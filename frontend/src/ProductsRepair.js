@@ -24,9 +24,9 @@ import { faFile, faFilePdf, faFileExcel, faSearch, faPlus, faTimes, faHistory } 
 import ChangeHistory from './components/ChangeHistory';
 
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/productsRepair";
-const PRODUCT_API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/products";
-const JOB_API = 'https://raxwo-manage-backend-production.up.railway.app/api/productsRepair';
+const API_URL = "http://localhost:5002/api/productsRepair";
+const PRODUCT_API_URL = "http://localhost:5002/api/product-uploads";
+const JOB_API = 'http://localhost:5002/api/productsRepair';
 
 // Add flattenLogs function directly here:
 function flattenLogs(data, entityType, entityIdField, entityNameField) {
@@ -87,9 +87,16 @@ const ProductRepairList = ({ darkMode }) => {
     setProductPage(1);
   };
   const normalize = str => (str || '').toLowerCase().replace(/\s+/g, '');
-  const filteredProductsForModal = products.filter(product =>
-    normalize(product.itemName).includes(normalize(productSearchQuery))
-  );
+  const filteredProductsForModal = productSearchQuery.trim() === ""
+  ? products
+  : products.filter(product =>
+      normalize(product.itemName).includes(normalize(productSearchQuery)) ||
+      normalize(product.category).includes(normalize(productSearchQuery)) ||
+      normalize(product.itemCode).includes(normalize(productSearchQuery))
+    );
+  console.log("Current product search query:", productSearchQuery);
+  console.log("Current products in state:", products);  
+  console.log("Filtered products for modal:", filteredProductsForModal);
   const totalProductPages = Math.ceil(filteredProductsForModal.length / productsPerPage);
   const paginatedProductsForModal = filteredProductsForModal.slice((productPage - 1) * productsPerPage, productPage * productsPerPage);
 
@@ -132,7 +139,7 @@ const ProductRepairList = ({ darkMode }) => {
         return response.json();
       })
       .then((data) => {
-        console.log("Raw API response:", data);
+        console.log("Raw API response repairs:", data);
 
         const repairData = Array.isArray(data) ? data : data.repairs || [];
 
@@ -185,18 +192,44 @@ const ProductRepairList = ({ darkMode }) => {
         return response.json();
       })
       .then((data) => {
-        console.log("Fetched products:", data);
-        
-        // Filter products to only show those from the main product list (not deleted)
-        const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
-        const clickedProductIds = clickedProducts.map(cp => cp._id);
-        
-        const allProducts = Array.isArray(data) ? data : data.products || [];
-        const availableProducts = allProducts.filter(product => 
-          !product.clickedForAdd && !clickedProductIds.includes(product._id)
+        console.log("Raw API response:", data);
+
+        // Step 1: Extract the product list from the correct field
+        const rawProducts = Array.isArray(data.records)
+          ? data.records
+          : data && typeof data === "object" && "records" in data
+            ? data.records
+            : [];
+
+        console.log("Raw products from API:", rawProducts);
+
+        // Step 2: Normalize the product data
+        const normalizedProducts = rawProducts.map((product) => {
+          const dataObj = product.data || {};
+          return {
+            _id: product._id,
+            itemCode: product.itemCode,
+            itemName: product.itemName,
+            category: product.category,
+            stock:product.stock,
+            // Add other fields as needed
+          };
+        });
+
+        console.log("Normalized products:", normalizedProducts);
+
+        // Step 3: Filter out already selected products
+        const clickedProducts = JSON.parse(localStorage.getItem("clickedProducts") || "[]");
+        const clickedProductIds = clickedProducts.map((cp) => cp._id);
+
+        const availableProducts = normalizedProducts.filter(
+          (product) =>
+            !product.clickedForAdd && !clickedProductIds.includes(product._id)
         );
-        
-        console.log("Available products for repair:", availableProducts.length, "out of", allProducts.length);
+
+        console.log("Available products to show:", availableProducts);
+
+        // Step 4: Update state
         setProducts(availableProducts);
       })
       .catch((err) => {
@@ -307,6 +340,7 @@ const ProductRepairList = ({ darkMode }) => {
       setSelectedProducts([...selectedProducts, {
         itemCode: product.itemCode,
         itemName: itemName,
+        category: product.category,
         quantity: 1,
         supplierName: supplierName
       }]);
@@ -342,6 +376,7 @@ const ProductRepairList = ({ darkMode }) => {
       repair.repairCart.map((item) => ({
         itemCode: item.itemCode,
         itemName: item.itemName,
+        category: item.category,
         quantity: 0,
         maxQuantity: item.quantity,
       }))
@@ -548,6 +583,7 @@ const ProductRepairList = ({ darkMode }) => {
       const newCartTotal = updatedCart.reduce((total, cartItem) => total + (cartItem.cost || 0), 0);
       const totalAdditionalServicesAmount = selectedRepair.totalAdditionalServicesAmount || 0;
       const finalAmount = newCartTotal + (selectedRepair.repairCost || 0) - (selectedRepair.totalDiscountAmount || 0) + totalAdditionalServicesAmount;
+      const removeditem = item.itemCode;
 
       // Update the server with the new cart
       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
@@ -557,6 +593,9 @@ const ProductRepairList = ({ darkMode }) => {
           repairCart: updatedCart,
           totalRepairCost: newCartTotal,
           finalAmount: finalAmount,
+          removeditem: removeditem,
+          removedqty: 1,
+
         }),
       });
 
@@ -1131,6 +1170,7 @@ const ProductRepairList = ({ darkMode }) => {
                 <tr>
                   <th>GRN</th>
                   <th>Item Name</th>
+                  <th>Category</th>
                   <th>Quantity</th>
                   <th>Cost</th>
                 </tr>
@@ -1142,6 +1182,7 @@ const ProductRepairList = ({ darkMode }) => {
                       <tr>
                         <td>${item.itemCode}</td>
                         <td>${item.itemName}</td>
+                        <td>${item.category}</td>
                         <td>${item.quantity}</td>
                         <td>Rs. ${item.cost}</td>
                       </tr>
@@ -1471,39 +1512,6 @@ const ProductRepairList = ({ darkMode }) => {
     }
   };
 
-  // <div className="status-filter-tabs" style={{
-  //   display: 'flex',
-  //   justifyContent: 'center',
-  //   margin: '20px 0',
-  //   gap: '10px',
-  //   flexWrap: 'wrap'
-  // }}>
-  //   {statusFilters.map((status) => (
-  //     <button
-  //       key={status}
-  //       onClick={() => {
-  //         setCurrentStatusFilter(status);
-  //         setCurrentPage(1);
-  //       }}
-  //       className={`status-filter-btn ${currentStatusFilter === status ? 'active' : ''} ${darkMode ? 'dark' : ''}`}
-  //       style={{
-  //         padding: '10px 20px',
-  //         borderRadius: '5px',
-  //         border: 'none',
-  //         backgroundColor: currentStatusFilter === status
-  //           ? (darkMode ? '#1a68bc' : '#3182ce')
-  //           : (darkMode ? '#4a5568' : '#e2e8f0'),
-  //         color: currentStatusFilter === status ? '#fff' : (darkMode ? '#e2e8f0' : '#2d3748'),
-  //         cursor: 'pointer',
-  //         fontWeight: '500',
-  //         transition: 'all 0.2s'
-  //       }}
-  //     >
-  //       {status} ({repairs.filter(r => status === "All" || r.repairStatus === status).length})
-  //     </button>
-  //   ))}
-  // </div>
-  // Update the review display in the table
   const renderReview = (repair) => {
     console.log("Rendering review for repair:", {
       id: repair._id,
@@ -1641,22 +1649,7 @@ const ProductRepairList = ({ darkMode }) => {
           Job List
         </h2>
       </div>
-      {/* <div className={`search-action-container ${darkMode ? 'dark' : ''}`}> */}
-        {/* <div className={`search-bar-container ${darkMode ? 'dark' : ''}`}>
-          <FontAwesomeIcon icon={faSearch} className="search-icon" />
-          <input
-            type="text"
-            placeholder="       Search... "
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={`product-repair-list-search-bar ${darkMode ? 'dark' : ''}`}
-          />
-           {searchTerm && (
-            <button onClick={handleClearSearch} className="search-clear-btn">
-              ✕
-            </button>
-          )}
-        </div> */}
+      
         <div className="search-action-container">
         <div className={`search-bar-container ${darkMode ? "dark" : ""}`}>
           <FontAwesomeIcon icon={faSearch} className="search-icon" />
@@ -2136,7 +2129,7 @@ const ProductRepairList = ({ darkMode }) => {
                     }}>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>GRN</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Item Name</th>
-                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Quantity</th>
+                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Qty</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Cost</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Action</th>
                     </tr>
@@ -2145,7 +2138,7 @@ const ProductRepairList = ({ darkMode }) => {
                     {selectedRepair.repairCart.map((item, index) => (
                       <tr key={index} style={{ backgroundColor: index % 2 === 0 ? (darkMode ? "#4a4a4a" : "#fafafa") : (darkMode ? "#444" : "#fff") }}>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.itemCode}</td>
-                        <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.itemName}</td>
+                        <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.itemName} - {item.category}</td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.quantity}</td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>Rs. {item.cost}</td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
@@ -2793,11 +2786,17 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
               />
               {/* <button onClick={handleClearAllProducts} className="btn-primary" style={{ background: '#ffc107', color: '#000', minWidth: 90 }}>Clear All</button> */}
             </div>
+            {loading ? (
+              <p className="loading">Loading products...</p>
+            ) : filteredProductsForModal.length === 0 ? (
+              <p className="loading">Products Not Found..  </p>
+            ) : (
             <table className={`repair-table ${darkMode ? "dark" : ""}`}> 
               <thead>
                 <tr>
                   <th>GRN</th>
                   <th>Item Name</th>
+                  <th>Category</th>
                   <th>Stock</th>
                   <th>Action</th>
                 </tr>
@@ -2805,8 +2804,9 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
               <tbody>
                 {paginatedProductsForModal.map((product) => (
                   <tr key={product._id}>
-                    <td>{product.itemCode}</td>
+                    <td>{product.itemCode.slice(0,4)}...</td>
                     <td>{product.itemName}</td>
+                    <td>{product.category}</td>
                     <td>{product.stock}</td>
                     <td className="action-buttons">
                       <button
@@ -2821,6 +2821,7 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
                 ))}
               </tbody>
             </table>
+            )}
             {/* Pagination controls below the table */}
             {totalProductPages > 1 && (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '12px 0', gap: 10 }}>
@@ -2842,11 +2843,13 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
                 </button>
               )}
             </div>
+            <br />
+            <div>
             {selectedProducts.length > 0 ? (
               <ul className="selected-products-list">
                 {selectedProducts.map((item, index) => (
                   <li key={index} className="selected-product-item">
-                    <span>{item.itemCode} - {item.itemName || "Unknown"}</span>
+                    <span>{item.itemName || "Unknown"} - {item.category || "Unknown"}</span>
                     <div className="quantity-controls">
                       <button
                         onClick={() => handleUpdateQuantity(index, -1)}
@@ -2878,6 +2881,7 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
             ) : (
               <p>No products selected.</p>
             )}
+            </div>
             <br />
             <div className="modal-buttons-container">
               <button onClick={handleUpdateCart} className="update-cart-btn">
@@ -2906,6 +2910,7 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
                     <tr>
                       <th>GRN</th>
                       <th>Item Name</th>
+                      <th>Category</th>
                       <th>CURRENT QUANTITY</th>
                       <th>RETURN QUANTITY</th>
                     </tr>
@@ -2915,6 +2920,7 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
                       <tr key={item.itemCode}>
                         <td>{item.itemCode}</td>
                         <td>{item.itemName}</td>
+                        <td>{item.category}</td>
                         <td>{item.maxQuantity}</td>
                         <td>
                           <input

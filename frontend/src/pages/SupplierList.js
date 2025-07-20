@@ -45,7 +45,7 @@ const SupplierList = ({ darkMode }) => {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch('https://raxwo-manage-backend-production.up.railway.app/api/suppliers', {
+      const response = await fetch('http://localhost:5002/api/suppliers', {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -64,7 +64,7 @@ const SupplierList = ({ darkMode }) => {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('https://raxwo-manage-backend-production.up.railway.app/api/products');
+      const response = await fetch('http://localhost:5002/api/products');
       if (!response.ok) {
         throw new Error(`Failed to fetch products: ${response.statusText}`);
       }
@@ -99,7 +99,7 @@ const SupplierList = ({ darkMode }) => {
     if (window.confirm('Are you sure you want to delete this supplier?')) {
       try {
         const changedBy = localStorage.getItem('username') || localStorage.getItem('cashierName') || 'system';
-        const response = await fetch(`https://raxwo-manage-backend-production.up.railway.app/api/suppliers/${id}`, {
+        const response = await fetch(`http://localhost:5002/api/suppliers/${id}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ changedBy }),
@@ -140,7 +140,7 @@ const SupplierList = ({ darkMode }) => {
     if (!selectedSupplier || !selectedItemCode) return;
     try {
       setLoading(true);
-      const response = await fetch(`https://raxwo-manage-backend-production.up.railway.app/api/products?itemCode=${selectedItemCode}`);
+      const response = await fetch(`http://localhost:5002/api/products?itemCode=${selectedItemCode}`);
       if (!response.ok) {
         throw new Error('Failed to fetch item details');
       }

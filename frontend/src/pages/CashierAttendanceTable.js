@@ -11,7 +11,7 @@ import editicon from "../icon/edit.png";
 import deleteicon from "../icon/delete.png";
 import attendlisticon from "../icon/marking.png";
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/attendance";
+const API_URL = "http://localhost:5002/api/attendance";
 
 const CashierAttendanceTable = ({ darkMode }) => {
   const [attendanceData, setAttendanceData] = useState([]);

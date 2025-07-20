@@ -22,7 +22,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
     }
 
     // Fetch all products with authorization header
-    axios.get('https://raxwo-manage-backend-production.up.railway.app/api/products', {
+    axios.get('http://localhost:5002/api/products', {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -150,7 +150,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
     setLoading(true);
 
     try {
-      const response = await fetch("https://raxwo-manage-backend-production.up.railway.app/api/payments/return", {
+      const response = await fetch("http://localhost:5002/api/payments/return", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

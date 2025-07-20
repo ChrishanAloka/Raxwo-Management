@@ -46,6 +46,7 @@ router.post('/', async (req, res) => {
     date: req.body.date,
     time: req.body.time,
     businessName: req.body.businessName || '',
+    supplierName: req.body.supplierName || '',
     phoneNumber: req.body.phoneNumber || '',
     address: req.body.address || '',
     totalPayments: req.body.totalPayments || 0,

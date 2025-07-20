@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
-const PRODUCTS_API = 'https://raxwo-manage-backend-production.up.railway.app/api/products';
-const DELETED_PRODUCTS_API = 'https://raxwo-manage-backend-production.up.railway.app/api/products/deleted';
-const DELETION_LOGS_API = 'https://raxwo-manage-backend-production.up.railway.app/api/products/deleted-logs';
-const INACTIVE_PRODUCTS_API = 'https://raxwo-manage-backend-production.up.railway.app/api/products/inactive';
+const PRODUCTS_API = 'http://localhost:5002/api/products';
+const DELETED_PRODUCTS_API = 'http://localhost:5002/api/products/deleted';
+const DELETION_LOGS_API = 'http://localhost:5002/api/products/deleted-logs';
+const INACTIVE_PRODUCTS_API = 'http://localhost:5002/api/products/inactive';
 
 const DeletedProducts = () => {
   const [deletedProducts, setDeletedProducts] = useState([]);

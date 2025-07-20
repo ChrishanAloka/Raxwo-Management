@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import "../styles/SalaryEdit.css";
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/salaries";
-const EMPLOYEE_API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/salaries/employee";
+const API_URL = "http://localhost:5002/api/salaries";
+const EMPLOYEE_API_URL = "http://localhost:5002/api/salaries/employee";
 
 const SalaryEdit = ({ isOpen, onClose, salary, refreshSalaries, darkMode }) => {
   const [formData, setFormData] = useState({

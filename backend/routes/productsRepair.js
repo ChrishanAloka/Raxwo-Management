@@ -241,7 +241,8 @@ router.patch("/update-cart/:id", getRepair, async (req, res) => {
       } else {
         updatedCartMap.set(itemCode, {
           itemCode,
-          itemName: product.itemName, // Ensure itemName is included
+          itemName: product.itemName,
+          category: product.category, // Ensure itemName is included
           quantity,
           cost: product.sellingPrice * quantity,
         });
@@ -653,6 +654,20 @@ router.patch("/:id", getRepair, async (req, res) => {
 
     // Apply updates
     Object.assign(repair, updates);
+
+    // Handle item stock update if removeditem and removedqty are present
+    const { removeditem, removedqty } = req.body;
+    if (removeditem && removedqty && removedqty > 0) {
+      const product = await Product.findOne({ itemCode: removeditem });
+      if (product) {
+        product.stock += parseInt(removedqty, 10);
+        await product.save();
+        console.log(`Stock updated for itemCode: ${removeditem}, new stock: ${product.stock}`);
+      } else {
+        console.warn(`Product with itemCode ${removeditem} not found. Stock not updated.`);
+      }
+    }
+    
     await repair.save();
 
     res.json(repair);

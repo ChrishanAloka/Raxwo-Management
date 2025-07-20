@@ -15,7 +15,7 @@ import SalaryEdit from "./SalaryEdit";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/salaries";
+const API_URL = "http://localhost:5002/api/salaries";
 
 const SalaryList = ({ darkMode }) => {
   const [salaries, setSalaries] = useState([]);

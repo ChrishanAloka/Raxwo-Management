@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "./EditProduct.css";
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/products";
-const SUPPLIER_API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/suppliers";
+const API_URL = "http://localhost:5002/api/products";
+const SUPPLIER_API_URL = "http://localhost:5002/api/suppliers";
 
 const EditProduct = ({ product, closeModal, darkMode, showGRN }) => {
   const [formData, setFormData] = useState({

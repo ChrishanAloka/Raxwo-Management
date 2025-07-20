@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "../styles/SupplierAdd.css";
 import '../styles/EditUser.css';
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/suppliers";
+const API_URL = "http://localhost:5002/api/suppliers";
 
 const SupplierUpdate = ({ isOpen, onClose, supplierId, refreshSuppliers, darkMode }) => {
   const [formData, setFormData] = useState({

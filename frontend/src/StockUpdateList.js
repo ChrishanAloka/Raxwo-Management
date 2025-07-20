@@ -11,8 +11,8 @@ import edticon from "./icon/edit.png";
 import deleteicon from "./icon/delete.png";
 
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/products";
-const CLICKED_PRODUCTS_API_URL = 'https://raxwo-manage-backend-production.up.railway.app/api/clicked-products';
+const API_URL = "http://localhost:5002/api/products";
+const CLICKED_PRODUCTS_API_URL = 'http://localhost:5002/api/clicked-products';
 
 const StockUpdateList = ({ darkMode }) => {
   const location = useLocation();

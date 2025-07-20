@@ -9,7 +9,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile, faFilePdf, faFileExcel, faSearch } from '@fortawesome/free-solid-svg-icons';
 import EditProduct from './EditProduct';
 
-const API_URL = "https://raxwo-manage-backend-production.up.railway.app/api/products";
+const API_URL = "http://localhost:5002/api/products";
 const itemsPerPage = 20;
 
 const CategoryProductList = ({ darkMode }) => {

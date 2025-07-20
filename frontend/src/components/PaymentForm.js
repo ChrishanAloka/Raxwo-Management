@@ -31,7 +31,7 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
     }
 
     try {
-      const response = await fetch(`https://raxwo-manage-backend-production.up.railway.app/api/suppliers/${supplier._id}/payments`, {
+      const response = await fetch(`http://localhost:5002/api/suppliers/${supplier._id}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentAmount: payment }),
