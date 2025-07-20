@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
-const PRODUCTS_API = 'http://localhost:5002/api/products';
-const HIDDEN_PRODUCTS_API = 'http://localhost:5002/api/products/hidden';
+const PRODUCTS_API = 'https://raxwo-management.onrender.com/api/products';
+const HIDDEN_PRODUCTS_API = 'https://raxwo-management.onrender.com/api/products/hidden';
 
 const HiddenProducts = () => {
   const [hiddenProducts, setHiddenProducts] = useState([]);

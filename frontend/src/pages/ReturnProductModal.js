@@ -21,7 +21,7 @@ const ReturnProductModal = ({ product, closeModal, darkMode}) => {
     }
 
     try {
-      const response = await fetch(`http://localhost:5002/api/products/return/${product._id}`, {
+      const response = await fetch(`https://raxwo-management.onrender.com/api/products/return/${product._id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ returnQuantity, returnType }),

@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import "./AddProductRepair.css";
 
-const API_URL = "http://localhost:5002/api/productsRepair";
+const API_URL = "https://raxwo-management.onrender.com/api/productsRepair";
 
 const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
   const [formData, setFormData] = useState({
@@ -39,7 +39,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
   useEffect(() => {
     const fetchDeviceIssues = async () => {
       try {
-        const response = await fetch("http://localhost:5002/api/deviceIssues");
+        const response = await fetch("https://raxwo-management.onrender.com/api/deviceIssues");
         if (response.ok) {
           const data = await response.json();
           setDeviceIssues(data);
@@ -55,7 +55,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
 
     const fetchDeviceTypes = async () => {
       try {
-        const response = await fetch("http://localhost:5002/api/deviceTypes");
+        const response = await fetch("https://raxwo-management.onrender.com/api/deviceTypes");
         if (response.ok) {
           const data = await response.json();
           setDeviceTypes(data);
@@ -77,7 +77,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
     if (!newIssue.trim()) return;
 
     try {
-      const response = await fetch("http://localhost:5002/api/deviceIssues", {
+      const response = await fetch("https://raxwo-management.onrender.com/api/deviceIssues", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -105,7 +105,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
     if (!newDeviceType.trim()) return;
 
     try {
-      const response = await fetch("http://localhost:5002/api/deviceTypes", {
+      const response = await fetch("https://raxwo-management.onrender.com/api/deviceTypes", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

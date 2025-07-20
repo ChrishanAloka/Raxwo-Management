@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import '../Products.css';
 import { useNavigate, Link } from 'react-router-dom';
 
-const API_URL = 'http://localhost:5002/api/suppliers';
-const PRODUCTS_API_URL = 'http://localhost:5002/api/products';
+const API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
+const PRODUCTS_API_URL = 'https://raxwo-management.onrender.com/api/products';
 
 const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => {
   const [grn, setGrn] = useState('');

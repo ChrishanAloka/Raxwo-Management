@@ -19,9 +19,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faChartSimple, faFile, faFilePdf, faFileExcel, faSearch, faTimes, faUpload, faSync } from '@fortawesome/free-solid-svg-icons';
 import { v4 as uuidv4 } from 'uuid';
 
-//const API_URL = 'http://localhost:5002/api/products';
- const API_URL = 'http://localhost:5002/api/products';
-const CLICKED_PRODUCTS_API_URL = 'http://localhost:5002/api/clicked-products';
+//const API_URL = 'https://raxwo-management.onrender.com/api/products';
+ const API_URL = 'https://raxwo-management.onrender.com/api/products';
+const CLICKED_PRODUCTS_API_URL = 'https://raxwo-management.onrender.com/api/clicked-products';
 
 const ProductList = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -425,7 +425,7 @@ const ProductList = ({ darkMode }) => {
       // Optionally, add a unique uploadId if needed
       // formData.append('uploadId', uuidv4());
     
-      const response = await fetch('http://localhost:5002/api/product-uploads/bulk-upload',
+      const response = await fetch('https://raxwo-management.onrender.com/api/product-uploads/bulk-upload',
  {
         method: 'POST',
         body: formData
@@ -450,7 +450,7 @@ const ProductList = ({ darkMode }) => {
     setUploadedLoading(true);
     setUploadedError('');
     try {
-      const res = await fetch(`http://localhost:5002/api/product-uploads?page=${page}&limit=20`);
+      const res = await fetch(`https://raxwo-management.onrender.com/api/product-uploads?page=${page}&limit=20`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to fetch uploaded records');
       setUploadedRecords(data.records || []);
@@ -470,7 +470,7 @@ const ProductList = ({ darkMode }) => {
 
   const handleExportAllUploaded = async () => {
     try {
-      const res = await fetch('http://localhost:5002/api/product-uploads/export-all');
+      const res = await fetch('https://raxwo-management.onrender.com/api/product-uploads/export-all');
       if (!res.ok) throw new Error('Failed to export records');
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);

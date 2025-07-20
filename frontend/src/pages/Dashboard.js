@@ -12,11 +12,11 @@ import repairingIcon from "../icon/00.png";
 import { FaChartLine, FaArrowUp, FaArrowDown, FaCheckCircle, FaClock, FaTools } from "react-icons/fa";
 import "../styles/Dashboard.css";
 
-const API_URL = "http://localhost:5002/api/dashboard";
-const PRODUCTS_REPAIR_API_URL = 'http://localhost:5002/api/productsRepair';
-const EXTRA_INCOME_API_URL = 'http://localhost:5002/api/extra-income';
-const SALARIES_API_URL = 'http://localhost:5002/api/salaries';
-const MAINTENANCE_API_URL = 'http://localhost:5002/api/maintenance';
+const API_URL = "https://raxwo-management.onrender.com/api/dashboard";
+const PRODUCTS_REPAIR_API_URL = 'https://raxwo-management.onrender.com/api/productsRepair';
+const EXTRA_INCOME_API_URL = 'https://raxwo-management.onrender.com/api/extra-income';
+const SALARIES_API_URL = 'https://raxwo-management.onrender.com/api/salaries';
+const MAINTENANCE_API_URL = 'https://raxwo-management.onrender.com/api/maintenance';
 
 // Sample data for demonstration
 const sampleData = {

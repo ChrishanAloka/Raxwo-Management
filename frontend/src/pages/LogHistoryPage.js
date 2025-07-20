@@ -4,13 +4,13 @@ import '../styles/PaymentTable.css';
 import '../Products.css';
 import { FaPlusCircle, FaEdit, FaTrashAlt, FaFilter, FaRedo } from 'react-icons/fa';
 
-const PRODUCT_API = 'http://localhost:5002/api/products';
-const SUPPLIER_API = 'http://localhost:5002/api/suppliers';
-const JOB_API = 'http://localhost:5002/api/productsRepair';
+const PRODUCT_API = 'https://raxwo-management.onrender.com/api/products';
+const SUPPLIER_API = 'https://raxwo-management.onrender.com/api/suppliers';
+const JOB_API = 'https://raxwo-management.onrender.com/api/productsRepair';
 // Add API endpoints for payment and maintenance
-const PAYMENT_API = 'http://localhost:5002/api/payments';
-const MAINTENANCE_API = 'http://localhost:5002/api/maintenance';
-const DELETED_LOGS_API = 'http://localhost:5002/api/products/deleted-logs';
+const PAYMENT_API = 'https://raxwo-management.onrender.com/api/payments';
+const MAINTENANCE_API = 'https://raxwo-management.onrender.com/api/maintenance';
+const DELETED_LOGS_API = 'https://raxwo-management.onrender.com/api/products/deleted-logs';
 
 // 1. Update ENTITY_LABELS to include all Navbar pages
 const ENTITY_LABELS = {
@@ -402,9 +402,9 @@ const LogHistoryPage = ({ darkMode }) => {
           fetch(JOB_API),
           fetch(PAYMENT_API, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }),
           fetch(MAINTENANCE_API),
-          fetch('http://localhost:5002/api/auth/users'),
-          fetch('http://localhost:5002/api/salaries'),
-          fetch('http://localhost:5002/api/extra-income'),
+          fetch('https://raxwo-management.onrender.com/api/auth/users'),
+          fetch('https://raxwo-management.onrender.com/api/salaries'),
+          fetch('https://raxwo-management.onrender.com/api/extra-income'),
           fetch(DELETED_LOGS_API),
         ]);
         const [products, suppliers, jobs, payments, maintenance, users, salaries, extraIncome, deletedLogs] = await Promise.all([

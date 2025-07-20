@@ -10,7 +10,7 @@ import HighchartsReact from "highcharts-react-official";
 import '../styles/PaymentTable.css';
 import deleteIcon from "../icon/delete.png";
 
-const API_URL = 'http://localhost:5002/api/payments';
+const API_URL = 'https://raxwo-management.onrender.com/api/payments';
 
 const PaymentTable = ({ darkMode }) => {
   const [payments, setPayments] = useState([]);

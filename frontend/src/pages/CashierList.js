@@ -12,7 +12,7 @@ import cashiericon from '../icon/people.png';
 import CashierAdd from "./CashierAdd";
 import CashierEdit from "./CashierEdit";
 
-const API_URL = "http://localhost:5002/api/cashiers";
+const API_URL = "https://raxwo-management.onrender.com/api/cashiers";
 
 const CashierList = ({ darkMode }) => {
   const [cashiers, setCashiers] = useState([]);

@@ -14,7 +14,7 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const API_URL = "http://localhost:5002/api/maintenance";
+const API_URL = "https://raxwo-management.onrender.com/api/maintenance";
 
 const MaintenanceList = ({ darkMode }) => {
   const [maintenanceRecords, setMaintenanceRecords] = useState([]);

@@ -36,7 +36,7 @@ const UserSignup = ({ darkMode }) => {
     }
 
     try {
-      const response = await axios.post('http://localhost:5002/api/auth/register', {
+      const response = await axios.post('https://raxwo-management.onrender.com/api/auth/register', {
         username: formData.username,
         email: formData.email,
         phone: formData.phone,

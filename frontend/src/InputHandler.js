@@ -8,7 +8,7 @@ const InputHandler = ({ darkMode }) => {
   // Save action to backend
   const saveAction = async (action) => {
     try {
-      await axios.post('http://localhost:5002/api/action', {
+      await axios.post('https://raxwo-management.onrender.com/api/action', {
         userId: localStorage.getItem('userId') || 'user123', // Dynamic user ID
         action,
         position,
