@@ -38,6 +38,8 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
     
     const generatedCodes = new Set(); // Track codes generated in this batch
 
+    let grnnumbercount = 1;
+
     for (let i = 0; i < jsonData.length; i++) {
       const row = jsonData[i];
       const item = {};
@@ -54,6 +56,13 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
 
       // Map category
       item.category = (row['Category'] || row['category'] || 'General').toString().trim().toLowerCase();
+
+      // Map Grn No
+      item.grnNumber = (row['GRN'] || row['grn'] || '' ).toString().trim().toLowerCase();
+      if (!item.grnNumber) {
+        let baseCode = `GRN-SYS`;
+        item.grnNumber = baseCode + String(grnnumbercount).padStart(2, '0');
+      }
 
       // Map buyingPrice
       item.buyingPrice = parseFloat(row['Buying Price'] || row['buyingPrice'] || row['BuyingPrice'] || 0);
@@ -108,6 +117,8 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
 
       validItems.push(item);
     }
+
+    grnnumbercount += 1;
 
     // Insert valid items
     if (validItems.length > 0) {

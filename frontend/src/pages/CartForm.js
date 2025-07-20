@@ -23,14 +23,14 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
 
   useEffect(() => {
     if (item) {
-      setGrn(item.itemCode || '');
+      setGrn(item.grnNumber || '');
       setItems([{
         itemName: item.itemName || '',
         category: item.category || '',
         stock: item.quantity?.toString() || '',
         buyingPrice: item.buyingPrice?.toString() || '',
         sellingPrice: item.sellingPrice?.toString() || '',
-        supplierName: item.supplierName || supplier.supplierName || '',
+        supplierName: item.supplierName || supplier.name || '',
       }]);
     } else {
       setGrn('');
@@ -40,7 +40,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
         stock: '',
         buyingPrice: '',
         sellingPrice: '',
-        supplierName: supplier.supplierName || '',
+        supplierName: supplier.name || '',
       }]);
     }
     setMessage('');
@@ -65,7 +65,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
       stock: '',
       buyingPrice: '',
       sellingPrice: '',
-      supplierName: supplier.supplierName || '',
+      supplierName: supplier.name || '',
     }]);
   };
 
@@ -131,8 +131,9 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
       // Process each item
       for (let i = 0; i < items.length; i++) {
         const itemData = {
-          itemCode: grn,
+          itemCode: item.itemCode,
           ...items[i],
+          grnNumber: grn,
           quantity: parseInt(items[i].stock) || 0,
           buyingPrice: Number(items[i].buyingPrice) || 0,
           sellingPrice: Number(items[i].sellingPrice) || 0,
@@ -152,7 +153,12 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
           throw new Error(errorData.message || `Failed to ${item ? 'update' : 'add'} item ${i + 1}`);
         }
 
-        const productResponse = await fetch(`${PRODUCTS_API_URL}/update-stock/${itemData.itemCode}`, {
+        const result = await response.json(); // Parse JSON response
+
+        // ✅ Get the itemCode from the response
+        const generatedItemCode = result.itemCode;
+
+        const productResponse = await fetch(`${PRODUCTS_API_URL}/update-stock/${generatedItemCode}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -161,6 +167,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
             newSellingPrice: itemData.sellingPrice,
             itemName: itemData.itemName,
             category: itemData.category,
+            grnNumber: itemData.itemCode,
             supplierName: itemData.supplierName,
           }),
         });
@@ -183,7 +190,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
           stock: '',
           buyingPrice: '',
           sellingPrice: '',
-          supplierName: supplier.supplierName || '',
+          supplierName: supplier.name || '',
         }]);
       }
 

@@ -117,17 +117,50 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
               <th>Stock</th>
               <th>Buying Price</th>
               <th>Selling Price</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item, index) => (
               <tr key={index}>
-                <td>{item.itemCode || 'N/A'}</td>
+                <td>{item.grnNumber || 'N/A'}</td>
                 <td>{item.itemName || 'N/A'}</td>
                 <td>{item.category || 'N/A'}</td>
                 <td>{item.quantity || '0'}</td>
                 <td>Rs. {item.buyingPrice || '0'}</td>
                 <td>Rs. {item.sellingPrice || '0'}</td>
+                <td>
+                  <div className="action-container">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowActionMenu(showActionMenu === (item._id || item.itemCode || index) ? null : (item._id || item.itemCode || index));
+                      }}
+                      className="action-dot-btn"
+                    >
+                      ⋮
+                    </button>
+                    {showActionMenu === (item._id || item.itemCode || index) && (
+                      <>
+                        <div className="action-menu-overlay" onClick={() => setShowActionMenu(null)} />
+                        <div className="action-menu">
+                          <button onClick={() => handleEdit(item, index)} className="p-edit-btn">
+                            <div className="action-btn-content">
+                              <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
+                              <span>Edit</span>
+                            </div>
+                          </button>
+                          <button onClick={() => handleDelete(index)} className="p-delete-btn">
+                            <div className="action-btn-content">
+                              <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
+                              <span>Delete</span>
+                            </div>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -135,7 +168,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
       )}
       {showEditModal && editItem && (
         <CartForm
-          supplier={{ _id: supplierId }}
+          supplier={{ _id: supplierId, name:supplierName }}
           item={editItem}
           closeModal={() => {
             setShowEditModal(false);

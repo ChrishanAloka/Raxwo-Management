@@ -78,11 +78,35 @@ const ProductList = ({ darkMode }) => {
         return response.json();
       })
       .then((data) => {
+
+        const normalizedProducts = data.records.map((product) => {
+          const dataObj = product.data || {};
+          return {
+            _id: product._id,
+            itemCode: product.itemCode,
+            itemName: product.itemName,
+            category: product.category,
+            stock: product.stock,
+            buyingPrice: product.buyingPrice,
+            sellingPrice: product.sellingPrice,
+            createdAt: product.createdAt,
+            addedBackAt: product.addedBackAt
+            // Add other fields as needed
+          };
+        });
+
+        const clickedProducts = JSON.parse(localStorage.getItem("clickedProducts") || "[]");
+        const clickedProductIds = clickedProducts.map((cp) => cp._id);
+
+        const availableProducts = normalizedProducts.filter(
+          (product) =>
+            !product.clickedForAdd && !clickedProductIds.includes(product._id)
+        );
         // If paginated response
         if (data && data.records) {
-          setProducts(data.records);
+          setProducts(availableProducts);
           setTotalPages(data.totalPages || 1);
-          setTotalProducts(data.total || data.records.length);
+          setTotalProducts(data.total || availableProducts.length);
         } else if (Array.isArray(data)) {
           setProducts(data);
           setTotalPages(1);
@@ -200,7 +224,7 @@ const ProductList = ({ darkMode }) => {
       doc.text('Product List', 90, 20);
       const tableColumn = ['GRN', 'Item Name', 'Category', 'Buying Price', 'Selling Price', 'Stock', 'Supplier', 'Status', 'Created At'];
       const tableRows = availableProductsForReport.map((product) => [
-        product.itemCode || 'N/A',
+        product.grnNumber || 'N/A',
         product.itemName,
         product.category,
         `Rs. ${product.buyingPrice}`,
@@ -225,7 +249,7 @@ const ProductList = ({ darkMode }) => {
       const clickedProductIds = clickedProducts.map(cp => cp._id);
       const availableProductsForReport = allProducts.filter(product => !clickedProductIds.includes(product._id));
       const formattedProducts = availableProductsForReport.map((product) => ({
-        'GRN': product.itemCode || 'N/A',
+        'GRN': product.grnNumber || 'N/A',
         'Item Name': product.itemName,
         Category: product.category,
         'Buying Price': `Rs. ${product.buyingPrice}`,
@@ -668,12 +692,12 @@ const ProductList = ({ darkMode }) => {
                                   <span>Edit</span>
                                 </div>
                               </button>
-                              <button onClick={() => handleReturn(product)} className="p-return-btn">
+                              {/* <button onClick={() => handleReturn(product)} className="p-return-btn">
                                 <div className="action-btn-content">
                                   <img src={returnicon} alt="return" width="30" height="30" className="p-return-btn-icon" />
                                   <span>Return</span>
                                 </div>
-                              </button>
+                              </button> */}
                               <button onClick={() => handleBarcode(product)} className="p-barcode-btn">
                                 <div className="action-btn-content">
                                   <img src={barcodeicon} alt="barcode" width="30" height="30" className="p-barcode-btn-icon" />

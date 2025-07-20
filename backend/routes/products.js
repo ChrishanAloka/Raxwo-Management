@@ -796,7 +796,7 @@ router.patch('/restore/:id', async (req, res) => {
 router.patch('/update-stock/:itemCode', async (req, res) => {
   try {
     const itemCode = decodeURIComponent(req.params.itemCode);
-    const { newStock, newBuyingPrice, newSellingPrice, itemName, category, Supplier } = req.body;
+    const { newStock, newBuyingPrice, newSellingPrice, itemName, grnNumber, category, Supplier } = req.body;
 
     // Validate required fields
     if (!itemName || typeof itemName !== 'string' || itemName.trim() === '') {
@@ -831,6 +831,7 @@ router.patch('/update-stock/:itemCode', async (req, res) => {
           itemCode,
           itemName,
           category,
+          grnNumber,
           buyingPrice: Number(newBuyingPrice),
           sellingPrice: Number(newSellingPrice),
           stock: Number(newStock),
@@ -883,7 +884,7 @@ router.patch('/update-stock/:itemCode', async (req, res) => {
         product.changeHistory = [...(product.changeHistory || []), ...changes];
       }
       // Update the stock and prices
-      product.stock += Number(newStock);
+      product.stock = Number(newStock);
       product.buyingPrice = Number(newBuyingPrice);
       product.sellingPrice = Number(newSellingPrice);
       product.Supplier = finalSupplier;

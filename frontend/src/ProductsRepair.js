@@ -24,9 +24,9 @@ import { faFile, faFilePdf, faFileExcel, faSearch, faPlus, faTimes, faHistory } 
 import ChangeHistory from './components/ChangeHistory';
 
 
-const API_URL = "https://raxwo-management.onrender.com/api/productsRepair";
-const PRODUCT_API_URL = "https://raxwo-management.onrender.com/api/product-uploads";
-const JOB_API = 'https://raxwo-management.onrender.com/api/productsRepair';
+const API_URL = "http://localhost:5002/api/productsRepair";
+const PRODUCT_API_URL = "http://localhost:5002/api/product-uploads";
+const JOB_API = 'http://localhost:5002/api/productsRepair';
 
 // Add flattenLogs function directly here:
 function flattenLogs(data, entityType, entityIdField, entityNameField) {
@@ -216,8 +216,6 @@ const ProductRepairList = ({ darkMode }) => {
           };
         });
 
-        console.log("Normalized products:", normalizedProducts);
-
         // Step 3: Filter out already selected products
         const clickedProducts = JSON.parse(localStorage.getItem("clickedProducts") || "[]");
         const clickedProductIds = clickedProducts.map((cp) => cp._id);
@@ -226,8 +224,6 @@ const ProductRepairList = ({ darkMode }) => {
           (product) =>
             !product.clickedForAdd && !clickedProductIds.includes(product._id)
         );
-
-        console.log("Available products to show:", availableProducts);
 
         // Step 4: Update state
         setProducts(availableProducts);
@@ -1168,7 +1164,7 @@ const ProductRepairList = ({ darkMode }) => {
             <table>
               <thead>
                 <tr>
-                  <th>GRN</th>
+                  
                   <th>Item Name</th>
                   <th>Category</th>
                   <th>Quantity</th>
@@ -1180,7 +1176,6 @@ const ProductRepairList = ({ darkMode }) => {
                   .map(
                     (item) => `
                       <tr>
-                        <td>${item.itemCode}</td>
                         <td>${item.itemName}</td>
                         <td>${item.category}</td>
                         <td>${item.quantity}</td>
@@ -2127,7 +2122,6 @@ const ProductRepairList = ({ darkMode }) => {
                       backgroundColor: darkMode ? "#555" : "#f2f2f2",
                       color: darkMode ? "#fff" : "#333"
                     }}>
-                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>GRN</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Item Name</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Qty</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Cost</th>
@@ -2137,7 +2131,6 @@ const ProductRepairList = ({ darkMode }) => {
                   <tbody>
                     {selectedRepair.repairCart.map((item, index) => (
                       <tr key={index} style={{ backgroundColor: index % 2 === 0 ? (darkMode ? "#4a4a4a" : "#fafafa") : (darkMode ? "#444" : "#fff") }}>
-                        <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.itemCode}</td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.itemName} - {item.category}</td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.quantity}</td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>Rs. {item.cost}</td>
@@ -2794,7 +2787,6 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
             <table className={`repair-table ${darkMode ? "dark" : ""}`}> 
               <thead>
                 <tr>
-                  <th>GRN</th>
                   <th>Item Name</th>
                   <th>Category</th>
                   <th>Stock</th>
@@ -2804,7 +2796,6 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
               <tbody>
                 {paginatedProductsForModal.map((product) => (
                   <tr key={product._id}>
-                    <td>{product.itemCode.slice(0,4)}...</td>
                     <td>{product.itemName}</td>
                     <td>{product.category}</td>
                     <td>{product.stock}</td>
@@ -2908,7 +2899,6 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
                 <table className={`repair-table ${darkMode ? "dark" : ""}`}>
                   <thead>
                     <tr>
-                      <th>GRN</th>
                       <th>Item Name</th>
                       <th>Category</th>
                       <th>CURRENT QUANTITY</th>
@@ -2918,7 +2908,6 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
                   <tbody>
                     {returnFormData.map((item) => (
                       <tr key={item.itemCode}>
-                        <td>{item.itemCode}</td>
                         <td>{item.itemName}</td>
                         <td>{item.category}</td>
                         <td>{item.maxQuantity}</td>

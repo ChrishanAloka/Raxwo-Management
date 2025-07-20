@@ -37,8 +37,34 @@ const CategoryProductList = ({ darkMode }) => {
         return response.json();
       })
       .then((data) => {
+
+        const normalizedProducts = data.records.map((product) => {
+          const dataObj = product.data || {};
+          return {
+            _id: product._id,
+            grnNumber: product.grnNumber,
+            itemCode: product.itemCode,
+            itemName: product.itemName,
+            category: product.category,
+            stock: product.stock,
+            buyingPrice: product.buyingPrice,
+            sellingPrice: product.sellingPrice,
+            createdAt: product.createdAt,
+            addedBackAt: product.addedBackAt
+            // Add other fields as needed
+          };
+        });
+
+        const clickedProducts = JSON.parse(localStorage.getItem("clickedProducts") || "[]");
+        const clickedProductIds = clickedProducts.map((cp) => cp._id);
+
+        const availableProducts = normalizedProducts.filter(
+          (product) =>
+            !product.clickedForAdd && !clickedProductIds.includes(product._id)
+        );
+
         if (data && data.records) {
-          setProducts(data.records);
+          setProducts(availableProducts);
           setTotalPages(data.totalPages || 1);
           setTotalProducts(data.total || data.records.length);
         } else if (Array.isArray(data)) {
@@ -114,7 +140,7 @@ const CategoryProductList = ({ darkMode }) => {
             "Created At",
           ]],
           body: grouped[category].map((product) => [
-            product.itemCode,
+            product.grnNumber,
             product.itemName,
             product.buyingPrice,
             product.sellingPrice,
@@ -146,7 +172,7 @@ const CategoryProductList = ({ darkMode }) => {
         const categoryProducts = grouped[category];
         const worksheet = XLSX.utils.json_to_sheet(
           categoryProducts.map((product) => ({
-            "GRN": product.itemCode,
+            "GRN": product.grnNumber,
             "Item Name": product.itemName,
             "Buying Price": product.buyingPrice,
             "Selling Price": product.sellingPrice,
@@ -269,7 +295,7 @@ const CategoryProductList = ({ darkMode }) => {
                   <tbody>
                     {groupedByCategory[category].map((product, idx) => (
                       <tr key={product._id || product.itemCode || idx}>
-                        <td>{product.itemCode}</td>
+                        <td>{product.grnNumber}</td>
                         <td>{product.itemName}</td>
                         <td>{product.buyingPrice}</td>
                         <td>{product.sellingPrice}</td>
@@ -296,12 +322,12 @@ const CategoryProductList = ({ darkMode }) => {
                                       <span>Edit</span>
                                     </div>
                                   </button>
-                                  <button onClick={() => handleDelete(product)} className="p-delete-btn">
+                                  {/* <button onClick={() => handleDelete(product)} className="p-delete-btn">
                                     <div className="action-btn-content">
                                       <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
                                       <span>Delete</span>
                                     </div>
-                                  </button>
+                                  </button> */}
                                 </div>
                               </>
                             )}

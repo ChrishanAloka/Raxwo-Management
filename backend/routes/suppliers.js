@@ -140,14 +140,32 @@ router.delete('/:id', getSupplier, async (req, res) => {
 
 // POST: Add an item to a supplier's cart
 router.post('/:id/items', getSupplier, async (req, res) => {
+
+  // Generate itemCode if missing
+    const resitem = req.body;
+    const categoryCode = resitem.category.slice(0, 3).toUpperCase(); // first 3 letters
+    const itemNameNoSpaces = resitem.itemName.replace(/\s+/g, ''); // remove spaces
+    const itemNameCode = itemNameNoSpaces.slice(0, 4).toUpperCase(); // first 4 letters
+
+    let baseCode = `Ite${categoryCode}${itemNameCode}`;
+    let counter = 1;
+    let candidate = baseCode + String(counter).padStart(2, '0');
+
+    // Check DB and current batch
+    while (await Product.exists({ itemCode: candidate })) {
+      counter++;
+      candidate = baseCode + String(counter).padStart(2, '0');
+    }
+  
+
   const item = {
-    itemCode: req.body.itemCode,
+    itemCode: candidate,
     itemName: req.body.itemName,
     category: req.body.category,
     quantity: req.body.quantity,
     buyingPrice: req.body.buyingPrice,
     sellingPrice: req.body.sellingPrice,
-    grnNumber: req.body.grnNumber || 'GRN-' + Math.random().toString(36).substr(2, 9).toUpperCase()
+    grnNumber: req.body.itemCode || 'GRN-' + Math.random().toString(36).substr(2, 9).toUpperCase()
   };
 
   res.supplier.items.push(item);
@@ -182,7 +200,13 @@ router.post('/:id/items', getSupplier, async (req, res) => {
 
   try {
     const updatedSupplier = await res.supplier.save();
-    res.status(201).json(updatedSupplier);
+    
+    // ✅ Send back the itemCode in response
+    res.status(201).json({
+      message: 'Item added successfully',
+      itemCode: item.itemCode,
+      supplier: updatedSupplier   
+    });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -203,8 +227,8 @@ router.patch('/:id/items/:itemIndex', getSupplier, async (req, res) => {
   if (req.body.quantity != null) item.quantity = req.body.quantity;
   if (req.body.buyingPrice != null) item.buyingPrice = req.body.buyingPrice;
   if (req.body.sellingPrice != null) item.sellingPrice = req.body.sellingPrice;
-  if (req.body.grnNumber != null) item.grnNumber = req.body.grnNumber;
-
+  item.grnNumber = req.body.grnNumber;
+ 
   // Log cart update
   res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
     field: 'cart-update',
@@ -236,7 +260,11 @@ router.patch('/:id/items/:itemIndex', getSupplier, async (req, res) => {
 
   try {
     const updatedSupplier = await res.supplier.save();
-    res.json(updatedSupplier);
+    res.status(201).json({
+      message: 'Item Updated successfully',
+      itemCode: item.itemCode,
+      supplier: updatedSupplier   
+    });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }

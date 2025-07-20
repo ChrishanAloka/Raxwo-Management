@@ -6,7 +6,8 @@ const itemSchema = new mongoose.Schema({
   category: { type: String, required: true },
   quantity: { type: Number, required: true, min: 0 },
   buyingPrice: { type: Number, required: true, min: 0 },
-  sellingPrice: { type: Number, required: true, min: 0 }
+  sellingPrice: { type: Number, required: true, min: 0 },
+  grnNumber:{ type: String, required: false }
 });
 
 const supplierSchema = new mongoose.Schema({

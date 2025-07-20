@@ -162,7 +162,7 @@ const AddProduct = ({ darkMode }) => {
             </button>
           {clickedProducts.length > 0 && (
             <button type="button" className="a-p-cancel-btn" onClick={handleClearAll} style={{ marginLeft: '10px', backgroundColor: '#dc3545' }}>
-              Clear All
+              Restore All
             </button>
           )}
           </div>

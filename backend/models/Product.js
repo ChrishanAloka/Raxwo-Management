@@ -11,6 +11,10 @@ const productSchema = new mongoose.Schema({
     type: String,
     default: "General"
   },
+  grnNumber: {
+    type: String,
+    default: "GRN-SYS01"
+  },
   buyingPrice: {
     type: Number,
     default: 0,
