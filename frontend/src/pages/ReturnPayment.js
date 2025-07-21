@@ -214,7 +214,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
           <div className="product-results">
             {filteredProducts.slice(0, 5).map(product => (
               <div key={product._id} className={`product-item ${darkMode ? "dark-mode" : ""}`}>
-                <span>{product.itemCode} - {product.itemName} - Rs. {product.sellingPrice}</span>
+                <span>{product.itemName} - {product.category} - Rs. {product.sellingPrice}</span>
                 <div className="product-results-button">
                   <button onClick={() => addToReturn(product)}>Add</button>
                 </div>

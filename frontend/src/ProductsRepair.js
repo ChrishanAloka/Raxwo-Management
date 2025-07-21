@@ -86,14 +86,16 @@ const ProductRepairList = ({ darkMode }) => {
     setProductSearchQuery('');
     setProductPage(1);
   };
-  const normalize = str => (str || '').toLowerCase().replace(/\s+/g, '');
+  const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
+
   const filteredProductsForModal = productSearchQuery.trim() === ""
-  ? products
-  : products.filter(product =>
-      normalize(product.itemName).includes(normalize(productSearchQuery)) ||
-      normalize(product.category).includes(normalize(productSearchQuery)) ||
-      normalize(product.itemCode).includes(normalize(productSearchQuery))
-    );
+    ? products
+    : products.filter(product => {
+        const queryWords = normalize(productSearchQuery).split(' ');
+        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+
+        return queryWords.every(word => searchableText.includes(word));
+      });
   // console.log("Current product search query:", productSearchQuery);
   // console.log("Current products in state:", products);  
   // console.log("Filtered products for modal:", filteredProductsForModal);

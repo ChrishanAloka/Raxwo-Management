@@ -121,6 +121,7 @@ const Payment = ({ darkMode }) => {
   const filteredProducts = products.filter((product) =>
     product.itemCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.buyingPrice.toString().includes(searchQuery) ||
     product.sellingPrice.toString().includes(searchQuery)
   );
