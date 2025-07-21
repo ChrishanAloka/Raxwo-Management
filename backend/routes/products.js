@@ -12,6 +12,16 @@ function normalize(str) {
   return (str || '').toLowerCase().replace(/\s+/g, '');
 }
 
+function getSearchableField(fieldPath) {
+  return {
+    $replaceAll: {
+      input: { $toLower: `$${fieldPath}` },
+      find: ' ',
+      replacement: ''
+    }
+  };
+}
+
 // GET: Get all products (only non-deleted and visible) + uploaded records
 router.get('/', async (req, res) => {
   try {
@@ -26,11 +36,43 @@ router.get('/', async (req, res) => {
     let productFilter = { deleted: { $ne: true }, visible: { $ne: false } };
     if (search) {
       const normalizedSearch = normalize(search);
+
+      const searchableFields = [
+        getSearchableField('itemName'),
+        getSearchableField('category'),
+        getSearchableField('itemCode'),
+        getSearchableField('Supplier')
+      ];
+
+      const searchableCombined = {
+        $reduce: {
+          input: searchableFields,
+          initialValue: '',
+          in: { $concat: ['$$value', '$$this'] }
+        }
+      };
+
       productFilter.$or = [
-        { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$itemName" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } },
-        { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$category" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } },
-        { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$itemCode" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } },
-        { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$Supplier" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } }
+        // Match any individual field
+        ...searchableFields.map(field => ({
+          $expr: {
+            $regexMatch: {
+              input: field,
+              regex: normalizedSearch,
+              options: 'i'
+            }
+          }
+        })),
+        // Match across fields (e.g., "phone case" in itemName + category)
+        {
+          $expr: {
+            $regexMatch: {
+              input: searchableCombined,
+              regex: normalizedSearch,
+              options: 'i'
+            }
+          }
+        }
       ];
     }
 
@@ -38,18 +80,46 @@ router.get('/', async (req, res) => {
     let uploadFilter = {};
     if (search) {
       const normalizedSearch = normalize(search);
-      uploadFilter = {
-        $or: [
-          { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$data.Item Name" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } },
-          { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$data.itemName" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } },
-          { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$data.ItemCode" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } },
-          { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$data.itemCode" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } },
-          { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$data.Category" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } },
-          { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$data.category" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } },
-          { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$data.Supplier" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } },
-          { $expr: { $regexMatch: { input: { $replaceAll: { input: { $toLower: "$data.supplierName" }, find: ' ', replacement: '' } }, regex: normalizedSearch } } }
-        ]
+
+      const searchableFields = [
+        getSearchableField('data.Item Name'),
+        getSearchableField('data.itemName'),
+        getSearchableField('data.ItemCode'),
+        getSearchableField('data.itemCode'),
+        getSearchableField('data.Category'),
+        getSearchableField('data.category'),
+        getSearchableField('data.Supplier'),
+        getSearchableField('data.supplierName')
+      ];
+
+      const searchableCombined = {
+        $reduce: {
+          input: searchableFields,
+          initialValue: '',
+          in: { $concat: ['$$value', '$$this'] }
+        }
       };
+
+      uploadFilter.$or = [
+        ...searchableFields.map(field => ({
+          $expr: {
+            $regexMatch: {
+              input: field,
+              regex: normalizedSearch,
+              options: 'i'
+            }
+          }
+        })),
+        {
+          $expr: {
+            $regexMatch: {
+              input: searchableCombined,
+              regex: normalizedSearch,
+              options: 'i'
+            }
+          }
+        }
+      ];
     }
 
     if (usePagination) {
