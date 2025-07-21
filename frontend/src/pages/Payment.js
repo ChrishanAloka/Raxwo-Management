@@ -227,7 +227,7 @@ const Payment = ({ darkMode }) => {
             <thead className={`cart-table-head ${darkMode ? 'dark' : ''}`}>
               <tr>
                 <th>Item Name</th>
-                <th>Quantity</th>
+                <th>Qty</th>
                 <th>Price</th>
                 <th>Discount</th>
                 <th>Total</th>
@@ -247,7 +247,7 @@ const Payment = ({ darkMode }) => {
                       className={darkMode ? 'dark' : ''}
                     />
                   </td>
-                  <td>${item.sellingPrice}</td>
+                  <td>Rs.{item.sellingPrice}</td>
                   <td>
                     <input
                       type="number"
@@ -257,7 +257,7 @@ const Payment = ({ darkMode }) => {
                       className={darkMode ? 'dark' : ''}
                     />
                   </td>
-                  <td>${(item.sellingPrice * item.quantity - item.discount).toFixed(2)}</td>
+                  <td>Rs.{(item.sellingPrice * item.quantity - item.discount).toFixed(2)}</td>
                   <td>
                     <button
                       onClick={() => removeFromCart(index)}
@@ -275,15 +275,15 @@ const Payment = ({ darkMode }) => {
         <div className={`payment-summary ${darkMode ? 'dark' : ''}`}>
           <div className="summary-row">
             <h3 className={`subtotal ${darkMode ? 'dark' : ''}`}>
-              Subtotal: ${calculateSubtotal().toFixed(2)}
+              Subtotal: Rs.{calculateSubtotal().toFixed(2)}
             </h3>
             <h3 className={`total-discount ${darkMode ? 'dark' : ''}`}>
-              Discount: ${calculateTotalDiscount().toFixed(2)}
+              Discount: Rs.{calculateTotalDiscount().toFixed(2)}
             </h3>
           </div>
           <div className="summary-row">
             <h3 className={`total ${darkMode ? 'dark' : ''}`}>
-              Total: ${calculateTotal().toFixed(2)}
+              Total: Rs.{calculateTotal().toFixed(2)}
             </h3>
             <h3 className={`total-items ${darkMode ? 'dark' : ''}`}>
               Items: {calculateTotalItems()}
@@ -386,7 +386,7 @@ const Payment = ({ darkMode }) => {
         <div className="product-search-container">
           <input
             type="text"
-            placeholder="🔍 Search by code, name, buying or selling price..."
+            placeholder="🔍 Search name, buying or selling price..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`productsearch ${darkMode ? 'dark' : ''}`}
@@ -407,10 +407,11 @@ const Payment = ({ darkMode }) => {
             filteredProducts.map(product => (
               <div key={product._id} className={`product-card ${darkMode ? 'dark' : ''}`}>
                 <div className="product-info">
-                  <span className={`product-code ${darkMode ? 'dark' : ''}`}>{product.itemCode}</span>
+                  {/* <span className={`product-code ${darkMode ? 'dark' : ''}`}>{product.itemCode}</span> */}
                   <span className={`product-name ${darkMode ? 'dark' : ''}`}>{product.itemName}</span>
+                  <span className={`product-name ${darkMode ? 'dark' : ''}`}>{product.category}</span>
                   <span className={`product-price ${darkMode ? 'dark' : ''}`} style={{ color: 'black' }}>
-                    Sell: ${product.sellingPrice.toFixed(2)}
+                    Sell: Rs.{product.sellingPrice.toFixed(2)}
                   </span>
                 </div>
                 <button

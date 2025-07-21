@@ -112,7 +112,7 @@ const CustomerForm = ({ totalAmount, paymentType, onClose, darkMode, onSubmit })
             required
           />
 
-          <h3 className={`cusform-tot ${darkMode ? "dark" : ""}`}>Total: ${totalAmount.toFixed(2)}</h3>
+          <h3 className={`cusform-tot ${darkMode ? "dark" : ""}`}>Total: Rs.{totalAmount.toFixed(2)}</h3>
 
           <div className="button-group">
             <button type="submit">Save</button>
