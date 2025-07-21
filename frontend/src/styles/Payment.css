@@ -851,6 +851,14 @@ input[type="text"].dark, input[type="number"].dark, select.dark {
   background-color: #f9f9f9;
 }
 
+.cart-table-head th {
+  padding: 12px 20px;
+  text-align: left;
+  font-size: 14px;
+  color: #333;
+  vertical-align: middle;
+}
+
 .cart-table-body td {
   padding: 12px 20px;
   text-align: left;
