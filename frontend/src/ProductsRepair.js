@@ -24,9 +24,9 @@ import { faFile, faFilePdf, faFileExcel, faSearch, faPlus, faTimes, faHistory } 
 import ChangeHistory from './components/ChangeHistory';
 
 
-const API_URL = "http://localhost:5002/api/productsRepair";
-const PRODUCT_API_URL = "http://localhost:5002/api/product-uploads";
-const JOB_API = 'http://localhost:5002/api/productsRepair';
+const API_URL = "https://raxwo-management.onrender.com/api/productsRepair";
+const PRODUCT_API_URL = "https://raxwo-management.onrender.com/api/product-uploads";
+const JOB_API = 'https://raxwo-management.onrender.com/api/productsRepair';
 
 // Add flattenLogs function directly here:
 function flattenLogs(data, entityType, entityIdField, entityNameField) {
@@ -94,9 +94,9 @@ const ProductRepairList = ({ darkMode }) => {
       normalize(product.category).includes(normalize(productSearchQuery)) ||
       normalize(product.itemCode).includes(normalize(productSearchQuery))
     );
-  console.log("Current product search query:", productSearchQuery);
-  console.log("Current products in state:", products);  
-  console.log("Filtered products for modal:", filteredProductsForModal);
+  // console.log("Current product search query:", productSearchQuery);
+  // console.log("Current products in state:", products);  
+  // console.log("Filtered products for modal:", filteredProductsForModal);
   const totalProductPages = Math.ceil(filteredProductsForModal.length / productsPerPage);
   const paginatedProductsForModal = filteredProductsForModal.slice((productPage - 1) * productsPerPage, productPage * productsPerPage);
 
@@ -139,14 +139,14 @@ const ProductRepairList = ({ darkMode }) => {
         return response.json();
       })
       .then((data) => {
-        console.log("Raw API response repairs:", data);
+        // console.log("Raw API response repairs:", data);
 
         const repairData = Array.isArray(data) ? data : data.repairs || [];
 
         // Ensure all repair records have repairCart, totalRepairCost, and changeHistory
         const processedRepairData = repairData.map(repair => {
-          console.log("Processing repair:", repair.repairInvoice || repair.repairCode);
-          console.log("Change history before processing:", repair.changeHistory);
+          // console.log("Processing repair:", repair.repairInvoice || repair.repairCode);
+          // console.log("Change history before processing:", repair.changeHistory);
         
           const processedChangeHistory = Array.isArray(repair.changeHistory)
             ? repair.changeHistory.map(change => ({
@@ -171,7 +171,7 @@ const ProductRepairList = ({ darkMode }) => {
               : "Pending" // Default to "Pending" if status is invalid
           };
         });
-        console.log("Processed repair data:", processedRepairData);
+        // console.log("Processed repair data:", processedRepairData);
         setRepairs(processedRepairData);
         setLoading(false);
         if (processedRepairData.length === 0) {
@@ -179,7 +179,7 @@ const ProductRepairList = ({ darkMode }) => {
         }
       })
       .catch((err) => {
-        console.error("Fetch repairs error:", err);
+        // console.error("Fetch repairs error:", err);
         setError(err.message);
         setLoading(false);
       });
@@ -192,7 +192,7 @@ const ProductRepairList = ({ darkMode }) => {
         return response.json();
       })
       .then((data) => {
-        console.log("Raw API response:", data);
+        // console.log("Raw API response:", data);
 
         // Step 1: Extract the product list from the correct field
         const rawProducts = Array.isArray(data.records)
@@ -201,7 +201,7 @@ const ProductRepairList = ({ darkMode }) => {
             ? data.records
             : [];
 
-        console.log("Raw products from API:", rawProducts);
+        // console.log("Raw products from API:", rawProducts);
 
         // Step 2: Normalize the product data
         const normalizedProducts = rawProducts.map((product) => {
@@ -229,7 +229,7 @@ const ProductRepairList = ({ darkMode }) => {
         setProducts(availableProducts);
       })
       .catch((err) => {
-        console.error("Fetch products error:", err);
+        // console.error("Fetch products error:", err);
         setError(err.message);
       });
   };
@@ -278,9 +278,10 @@ const ProductRepairList = ({ darkMode }) => {
 
   const handleEdit = (repair) => {
     // Add detailed logging to debug the repair data
-    console.log("Selected repair for edit:", repair);
-    console.log("Repair cart:", repair.repairCart);
-    console.log("Total repair cost:", repair.totalRepairCost);
+
+    // console.log("Selected repair for edit:", repair);
+    // console.log("Repair cart:", repair.repairCart);
+    // console.log("Total repair cost:", repair.totalRepairCost);
 
     // Make sure we're passing the complete repair object
     setSelectedRepair({
@@ -308,7 +309,7 @@ const ProductRepairList = ({ darkMode }) => {
   };
 
   const handleProductSelection = (product) => {
-    console.log("Selected product:", product);
+    // console.log("Selected product:", product);
 
     // Ensure supplierName and itemName are valid
     let supplierName = product.supplierName && product.supplierName.trim() !== ''
@@ -318,7 +319,7 @@ const ProductRepairList = ({ darkMode }) => {
       ? product.itemName
       : product.deviceType || "Default Item";
 
-    console.log(`Using supplierName: ${supplierName}, itemName: ${itemName} for product ${product.itemCode}`);
+    // console.log(`Using supplierName: ${supplierName}, itemName: ${itemName} for product ${product.itemCode}`);
 
     const existing = selectedProducts.find((p) => p.itemCode === product.itemCode);
     if (existing) {
@@ -404,7 +405,7 @@ const ProductRepairList = ({ darkMode }) => {
             supplierName = cartItem.supplierName;
           }
 
-          console.log(`Setting supplierName for returned product ${item.itemCode}: ${supplierName}`);
+          // console.log(`Setting supplierName for returned product ${item.itemCode}: ${supplierName}`);
 
           return {
             itemCode: item.itemCode,
@@ -418,7 +419,7 @@ const ProductRepairList = ({ darkMode }) => {
         return;
       }
 
-      console.log("Sending returnProducts with supplierName:", returnProducts);
+      // console.log("Sending returnProducts with supplierName:", returnProducts);
 
       // Show loading message
       setLoading(true);
@@ -434,11 +435,11 @@ const ProductRepairList = ({ darkMode }) => {
       const responseData = await response.json();
 
       if (!response.ok) {
-        console.error("Server error response:", responseData);
+        // console.error("Server error response:", responseData);
         throw new Error(responseData.message || "Failed to return products");
       }
 
-      console.log("Updated repair after return:", responseData);
+      // console.log("Updated repair after return:", responseData);
       setRepairs(repairs.map((r) => (r._id === responseData._id ? responseData : r)));
       setShowReturnModal(false);
       setReturnFormData([]);
@@ -446,7 +447,7 @@ const ProductRepairList = ({ darkMode }) => {
       fetchProducts();
       setMessage("Products returned successfully!");
     } catch (err) {
-      console.error("Error returning products:", err);
+      // console.error("Error returning products:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -469,14 +470,14 @@ const ProductRepairList = ({ darkMode }) => {
           supplierName = product.supplierName;
         }
 
-        console.log(`Ensuring product ${product.itemCode} has supplierName: ${supplierName}`);
+        // console.log(`Ensuring product ${product.itemCode} has supplierName: ${supplierName}`);
         return {
           ...product,
           supplierName: supplierName
         };
       });
 
-      console.log("Sending selectedProducts with supplier:", productsWithSupplier);
+      // console.log("Sending selectedProducts with supplier:", productsWithSupplier);
 
       // Show loading message
       setLoading(true);
@@ -496,7 +497,7 @@ const ProductRepairList = ({ darkMode }) => {
         throw new Error(responseData.message || "Failed to update cart");
       }
 
-      console.log("Updated repair from server:", responseData);
+      // console.log("Updated repair from server:", responseData);
       setRepairs(repairs.map((r) => (r._id === responseData._id ? responseData : r)));
       setShowSelectModal(false);
       setSelectedProducts([]);
@@ -518,7 +519,7 @@ const ProductRepairList = ({ darkMode }) => {
             supplierName: "Default Supplier"
           }));
 
-          console.log("Retrying with fixed supplier names:", fixedProducts);
+          // console.log("Retrying with fixed supplier names:", fixedProducts);
 
           const retryResponse = await fetch(`${API_URL}/update-cart/${selectedRepair._id}`, {
             method: "PATCH",
@@ -528,7 +529,7 @@ const ProductRepairList = ({ darkMode }) => {
 
           if (retryResponse.ok) {
             const retryData = await retryResponse.json();
-            console.log("Retry successful:", retryData);
+            // console.log("Retry successful:", retryData);
             setRepairs(repairs.map((r) => (r._id === retryData._id ? retryData : r)));
             setShowSelectModal(false);
             setSelectedProducts([]);
@@ -539,11 +540,11 @@ const ProductRepairList = ({ darkMode }) => {
             return;
           } else {
             const retryError = await retryResponse.json();
-            console.error("Retry failed:", retryError);
+            // console.error("Retry failed:", retryError);
             errorMessage += " Retry also failed.";
           }
         } catch (retryErr) {
-          console.error("Error during retry:", retryErr);
+          // console.error("Error during retry:", retryErr);
           errorMessage += " Retry also failed.";
         }
       }
@@ -601,14 +602,14 @@ const ProductRepairList = ({ darkMode }) => {
       }
 
       const updatedRepair = await response.json();
-      console.log("Updated repair after decreasing quantity:", updatedRepair);
+      // console.log("Updated repair after decreasing quantity:", updatedRepair);
 
       // Update local state
       setRepairs(repairs.map((r) => (r._id === updatedRepair._id ? updatedRepair : r)));
       setSelectedRepair(updatedRepair);
       setMessage("Cart quantity updated successfully!");
     } catch (err) {
-      console.error("Error decreasing cart quantity:", err);
+      // console.error("Error decreasing cart quantity:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -639,7 +640,7 @@ const ProductRepairList = ({ darkMode }) => {
       }
 
       const updatedRepair = await response.json();
-      console.log("Repair status updated to Completed:", updatedRepair);
+      // console.log("Repair status updated to Completed:", updatedRepair);
       setRepairs(repairs.map((r) => (r._id === updatedRepair._id ? updatedRepair : r)));
       setShowViewModal(false);
       fetchRepairs();
@@ -686,10 +687,10 @@ const ProductRepairList = ({ darkMode }) => {
         const totalAdditionalServicesAmount = selectedRepair.totalAdditionalServicesAmount || 0;
         const finalAmount = updatedTotalRepairCost + totalAdditionalServicesAmount;
   
-        console.log("Applying service discounts:", services);
-        console.log("Total discount amount:", totalDiscountAmount);
-        console.log("New total repair cost:", updatedTotalRepairCost);
-        console.log("Final amount (including additional services):", finalAmount);
+        // console.log("Applying service discounts:", services);
+        // console.log("Total discount amount:", totalDiscountAmount);
+        // console.log("New total repair cost:", updatedTotalRepairCost);
+        // console.log("Final amount (including additional services):", finalAmount);
   
         const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
           method: "PATCH",
@@ -708,7 +709,7 @@ const ProductRepairList = ({ darkMode }) => {
         }
   
         const updatedRepair = await response.json();
-        console.log("Updated repair with service discounts:", updatedRepair);
+        // console.log("Updated repair with service discounts:", updatedRepair);
         setRepairs(repairs.map((r) => (r._id === updatedRepair._id ? updatedRepair : r)));
         setSelectedRepair(updatedRepair);
         setMessage("Service discounts applied successfully!");
@@ -742,7 +743,7 @@ const ProductRepairList = ({ darkMode }) => {
       const totalAdditionalServicesAmount = parseFloat(selectedRepair.totalAdditionalServicesAmount || 0); 
       const updatedTotalRepairCost = Math.max(0, baseTotal - totalDiscountAmount); 
       const finalAmount = updatedTotalRepairCost + totalAdditionalServicesAmount;
-      console.log("Calculation details:", { cartTotal, repairCost: selectedRepair.repairCost, totalDiscountAmount, totalAdditionalServicesAmount, updatedTotalRepairCost, finalAmount });
+      // console.log("Calculation details:", { cartTotal, repairCost: selectedRepair.repairCost, totalDiscountAmount, totalAdditionalServicesAmount, updatedTotalRepairCost, finalAmount });
       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -835,7 +836,7 @@ const ProductRepairList = ({ darkMode }) => {
         description: newAdditionalService.description ? newAdditionalService.description.trim() : ""
       };
 
-      console.log("Sending additional service data:", serviceToAdd);
+      // console.log("Sending additional service data:", serviceToAdd);
 
       const response = await fetch(`${API_URL}/add-service/${selectedRepair._id}`, {
         method: "PATCH",
@@ -867,7 +868,7 @@ const ProductRepairList = ({ darkMode }) => {
       // If we get here, the response is ok, so try to parse the JSON
       try {
         const responseData = await response.json();
-        console.log("Added additional service:", responseData);
+        // console.log("Added additional service:", responseData);
 
         // Update the UI with the new data
         setRepairs(repairs.map((r) => (r._id === responseData._id ? responseData : r)));
@@ -893,7 +894,7 @@ const ProductRepairList = ({ darkMode }) => {
       setLoading(true); // Show loading indicator
       setError(""); // Clear any previous errors
 
-      console.log("Marking service as paid, index:", index);
+      // console.log("Marking service as paid, index:", index);
 
       const response = await fetch(`${API_URL}/pay-service/${selectedRepair._id}`, {
         method: "PATCH",
@@ -925,7 +926,7 @@ const ProductRepairList = ({ darkMode }) => {
       // If we get here, the response is ok, so try to parse the JSON
       try {
         const responseData = await response.json();
-        console.log("Marked service as paid:", responseData);
+        // console.log("Marked service as paid:", responseData);
 
         // Update the UI with the new data
         setRepairs(repairs.map((r) => (r._id === responseData._id ? responseData : r)));
@@ -1229,7 +1230,7 @@ const ProductRepairList = ({ darkMode }) => {
   };
 
   const generateJobBill = (repair) => {
-    console.log("Generating new bill with repair data:", repair); // Debug log
+    // console.log("Generating new bill with repair data:", repair); // Debug log
     // Create a new PDF document in portrait mode, A4 size
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -1432,7 +1433,7 @@ const ProductRepairList = ({ darkMode }) => {
 
   // Add this function after the other handler functions
   const handleAddReview = async (repair) => {
-    console.log("Opening review modal for repair:", repair);
+    // console.log("Opening review modal for repair:", repair);
     setSelectedReviewRepair(repair);
     setTechnicianReview(repair.technicianReview || "");
     setShowReviewModal(true);
@@ -1478,7 +1479,7 @@ const ProductRepairList = ({ darkMode }) => {
       }
 
       const updatedRepair = await response.json();
-      console.log("Review update successful:", updatedRepair);
+      // console.log("Review update successful:", updatedRepair);
 
       // Update the repairs list with the new review
       setRepairs(prevRepairs => {
@@ -1508,10 +1509,10 @@ const ProductRepairList = ({ darkMode }) => {
   };
 
   const renderReview = (repair) => {
-    console.log("Rendering review for repair:", {
-      id: repair._id,
-      review: repair.technicianReview
-    });
+    // console.log("Rendering review for repair:", {
+    //   id: repair._id,
+    //   review: repair.technicianReview
+    // });
 
     if (repair.technicianReview && repair.technicianReview.trim() !== "") {
       return (
@@ -1569,20 +1570,20 @@ const ProductRepairList = ({ darkMode }) => {
       }
 
       const updatedRepair = await response.json();
-      console.log("Status update successful:", updatedRepair);
+      // console.log("Status update successful:", updatedRepair);
 
       // Update both the repairs list and selected repair
       setRepairs(prevRepairs => {
         const updatedRepairs = prevRepairs.map(r =>
           r._id === updatedRepair._id ? updatedRepair : r
         );
-        console.log("Updated repairs list:", updatedRepairs);
+        // console.log("Updated repairs list:", updatedRepairs);
         return updatedRepairs;
       });
 
       setSelectedRepair(prevRepair => {
         const updated = { ...prevRepair, ...updatedRepair };
-        console.log("Updated selected repair:", updated);
+        // console.log("Updated selected repair:", updated);
         return updated;
       });
 
@@ -2046,11 +2047,12 @@ const ProductRepairList = ({ darkMode }) => {
                       setError("");
 
                       // Log the update attempt
-                      console.log("Attempting to update repair status:", {
-                        repairId: selectedRepair._id,
-                        newStatus: newStatus,
-                        currentStatus: selectedRepair.repairStatus
-                      });
+
+                      // console.log("Attempting to update repair status:", {
+                      //   repairId: selectedRepair._id,
+                      //   newStatus: newStatus,
+                      //   currentStatus: selectedRepair.repairStatus
+                      // });
 
                       handleStatusUpdate(newStatus);
                     } catch (err) {
