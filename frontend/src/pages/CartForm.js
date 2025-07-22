@@ -255,6 +255,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
     ...provided,
     width: '100%',
     padding: '0',
+    marginbottom: '20px',
     fontSize: '1rem',
     fontFamily: 'Inter, sans-serif',
     backgroundColor: darkMode ? '#1F2A44' : '#ffffff',
@@ -339,6 +340,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
                 value={grn}
                 onChange={handleGrnChange}
                 required
+                
               />
             </div>
           </div>
@@ -348,7 +350,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
               <div className="left-column">
                 <h3 className={`ap-h3 ${darkMode ? 'dark' : ''}`}>Item {index + 1} Details</h3>
                 <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Item Name</label>
-                <div>
+                <div style={{marginBottom: "8px"}}>
                 <CreatableSelect
                   isClearable
                   options={itemNameOptions}
@@ -358,8 +360,9 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
                 />
                 </div>
 
-                <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Category</label>
-                <div>
+                <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>
+                  Category</label>
+                <div style={{marginBottom: "8px"}}>
                 <CreatableSelect
                   isClearable
                   options={categoryOptions}
