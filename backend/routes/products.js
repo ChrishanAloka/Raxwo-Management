@@ -866,7 +866,7 @@ router.patch('/restore/:id', async (req, res) => {
 router.patch('/update-stock/:itemCode', async (req, res) => {
   try {
     const itemCode = decodeURIComponent(req.params.itemCode);
-    const { newStock, newBuyingPrice, newSellingPrice, itemName, grnNumber, category, Supplier } = req.body;
+    const { newStock, newBuyingPrice, newSellingPrice, itemName, grnNumber, category, supplierName } = req.body;
 
     // Validate required fields
     if (!itemName || typeof itemName !== 'string' || itemName.trim() === '') {
@@ -885,7 +885,7 @@ router.patch('/update-stock/:itemCode', async (req, res) => {
       return res.status(400).json({ message: 'New selling price is required and must be a non-negative number' });
     }
     // Supplier name is now optional - use empty string if not provided
-    const finalSupplier = Supplier || 'Unknown';
+    const finalSupplier = supplierName || 'Unknown';
 
     let product = await Product.findOne({ itemCode });
 

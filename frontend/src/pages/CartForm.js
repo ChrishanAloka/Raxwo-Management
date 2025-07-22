@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import '../Products.css';
+import '../styles/Products.css';
 import { useNavigate, Link } from 'react-router-dom';
+import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
 
 const API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
 const PRODUCTS_API_URL = 'https://raxwo-management.onrender.com/api/products';
@@ -20,6 +22,25 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
   const [error, setError] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const navigate = useNavigate();
+  const [itemNames, setItemNames] = useState([]);
+
+  const fetchNames = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`${API_URL}/${supplier._id}`, {
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch supplier items: ${response.statusText}`);
+      }
+      const data = await response.json();
+      setItemNames(data.items || []);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message || 'An error occurred while fetching items');
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (item) {
@@ -30,7 +51,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
         stock: item.quantity?.toString() || '',
         buyingPrice: item.buyingPrice?.toString() || '',
         sellingPrice: item.sellingPrice?.toString() || '',
-        supplierName: item.supplierName || supplier.name || '',
+        supplierName: item.supplierName || supplier.supplierName || '',
       }]);
     } else {
       setGrn('');
@@ -40,12 +61,13 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
         stock: '',
         buyingPrice: '',
         sellingPrice: '',
-        supplierName: supplier.name || '',
+        supplierName: supplier.supplierName || '',
       }]);
     }
     setMessage('');
     setError('');
     setIsSubmitted(false);
+    fetchNames();
   }, [item, supplier]);
 
   const handleGrnChange = (e) => {
@@ -65,7 +87,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
       stock: '',
       buyingPrice: '',
       sellingPrice: '',
-      supplierName: supplier.name || '',
+      supplierName: supplier.supplierName || '',
     }]);
   };
 
@@ -131,7 +153,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
       // Process each item
       for (let i = 0; i < items.length; i++) {
         const itemData = {
-          itemCode: item.itemCode,
+          itemCode: item ? item.itemCode : grn,
           ...items[i],
           grnNumber: grn,
           quantity: parseInt(items[i].stock) || 0,
@@ -168,7 +190,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
             itemName: itemData.itemName,
             category: itemData.category,
             grnNumber: itemData.itemCode,
-            supplierName: itemData.supplierName,
+            supplierName: supplier.supplierName,
           }),
         });
 
@@ -190,7 +212,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
           stock: '',
           buyingPrice: '',
           sellingPrice: '',
-          supplierName: supplier.name || '',
+          supplierName: supplier.supplierName || '',
         }]);
       }
 
@@ -214,6 +236,91 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
     setError('');
     closeModal();
   };
+
+  const formatOptions = (arr, labelKey = 'label', valueKey = 'value') => {
+    return arr.map((item) =>
+      typeof item === 'string'
+        ? { label: item, value: item }
+        : { label: item[labelKey], value: item[valueKey] || item[labelKey] }
+    );
+  };
+
+  const itemNameOptions = formatOptions(itemNames, 'itemName', 'itemName');
+  const categoryOptions = formatOptions([...new Set(itemNames.map(i => i.category))]);
+
+  const uniqueCategories = [...new Set(itemNames.map(item => item.category))];
+
+  const getSelectStyles = (darkMode) => ({
+  control: (provided, state) => ({
+    ...provided,
+    width: '100%',
+    padding: '0',
+    fontSize: '1rem',
+    fontFamily: 'Inter, sans-serif',
+    backgroundColor: darkMode ? '#1F2A44' : '#ffffff',
+    borderColor: state.isFocused ? '#1abc9c' : '#ccc',
+    borderWidth: '1px',
+    borderRadius: '8px',
+    boxShadow: state.isFocused ? '0 0 8px rgba(26, 188, 156, 0.3)' : 'none',
+    '&:hover': {
+      borderColor: state.isFocused ? '#1abc9c' : '#999'
+    },
+    height: '48px',
+    minHeight: '48px'
+  }),
+  input: (provided) => ({
+    ...provided,
+    color: darkMode ? '#E5E7EB' : '#333'
+  }),
+  singleValue: (provided) => ({
+    ...provided,
+    color: darkMode ? '#E5E7EB' : '#333'
+  }),
+  placeholder: (provided) => ({
+    ...provided,
+    color: darkMode ? '#9ca3af' : '#6b7280'
+  }),
+  menu: (provided) => ({
+    ...provided,
+    zIndex: 1000,
+    backgroundColor: darkMode ? '#1F2A44' : '#ffffff',
+    border: '1px solid #ccc',
+    borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isFocused
+      ? '#1abc9c'
+      : state.isSelected
+      ? '#000000'
+      : 'transparent',
+    color: state.isFocused || state.isSelected ? '#ffffff' : darkMode ? '#E5E7EB' : '#333',
+    '&:hover': {
+      backgroundColor: '#1abc9c',
+      color: '#fff'
+    }
+  }),
+  indicatorsContainer: () => ({
+    display: 'flex',
+    paddingRight: '8px'
+  }),
+  dropdownIndicator: (provided) => ({
+    ...provided,
+    color: darkMode ? '#9ca3af' : '#6b7280',
+    '&:hover': {
+      color: '#1abc9c'
+    }
+  }),
+  clearIndicator: (provided) => ({
+    ...provided,
+    color: darkMode ? '#9ca3af' : '#6b7280',
+    '&:hover': {
+      color: '#e74c3c'
+    }
+  })
+});
+  
 
   return (
     <div className="modal-overlay">
@@ -241,21 +348,26 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
               <div className="left-column">
                 <h3 className={`ap-h3 ${darkMode ? 'dark' : ''}`}>Item {index + 1} Details</h3>
                 <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Item Name</label>
-                <input
-                  className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
-                  type="text"
-                  value={itemData.itemName}
-                  onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
-                  required
+                <div>
+                <CreatableSelect
+                  isClearable
+                  options={itemNameOptions}
+                  value={itemData.itemName ? { label: itemData.itemName, value: itemData.itemName } : null}
+                  onChange={(selected) => handleItemChange(index, 'itemName', selected ? selected.value : '')}
+                  styles={getSelectStyles(darkMode)} // ← Apply custom styles
                 />
+                </div>
+
                 <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Category</label>
-                <input
-                  className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
-                  type="text"
-                  value={itemData.category}
-                  onChange={(e) => handleItemChange(index, 'category', e.target.value)}
-                  required
+                <div>
+                <CreatableSelect
+                  isClearable
+                  options={categoryOptions}
+                  value={itemData.category ? { label: itemData.category, value: itemData.category } : null}
+                  onChange={(selected) => handleItemChange(index, 'category', selected ? selected.value : '')}
+                  styles={getSelectStyles(darkMode)} // ← Apply custom styles
                 />
+                </div>
                 <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Stock</label>
                 <input
                   className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
@@ -292,7 +404,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
                 <input
                   className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
                   type="text"
-                  value={itemData.supplierName}
+                  value={itemData.supplierName ? itemData.supplierName : supplier.supplierName}
                   onChange={(e) => handleItemChange(index, 'supplierName', e.target.value)}
                   required
                   readOnly

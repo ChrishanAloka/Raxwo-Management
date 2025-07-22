@@ -49,6 +49,7 @@ const CategoryProductList = ({ darkMode }) => {
             stock: product.stock,
             buyingPrice: product.buyingPrice,
             sellingPrice: product.sellingPrice,
+            supplier: product.Supplier,
             createdAt: product.createdAt,
             addedBackAt: product.addedBackAt
             // Add other fields as needed
@@ -91,7 +92,7 @@ const CategoryProductList = ({ darkMode }) => {
 
   // Group products by category (for current page)
   const groupedByCategory = products.reduce((acc, product) => {
-    const category = product.category || "Uncategorized";
+    const category = product.supplier === "Unknown" ?  `${product.category}` : `${product.category}`;
     if (!acc[category]) acc[category] = [];
     acc[category].push(product);
     return acc;
@@ -288,7 +289,7 @@ const CategoryProductList = ({ darkMode }) => {
                       <th>Buying Price</th>
                       <th>Selling Price</th>
                       <th>Stock</th>
-                      <th>Created At</th>
+                      {/* <th>Created At</th> */}
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -300,7 +301,7 @@ const CategoryProductList = ({ darkMode }) => {
                         <td>{product.buyingPrice}</td>
                         <td>{product.sellingPrice}</td>
                         <td>{product.stock}</td>
-                        <td>{product.createdAt ? new Date(product.createdAt).toLocaleString() : ""}</td>
+                        {/* <td>{product.createdAt ? new Date(product.createdAt).toLocaleString() : ""}</td> */}
                         <td>
                           <div className="action-container">
                             <button

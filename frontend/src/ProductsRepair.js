@@ -110,17 +110,52 @@ const ProductRepairList = ({ darkMode }) => {
   };
     
   const filteredRepairs = useMemo(() => {
-    return repairs.filter((repair) => {
-      const matchesSearch =
-        normalize(repair.repairInvoice || repair.repairCode || '').includes(normalize(searchTerm)) ||
-        normalize(repair.customerName || '').includes(normalize(searchTerm)) ||
-        normalize(repair.customerPhone || '').includes(normalize(searchTerm)) ||
-        normalize(repair.deviceType || repair.itemName || '').includes(normalize(searchTerm)) ||
-        normalize(repair.issueDescription || '').includes(normalize(searchTerm)) ||
-        normalize(repair.serialNumber || '').includes(normalize(searchTerm));
-      return currentStatusFilter === "All" ? matchesSearch : matchesSearch && repair.repairStatus === currentStatusFilter;
-    });
-  }, [repairs, searchTerm, currentStatusFilter]);
+  // If no search term and "All" status, skip filtering early
+  const shouldFilter =
+    searchTerm.trim() !== '' ||
+    currentStatusFilter !== 'All';
+
+  if (!shouldFilter) return repairs;
+
+  return repairs.filter((repair) => {
+    // Build a combined searchable text from all relevant fields
+    const searchableText = [
+      repair.repairInvoice,
+      repair.repairCode,
+      repair.customerName,
+      repair.customerPhone,
+      repair.deviceType,
+      repair.itemName,
+      repair.issueDescription,
+      repair.serialNumber,
+      repair.repairStatus
+    ]
+      .filter(Boolean) // Remove null/undefined/falsy values
+      .map(normalize)
+      .join(' ');
+
+    // Normalize the search query
+    const query = normalize(searchTerm);
+
+    // Check if any individual field includes the query
+    const matchesSearch =
+      query === '' ||
+      searchableText.includes(query) ||
+      // Optional: also check partial field matches (redundant but safe)
+      normalize(repair.repairInvoice || repair.repairCode || '').includes(query) ||
+      normalize(repair.customerName || '').includes(query) ||
+      normalize(repair.customerPhone || '').includes(query) ||
+      normalize(repair.deviceType || repair.itemName || '').includes(query) ||
+      normalize(repair.issueDescription || '').includes(query) ||
+      normalize(repair.serialNumber || '').includes(query);
+
+    // Apply status filter only if not "All"
+    const matchesStatus =
+      currentStatusFilter === 'All' || repair.repairStatus === currentStatusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+}, [repairs, searchTerm, currentStatusFilter]); // Ensure these are reactive
     // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -2317,7 +2352,7 @@ const ProductRepairList = ({ darkMode }) => {
                         value={newService.description}
                         onChange={handleNewServiceChange}
                         style={{
-                          width: "100%",
+                          width: "68%",
                           padding: "8px",
                           borderRadius: "4px",
                           border: "1px solid #ddd",
@@ -2326,8 +2361,6 @@ const ProductRepairList = ({ darkMode }) => {
                         }}
                         placeholder="e.g., Special discount for loyal customer"
                       />
-                    </div>
-                    <div>
                       <button
                         onClick={handleAddService}
                         style={{
@@ -2335,6 +2368,7 @@ const ProductRepairList = ({ darkMode }) => {
                           color: "white",
                           border: "none",
                           padding: "8px 15px",
+                          marginLeft: "15px",
                           borderRadius: "4px",
                           cursor: "pointer",
                           height: "36px"
@@ -2533,7 +2567,7 @@ const ProductRepairList = ({ darkMode }) => {
                       value={newAdditionalService.serviceAmount}
                       onChange={handleNewAdditionalServiceChange}
                       style={{
-                        width: "100%",
+                        width: "80%",
                         padding: "8px",
                         borderRadius: "4px",
                         border: "1px solid #ddd",
@@ -2557,7 +2591,7 @@ const ProductRepairList = ({ darkMode }) => {
                       value={newAdditionalService.description}
                       onChange={handleNewAdditionalServiceChange}
                       style={{
-                        width: "100%",
+                        width: "70%",
                         padding: "8px",
                         borderRadius: "4px",
                         border: "1px solid #ddd",
@@ -2566,14 +2600,13 @@ const ProductRepairList = ({ darkMode }) => {
                       }}
                       placeholder="e.g., Premium tempered glass"
                     />
-                  </div>
-                  <div>
                     <button
                       onClick={handleAddAdditionalService}
                       style={{
                         backgroundColor: "#3498db",
                         color: "white",
                         border: "none",
+                        marginLeft: "15px",
                         padding: "8px 15px",
                         borderRadius: "4px",
                         cursor: "pointer",

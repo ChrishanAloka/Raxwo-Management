@@ -644,8 +644,8 @@ const ProductList = ({ darkMode }) => {
                 <th>Stock</th>
                 {/* <th>Supplier</th> */}
                 <th>Status</th>
-                <th>Created At</th>
-                <th>Added Back</th>
+                {/* <th>Created At</th>
+                <th>Added Back</th> */}
                 <th>Action</th>
               </tr>
             </thead>
@@ -660,7 +660,7 @@ const ProductList = ({ darkMode }) => {
                     <td>{product.stock}</td>
                     {/* <td>{product.supplierName || 'N/A'}</td> */}
                     <td>{product.stock > 0 ? 'In Stock' : 'Out of Stock'}</td>
-                    <td>{product.createdAt ? new Date(product.createdAt).toLocaleString() : 'N/A'}</td>
+                    {/* <td>{product.createdAt ? new Date(product.createdAt).toLocaleString() : 'N/A'}</td>
                     <td>{product.addedBackAt ? (
                       <div>
                         <div>{new Date(product.addedBackAt).toLocaleString()}</div>
@@ -670,7 +670,7 @@ const ProductList = ({ darkMode }) => {
                       </div>
                     ) : (
                       'N/A'
-                    )}</td>
+                    )}</td> */}
                     <td>
                       <div className="action-container">
                         <button

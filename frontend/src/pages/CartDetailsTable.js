@@ -168,7 +168,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
       )}
       {showEditModal && editItem && (
         <CartForm
-          supplier={{ _id: supplierId, name:supplierName }}
+          supplier={{ _id: supplierId, supplierName:supplierName }}
           item={editItem}
           closeModal={() => {
             setShowEditModal(false);

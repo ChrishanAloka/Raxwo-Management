@@ -186,13 +186,26 @@ const SupplierList = ({ darkMode }) => {
     setShowReportOptions(false);
   };
 
-  const normalize = str => (str || '').toLowerCase().replace(/\s+/g, '');
+  const normalize = str => (str || '').toLowerCase();
 
-  const filteredSuppliers = suppliers.filter(
-    (supplier) =>
-      normalize(supplier.supplierName).includes(normalize(searchQuery)) ||
-      normalize(supplier.businessName).includes(normalize(searchQuery))
+const filteredSuppliers = suppliers.filter(supplier => {
+  const query = normalize(searchQuery).trim();
+  if (!query) return true;
+
+  // Split query into individual words (e.g., "john tech" → ["john", "tech"])
+  const queryWords = query.split(' ').filter(word => word);
+
+  const supplierName = normalize(supplier.supplierName);
+  const businessName = normalize(supplier.businessName);
+  const phoneNumber = normalize(supplier.phoneNumber);
+
+  // Check if each query word matches *anywhere* in either field
+  return queryWords.every(word =>
+    supplierName.includes(word) ||
+    businessName.includes(word) ||
+    phoneNumber.includes(word)
   );
+});
 
   const handleClearSearch = () => {
     setSearchQuery('');
