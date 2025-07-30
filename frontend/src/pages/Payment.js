@@ -334,7 +334,7 @@ const Payment = ({ darkMode }) => {
           <PaymentPaid
             totalAmount={calculateTotal()}
             items={cart}
-            onClose={handlePaymentClose}
+            onClose={handlePaymentClose }
             darkMode={darkMode}
             cashierId={cashierId}
             cashierName={cashierName}

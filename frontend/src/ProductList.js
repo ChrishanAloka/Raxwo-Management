@@ -57,6 +57,7 @@ const ProductList = ({ darkMode }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const productsPerPage = 20;
   const itemsPerPage = 20;
 
   const handleClearAll = () => {
@@ -65,10 +66,10 @@ const ProductList = ({ darkMode }) => {
   };
 
   // Fetch products with backend pagination and filtering
-  const fetchProducts = (page = 1) => {
+  const fetchProducts = () => {
     setLoading(true);
     setRefreshing(true);
-    let url = `${API_URL}?page=${page}&limit=${itemsPerPage}`;
+    let url = `https://raxwo-management.onrender.com/api/product-uploads`;
     fetch(url)
       .then((response) => {
         if (!response.ok) {
@@ -78,7 +79,13 @@ const ProductList = ({ darkMode }) => {
       })
       .then((data) => {
 
-        const normalizedProducts = data.records.map((product) => {
+        const rawProducts = Array.isArray(data.records)
+          ? data.records
+          : data && typeof data === "object" && "records" in data
+            ? data.records
+            : [];
+
+        const normalizedProducts = rawProducts.map((product) => {
           const dataObj = product.data || {};
           return {
             _id: product._id,
@@ -128,9 +135,9 @@ const ProductList = ({ darkMode }) => {
 
   // Only fetch once, and refetch on page/search change
   useEffect(() => {
-    fetchProducts(currentPage, searchQuery);
+    fetchProducts();
     // eslint-disable-next-line
-  }, [currentPage, searchQuery]);
+  }, []);
 
 
   const handleEdit = (product) => {
@@ -212,6 +219,9 @@ const ProductList = ({ darkMode }) => {
 
         return queryWords.every(word => searchableText.includes(word));
       });
+
+  const totalProductPages = Math.ceil(filteredProductsForModal.length / productsPerPage);
+  const paginatedProductsForModal = filteredProductsForModal.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
 
   // Helper to fetch all products (no pagination)
   // const fetchAllProductsForReport = async (search = '') => {
@@ -661,7 +671,7 @@ const ProductList = ({ darkMode }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredProductsForModal.map((product, idx) => (
+              {paginatedProductsForModal.map((product, idx) => (
                   <tr key={product._id || product.itemCode || idx} style={product.source === 'uploaded' ? { background: '#f7f7f7' } : {}}>
                     {/* <td>{product.itemCode || 'N/A'}</td> */}
                     <td>{product.itemName}</td>
@@ -737,11 +747,11 @@ const ProductList = ({ darkMode }) => {
         </>
       )}
       {/* Pagination controls below the table */}
-      {totalPages > 1 && (
+      {totalProductPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '16px 0', gap: 10 }}>
           <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
-          <span>Page {currentPage} of {totalPages}</span>
-          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</button>
+          <span>Page {currentPage} of {totalProductPages}</span>
+          <button onClick={() => setCurrentPage(p => Math.min(totalProductPages, p + 1))} disabled={currentPage === totalProductPages}>Next</button>
         </div>
       )}
       {showModal && selectedProduct && (
@@ -749,7 +759,7 @@ const ProductList = ({ darkMode }) => {
           product={selectedProduct}
           closeModal={() => {
             setShowModal(false);
-            fetchProducts(currentPage, searchQuery);
+            fetchProducts();
           }}
           darkMode={darkMode}
           showGRN={false}

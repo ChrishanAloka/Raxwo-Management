@@ -24,12 +24,13 @@ const CategoryProductList = ({ darkMode }) => {
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const productsPerPage = 20;
 
   // Paginated fetch for display
-  const fetchProducts = (page = 1) => {
+  const fetchProducts = () => {
     setLoading(true);
     setError("");
-    let url = `${API_URL}?page=${page}&limit=${itemsPerPage}`;
+    let url = `https://raxwo-management.onrender.com/api/product-uploads`;
     fetch(url)
       .then((response) => {
         if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
@@ -37,7 +38,13 @@ const CategoryProductList = ({ darkMode }) => {
       })
       .then((data) => {
 
-        const normalizedProducts = data.records.map((product) => {
+        const rawProducts = Array.isArray(data.records)
+          ? data.records
+          : data && typeof data === "object" && "records" in data
+            ? data.records
+            : [];
+
+        const normalizedProducts = rawProducts.map((product) => {
           const dataObj = product.data || {};
           return {
             _id: product._id,
@@ -85,9 +92,9 @@ const CategoryProductList = ({ darkMode }) => {
   };
 
   useEffect(() => {
-    fetchProducts(currentPage, searchQuery);
+    fetchProducts();
     // eslint-disable-next-line
-  }, [currentPage, searchQuery]);
+  }, []);
 
   const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
 
@@ -100,8 +107,11 @@ const CategoryProductList = ({ darkMode }) => {
         return queryWords.every(word => searchableText.includes(word));
       });
 
+  const totalProductPages = Math.ceil(filteredProductsForModal.length / productsPerPage);
+  const paginatedProductsForModal = filteredProductsForModal.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
+
   // Group products by category (for current page)
-  const groupedByCategory = filteredProductsForModal.reduce((acc, product) => {
+  const groupedByCategory = paginatedProductsForModal.reduce((acc, product) => {
     const category = product.supplier === "Unknown" ?  `${product.category}` : `${product.category}`;
     if (!acc[category]) acc[category] = [];
     acc[category].push(product);
@@ -274,7 +284,7 @@ const CategoryProductList = ({ darkMode }) => {
           closeModal={() => {
             setShowEditModal(false);
             setSelectedProduct(null);
-            fetchProducts(currentPage, searchQuery);
+            fetchProducts();
           }}
           darkMode={darkMode}
           showGRN={false}
@@ -354,11 +364,11 @@ const CategoryProductList = ({ darkMode }) => {
         </div>
       )}
       {/* Pagination controls below the table */}
-      {totalPages > 1 && (
+      {totalProductPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '16px 0', gap: 10 }}>
           <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
-          <span>Page {currentPage} of {totalPages}</span>
-          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</button>
+          <span>Page {currentPage} of {totalProductPages}</span>
+          <button onClick={() => setCurrentPage(p => Math.min(totalProductPages, p + 1))} disabled={currentPage === totalProductPages}>Next</button>
         </div>
       )}
     </div>

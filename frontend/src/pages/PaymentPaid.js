@@ -455,28 +455,28 @@ const generatePaymentBill = (paymentData) => {
           </select>
 
           <p className={`tot-amo ${darkMode ? "dark-mode" : ""}`}>
-            <strong>Total Amount:</strong> Rs. ${totalAmount.toFixed(2)}
+            <strong>Total Amount:</strong> Rs.{totalAmount.toFixed(2)}
           </p>
 
           <label className={`p-lbl ${darkMode ? "dark-mode" : ""}`}>Paid Amount:</label>
           <input type="text" value={paidAmount} readOnly placeholder="Enter paid amount" />
 
           <p className={`balance ${darkMode ? "dark-mode" : ""}`}>
-            <strong>Balance:</strong> Rs. ${balance.toFixed(2)}
+            <strong>Balance:</strong> Rs.{balance.toFixed(2)}
           </p>
 
           <div className="button-group">
             <button
               className={`p-con-btn ${darkMode ? "dark-mode" : ""}`}
               onClick={handleConfirmPayment}
-              disabled={!paymentMethod || parseFloat(paidAmount || 0) < totalAmount || loading}
+              disabled={!paymentMethod && parseFloat(paidAmount || 0) < totalAmount || loading}
             >
               {loading ? "Processing..." : "Confirm Payment"}
             </button>
             <button
               className={`p-print-btn ${darkMode ? "dark-mode" : ""}`}
               onClick={generateCustomBill}
-              disabled={!paymentMethod || !paidAmount}
+              disabled={!paymentMethod && parseFloat(paidAmount || 0) < totalAmount || loading}
             >
               <img src={paymenticon} alt="bill" width="50" height="50" />
             </button>

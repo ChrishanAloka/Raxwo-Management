@@ -74,7 +74,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
   const addToReturn = (product) => {
     const existingItem = returnItems.find(item => item.productId === product._id);
     if (!existingItem) {
-      setReturnItems([...returnItems, { ...product, productId: product._id, quantity: 1, discount: 0 }]);
+      setReturnItems([...returnItems, { ...product, productId: product._id, quantity: 1, discount: 0, returnPrice: product.sellingPrice }]);
     }
   };
 
@@ -89,7 +89,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
   };
 
   const calculateReturnTotal = () => {
-    return returnItems.reduce((total, item) => total + (item.sellingPrice * item.quantity), 0);
+    return returnItems.reduce((total, item) => total + (item.returnPrice * item.quantity), 0);
   };
 
   const generateReturnBill = (returnData) => {
@@ -167,7 +167,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
             productId: item.productId,
             itemName: item.itemName,
             quantity: item.quantity,
-            price: item.sellingPrice,
+            price: item.returnPrice,
             discount: item.discount,
           })),
           totalRefund: calculateReturnTotal(),
@@ -253,8 +253,22 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
                       className={darkMode ? "dark-mode" : ""}
                     />
                   </td>
-                  <td>Rs. {item.sellingPrice}</td>
-                  <td>Rs. {(item.sellingPrice * item.quantity).toFixed(2)}</td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.returnPrice}
+                      onChange={(e) => {
+                        const updatedItems = [...returnItems];
+                        updatedItems[index].returnPrice = parseFloat(e.target.value) || 0;
+                        setReturnItems(updatedItems);
+                      }}
+                      className={`price-input ${darkMode ? "dark-mode" : ""}`}
+                      style={{ width: '80px', padding: '2px' }}
+                    />
+                  </td>
+                  <td>Rs. {(item.returnPrice * item.quantity).toFixed(2)}</td>
                   <td>
                     <button
                       className="remove-btn"
