@@ -525,7 +525,7 @@ const AllSummary = ({ darkMode }) => {
   const totalExpenses = totalProductExpenses + totalSalaryExpenses + totalMaintenanceExpenses;
 
   const totalIncome = filteredRepairs.reduce((sum, repair) => {
-    return sum + (repair.finalAmount || repair.totalRepairCost || 0);
+    return sum + (repair.totalAdditionalServicesAmount + repair.totalRepairCost - repair.totalDiscountAmount || 0);
   }, 0) + totalExtraIncome;
 
   const totalCheckingCharges = filteredRepairs.reduce((sum, repair) => {
