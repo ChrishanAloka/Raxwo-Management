@@ -19,6 +19,7 @@ const productRepairSchema = new mongoose.Schema({
   checkingCharge: { type: Number, required: false, default: 0 },
   issueDescription: { type: String, required: true },
   additionalNotes: { type: String, required: false },
+  sellingPrice: Number,
   repairCost: { type: Number, required: false, default: 0 },
   repairStatus: { type: String, required: true, default: "Pending" },
   repairCode: { type: String, required: true, unique: true },

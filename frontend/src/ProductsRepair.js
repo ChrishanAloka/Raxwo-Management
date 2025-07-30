@@ -110,52 +110,39 @@ const ProductRepairList = ({ darkMode }) => {
   };
     
   const filteredRepairs = useMemo(() => {
-  // If no search term and "All" status, skip filtering early
-  const shouldFilter =
-    searchTerm.trim() !== '' ||
-    currentStatusFilter !== 'All';
-
-  if (!shouldFilter) return repairs;
-
-  return repairs.filter((repair) => {
-    // Build a combined searchable text from all relevant fields
-    const searchableText = [
-      repair.repairInvoice,
-      repair.repairCode,
-      repair.customerName,
-      repair.customerPhone,
-      repair.deviceType,
-      repair.itemName,
-      repair.issueDescription,
-      repair.serialNumber,
-      repair.repairStatus
-    ]
-      .filter(Boolean) // Remove null/undefined/falsy values
-      .map(normalize)
-      .join(' ');
-
-    // Normalize the search query
+    const normalize = (str) => String(str || '').toLowerCase().trim();
     const query = normalize(searchTerm);
+    const queryWords = query ? query.split(' ').filter(Boolean) : [];
 
-    // Check if any individual field includes the query
-    const matchesSearch =
-      query === '' ||
-      searchableText.includes(query) ||
-      // Optional: also check partial field matches (redundant but safe)
-      normalize(repair.repairInvoice || repair.repairCode || '').includes(query) ||
-      normalize(repair.customerName || '').includes(query) ||
-      normalize(repair.customerPhone || '').includes(query) ||
-      normalize(repair.deviceType || repair.itemName || '').includes(query) ||
-      normalize(repair.issueDescription || '').includes(query) ||
-      normalize(repair.serialNumber || '').includes(query);
+    return repairs.filter((repair) => {
+      // ✅ 1. Status Filter: Skip if not "All" and doesn't match
+      if (currentStatusFilter !== 'All' && repair.repairStatus !== currentStatusFilter) {
+        return false;
+      }
 
-    // Apply status filter only if not "All"
-    const matchesStatus =
-      currentStatusFilter === 'All' || repair.repairStatus === currentStatusFilter;
+      // ✅ 2. If no search term, show the repair (status already passed)
+      if (queryWords.length === 0) return true;
 
-    return matchesSearch && matchesStatus;
-  });
-}, [repairs, searchTerm, currentStatusFilter]); // Ensure these are reactive
+      // ✅ 3. Build searchable text from relevant fields
+      const searchableText = [
+        repair.repairInvoice,
+        repair.repairCode,
+        repair.customerName,
+        repair.customerPhone,
+        repair.deviceType,
+        repair.itemName,
+        repair.issueDescription,
+        repair.serialNumber,
+        repair.repairStatus
+      ]
+        .filter(Boolean) // Remove null/undefined
+        .map(normalize)
+        .join(' ');
+
+      // ✅ 4. Match ALL words in any field (e.g., "john" and "077")
+      return queryWords.every(word => searchableText.includes(word));
+    });
+  }, [repairs, searchTerm, currentStatusFilter]);
     // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -358,6 +345,8 @@ const ProductRepairList = ({ darkMode }) => {
 
     // console.log(`Using supplierName: ${supplierName}, itemName: ${itemName} for product ${product.itemCode}`);
 
+    const sellingPrice = product.sellingPrice || 0; // Use DB selling price as default
+
     const existing = selectedProducts.find((p) => p.itemCode === product.itemCode);
     if (existing) {
       setSelectedProducts(
@@ -366,7 +355,8 @@ const ProductRepairList = ({ darkMode }) => {
             ...p,
             quantity: p.quantity + 1,
             supplierName: supplierName,
-            itemName: itemName
+            itemName: itemName,
+            cost: (p.sellingPrice || sellingPrice) * (p.quantity + 1),
           } : p
         )
       );
@@ -376,7 +366,9 @@ const ProductRepairList = ({ darkMode }) => {
         itemName: itemName,
         category: product.category,
         quantity: 1,
-        supplierName: supplierName
+        supplierName: supplierName,
+        sellingPrice, // 👈 Initialize with product's selling price
+        cost: sellingPrice,
       }]);
     }
   };
@@ -400,6 +392,14 @@ const ProductRepairList = ({ darkMode }) => {
     // Update the product's quantity
     updatedProducts[index] = { ...product, quantity: newQuantity };
     // Update the state with the new array
+    const sellingPrice = product.sellingPrice || 0;
+
+    updatedProducts[index] = {
+    ...product,
+    quantity: newQuantity,
+    cost: sellingPrice * newQuantity,
+  };
+
     setSelectedProducts(updatedProducts);
   };
 
@@ -2874,38 +2874,84 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
             <br />
             <div>
             {selectedProducts.length > 0 ? (
-              <ul className="selected-products-list">
-                {selectedProducts.map((item, index) => (
-                  <li key={index} className="selected-product-item">
-                    <span>{item.itemName || "Unknown"} - {item.category || "Unknown"}</span>
-                    <div className="quantity-controls">
-                      <button
-                        onClick={() => handleUpdateQuantity(index, -1)}
-                        className="quantity-btn"
-                        disabled={item.quantity <= 1}
-                        title="Decrease quantity"
-                      >
-                        -
-                      </button>
-                      <span className="quantity-display">{item.quantity}</span>
-                      <button
-                        onClick={() => handleUpdateQuantity(index, 1)}
-                        className="quantity-btn"
-                        title="Increase quantity"
-                      >
-                        +
-                      </button>
-                      <button
-                        onClick={() => handleRemoveProduct(index)}
-                        className="remove-product-btn"
-                        title="Remove this product"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <div className="selected-products-table-container">
+                <table className={`repair-table ${darkMode ? "dark" : ""}`}>
+                  <thead>
+                    <tr>
+                      <th>Item Name</th>
+                      <th>Category</th>
+                      <th>Qty</th>
+                      <th>Selling Price</th>
+                      <th>Total Cost</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedProducts.map((item, index) => (
+                      <tr key={index}>
+                        <td>{item.itemName || "Unknown"}</td>
+                        <td>{item.category || "Unknown"}</td>
+                        <td style={{ textAlign: "center" }}>
+                          <div className="quantity-controls-inline">
+                            <button
+                              onClick={() => handleUpdateQuantity(index, -1)}
+                              className="remove-btn"
+                              disabled={item.quantity <= 1}
+                              title="Decrease quantity"
+                            >
+                              −
+                            </button>
+                            <span className="quantity-display">{item.quantity}</span>
+                            <button
+                              onClick={() => handleUpdateQuantity(index, 1)}
+                              className="remove-btn"
+                              title="Increase quantity"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.sellingPrice || ""}
+                            onChange={(e) => {
+                              const value = e.target.value === "" ? "" : parseFloat(e.target.value);
+                              const updated = [...selectedProducts];
+                              updated[index] = {
+                                ...updated[index],
+                                sellingPrice: value,
+                                cost: value && updated[index].quantity ? value * updated[index].quantity : 0,
+                              };
+                              setSelectedProducts(updated);
+                            }}
+                            className={`selling-price-input ${darkMode ? "dark" : ""}`}
+                            placeholder="Price"
+                            style={{ width: "90px", padding: "4px", fontSize: "14px", textAlign: "center" }}
+                          />
+                        </td>
+                        <td>
+                          <strong>
+                            Rs. {item.cost?.toFixed(2) || (item.sellingPrice * item.quantity)?.toFixed(2) || "0.00"}
+                          </strong>
+                        </td>
+                        <td>
+                          <button
+                            onClick={() => handleRemoveProduct(index)}
+                            className="remove-btn"
+                            title="Remove product"
+                          >
+                            🗑
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              
+              </div>
             ) : (
               <p>No products selected.</p>
             )}

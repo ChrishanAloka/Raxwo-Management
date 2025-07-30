@@ -118,13 +118,16 @@ const Payment = ({ darkMode }) => {
     return cart.reduce((total, item) => total + item.quantity, 0);
   };
 
-  const filteredProducts = products.filter((product) =>
-    product.itemCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.buyingPrice.toString().includes(searchQuery) ||
-    product.sellingPrice.toString().includes(searchQuery)
-  );
+  const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
+
+  const filteredProducts = searchQuery.trim() === ""
+    ? products
+    : products.filter(product => {
+        const queryWords = normalize(searchQuery).split(' ');
+        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+
+        return queryWords.every(word => searchableText.includes(word));
+      });
 
   const filteredCart = cart.filter((item) =>
     item.itemName.toLowerCase().includes(cartSearchQuery.toLowerCase())
@@ -145,6 +148,23 @@ const Payment = ({ darkMode }) => {
       setCustomerDetails(null);
     }
   };
+
+  const handlePriceChange = (index, newPrice) => {
+  if (isNaN(newPrice) || newPrice < 0) return;
+
+  const updatedCart = [...cart];
+  const oldPrice = updatedCart[index].sellingPrice;
+  const quantity = updatedCart[index].quantity;
+
+  // Update selling price
+  updatedCart[index] = {
+    ...updatedCart[index],
+    sellingPrice: newPrice,
+    // Optionally: recalculate total if you don't compute on render
+  };
+
+  setCart(updatedCart);
+};
 
   const handleReturnClose = (returnInvoiceNumber) => {
     setShowReturnPopup(false);
@@ -238,7 +258,7 @@ const Payment = ({ darkMode }) => {
             <tbody className={`cart-table-body ${darkMode ? 'dark' : ''}`}>
               {filteredCart.map((item, index) => (
                 <tr key={index}>
-                  <td>{item.itemName}</td>
+                  <td>{item.itemName} - {item.category}</td>
                   <td>
                     <input
                       type="number"
@@ -248,7 +268,17 @@ const Payment = ({ darkMode }) => {
                       className={darkMode ? 'dark' : ''}
                     />
                   </td>
-                  <td>Rs.{item.sellingPrice}</td>
+                  <td>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={item.sellingPrice}
+                      onChange={(e) => handlePriceChange(index, parseFloat(e.target.value))}
+                      className={`price-input ${darkMode ? 'dark' : ''}`}
+                      style={{ width: "90px", padding: "4px", textAlign: "center" }}
+                    />
+                  </td>
                   <td>
                     <input
                       type="number"
@@ -409,15 +439,16 @@ const Payment = ({ darkMode }) => {
               <div key={product._id} className={`product-card ${darkMode ? 'dark' : ''}`}>
                 <div className="product-info">
                   {/* <span className={`product-code ${darkMode ? 'dark' : ''}`}>{product.itemCode}</span> */}
-                  <span className={`product-name ${darkMode ? 'dark' : ''}`}>{product.itemName}</span>
+                  <span className={`product-name ${darkMode ? 'dark' : ''}`}>{product.itemName} - </span>
                   <span className={`product-name ${darkMode ? 'dark' : ''}`}>{product.category}</span>
                   <span className={`product-price ${darkMode ? 'dark' : ''}`} style={{ color: 'black' }}>
-                    Sell: Rs.{product.sellingPrice.toFixed(2)}
+                    Sell: Rs.{product.sellingPrice.toFixed(2)} / Stock : {product.stock}
                   </span>
                 </div>
                 <button
                   onClick={() => addToCart(product)}
                   className={`add-to-cart-btn ${darkMode ? 'dark' : ''}`}
+                  disabled={product.stock === 0}
                 >
                   <FontAwesomeIcon icon={faCartPlus} size="lg" />
                 </button>

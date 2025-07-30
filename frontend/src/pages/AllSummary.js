@@ -504,7 +504,12 @@ const AllSummary = ({ darkMode }) => {
 
   // Calculate totals
   const totalProductExpenses = filteredProducts.reduce((sum, product) => {
-    return sum + (product.buyingPrice && product.stock ? product.buyingPrice * product.stock : 0);
+    if (product.grnNumber === "GRN-SYS01")
+      {return 0;}
+    else {
+      return sum + (product.buyingPrice && product.stock ? product.buyingPrice * product.stock : 0);
+    }
+    
   }, 0);
 
   const totalSalaryExpenses = filteredSalaries.reduce((sum, salary) => {

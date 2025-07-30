@@ -65,11 +65,10 @@ const ProductList = ({ darkMode }) => {
   };
 
   // Fetch products with backend pagination and filtering
-  const fetchProducts = (page = 1, search = '') => {
+  const fetchProducts = (page = 1) => {
     setLoading(true);
     setRefreshing(true);
     let url = `${API_URL}?page=${page}&limit=${itemsPerPage}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
     fetch(url)
       .then((response) => {
         if (!response.ok) {
@@ -83,6 +82,7 @@ const ProductList = ({ darkMode }) => {
           const dataObj = product.data || {};
           return {
             _id: product._id,
+            grnNumber:product.grnNumber,
             itemCode: product.itemCode,
             itemName: product.itemName,
             category: product.category,
@@ -202,24 +202,35 @@ const ProductList = ({ darkMode }) => {
     }
   };
 
+  const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
+
+  const filteredProductsForModal = searchQuery.trim() === ""
+    ? products
+    : products.filter(product => {
+        const queryWords = normalize(searchQuery).split(' ');
+        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+
+        return queryWords.every(word => searchableText.includes(word));
+      });
+
   // Helper to fetch all products (no pagination)
-  const fetchAllProductsForReport = async (search = '') => {
-    let url = `${API_URL}`;
-    if (search) url += `?search=${encodeURIComponent(search)}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Failed to fetch all products for report');
-    const data = await response.json();
-    if (data && data.records) return data.records;
-    if (Array.isArray(data)) return data;
-    return [];
-  };
+  // const fetchAllProductsForReport = async (search = '') => {
+  //   let url = `${API_URL}`;
+  //   if (search) url += `?search=${encodeURIComponent(search)}`;
+  //   const response = await fetch(url);
+  //   if (!response.ok) throw new Error('Failed to fetch all products for report');
+  //   const data = await response.json();
+  //   if (data && data.records) return data.records;
+  //   if (Array.isArray(data)) return data;
+  //   return [];
+  // };
 
   const generatePDF = async () => {
     try {
-      const allProducts = await fetchAllProductsForReport(searchQuery);
+      // const allProducts = await fetchAllProductsForReport(searchQuery);
       const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
       const clickedProductIds = clickedProducts.map(cp => cp._id);
-      const availableProductsForReport = allProducts.filter(product => !clickedProductIds.includes(product._id));
+      const availableProductsForReport = filteredProductsForModal.filter(product => !clickedProductIds.includes(product._id));
       const doc = new jsPDF();
       doc.text('Product List', 90, 20);
       const tableColumn = ['GRN', 'Item Name', 'Category', 'Buying Price', 'Selling Price', 'Stock', 'Supplier', 'Status', 'Created At'];
@@ -244,10 +255,10 @@ const ProductList = ({ darkMode }) => {
 
   const generateExcel = async () => {
     try {
-      const allProducts = await fetchAllProductsForReport(searchQuery);
+      // const allProducts = await fetchAllProductsForReport(searchQuery);
       const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
       const clickedProductIds = clickedProducts.map(cp => cp._id);
-      const availableProductsForReport = allProducts.filter(product => !clickedProductIds.includes(product._id));
+      const availableProductsForReport = filteredProductsForModal.filter(product => !clickedProductIds.includes(product._id));
       const formattedProducts = availableProductsForReport.map((product) => ({
         'GRN': product.grnNumber || 'N/A',
         'Item Name': product.itemName,
@@ -650,7 +661,7 @@ const ProductList = ({ darkMode }) => {
               </tr>
             </thead>
             <tbody>
-              {products.map((product, idx) => (
+              {filteredProductsForModal.map((product, idx) => (
                   <tr key={product._id || product.itemCode || idx} style={product.source === 'uploaded' ? { background: '#f7f7f7' } : {}}>
                     {/* <td>{product.itemCode || 'N/A'}</td> */}
                     <td>{product.itemName}</td>

@@ -60,10 +60,16 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
     setSearchQuery(e.target.value);
   };
 
-  const filteredProducts = products.filter(product =>
-    product.itemCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.itemName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
+
+  const filteredProducts = searchQuery.trim() === ""
+    ? products
+    : products.filter(product => {
+        const queryWords = normalize(searchQuery).split(' ');
+        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+
+        return queryWords.every(word => searchableText.includes(word));
+      });
 
   const addToReturn = (product) => {
     const existingItem = returnItems.find(item => item.productId === product._id);
@@ -206,7 +212,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
         <div className="search-section">
           <input
             type="text"
-            placeholder="🔍 Search by item code..."
+            placeholder="🔍 Search by item name, category..."
             value={searchQuery}
             onChange={handleSearch}
             className={`return-search ${darkMode ? "dark-mode" : ""}`}

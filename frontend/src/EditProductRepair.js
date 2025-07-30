@@ -150,7 +150,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
         ["Customer Type", formData.customerType],
         ["Customer Name", formData.customerName],
         ["Customer Phone", formData.customerPhone],
-        ["Customer Email", formData.customerEmail || "N/A"],
+        ["Customer Email", formData.customerEmail || "@gmail.com"],
         ["Customer NIC", formData.customerNIC || "N/A"],
         ["Customer Address", formData.customerAddress || "N/A"],
         // Job Details
@@ -203,7 +203,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
 
     const requestBody = {
       ...formData,
-      customerEmail: formData.customerEmail || "N/A",
+      customerEmail: formData.customerEmail || "@gmail.com",
       customerNIC: formData.customerNIC || "N/A",
       customerAddress: formData.customerAddress || "N/A",
       itemName: formData.deviceType, // Use deviceType as itemName to satisfy backend schema

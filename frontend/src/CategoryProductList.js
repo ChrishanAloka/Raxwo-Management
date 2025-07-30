@@ -26,11 +26,10 @@ const CategoryProductList = ({ darkMode }) => {
   const [showEditModal, setShowEditModal] = useState(false);
 
   // Paginated fetch for display
-  const fetchProducts = (page = 1, search = "") => {
+  const fetchProducts = (page = 1) => {
     setLoading(true);
     setError("");
     let url = `${API_URL}?page=${page}&limit=${itemsPerPage}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
     fetch(url)
       .then((response) => {
         if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
@@ -90,8 +89,19 @@ const CategoryProductList = ({ darkMode }) => {
     // eslint-disable-next-line
   }, [currentPage, searchQuery]);
 
+  const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
+
+  const filteredProductsForModal = searchQuery.trim() === ""
+    ? products
+    : products.filter(product => {
+        const queryWords = normalize(searchQuery).split(' ');
+        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+
+        return queryWords.every(word => searchableText.includes(word));
+      });
+
   // Group products by category (for current page)
-  const groupedByCategory = products.reduce((acc, product) => {
+  const groupedByCategory = filteredProductsForModal.reduce((acc, product) => {
     const category = product.supplier === "Unknown" ?  `${product.category}` : `${product.category}`;
     if (!acc[category]) acc[category] = [];
     acc[category].push(product);
@@ -100,22 +110,22 @@ const CategoryProductList = ({ darkMode }) => {
   const sortedCategories = Object.keys(groupedByCategory).sort();
 
   // Fetch all products for report
-  const fetchAllProductsForReport = async (search = "") => {
-    let url = `${API_URL}`;
-    if (search) url += `?search=${encodeURIComponent(search)}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Failed to fetch all products for report');
-    const data = await response.json();
-    if (data && data.records) return data.records;
-    if (Array.isArray(data)) return data;
-    return [];
-  };
+  // const fetchAllProductsForReport = async (search = "") => {
+  //   let url = `${API_URL}`;
+  //   if (search) url += `?search=${encodeURIComponent(search)}`;
+  //   const response = await fetch(url);
+  //   if (!response.ok) throw new Error('Failed to fetch all products for report');
+  //   const data = await response.json();
+  //   if (data && data.records) return data.records;
+  //   if (Array.isArray(data)) return data;
+  //   return [];
+  // };
 
   // Report generation
   const generatePDF = async () => {
     try {
-      const allProducts = await fetchAllProductsForReport(searchQuery);
-      const grouped = allProducts.reduce((acc, product) => {
+      // const allProducts = await fetchAllProductsForReport(searchQuery);
+      const grouped = filteredProductsForModal.reduce((acc, product) => {
         const category = product.category || "Uncategorized";
         if (!acc[category]) acc[category] = [];
         acc[category].push(product);
@@ -160,8 +170,8 @@ const CategoryProductList = ({ darkMode }) => {
 
   const generateExcel = async () => {
     try {
-      const allProducts = await fetchAllProductsForReport(searchQuery);
-      const grouped = allProducts.reduce((acc, product) => {
+      // const allProducts = await fetchAllProductsForReport(searchQuery);
+      const grouped = filteredProductsForModal.reduce((acc, product) => {
         const category = product.category || "Uncategorized";
         if (!acc[category]) acc[category] = [];
         acc[category].push(product);

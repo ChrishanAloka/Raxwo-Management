@@ -233,18 +233,29 @@ router.patch("/update-cart/:id", getRepair, async (req, res) => {
         }
       }
 
-      // Update cart
+      // Extract sellingPrice from selectedProduct (edited by user)
+      const { sellingPrice: frontendSellingPrice } = selectedProduct;
+
+      // Use frontend-provided sellingPrice, fallback to DB value
+      const finalSellingPrice = typeof frontendSellingPrice === 'number' && !isNaN(frontendSellingPrice)
+        ? frontendSellingPrice
+        : product.sellingPrice || 0;
+
+      // Update cart with user-defined selling price
       if (updatedCartMap.has(itemCode)) {
         const existingItem = updatedCartMap.get(itemCode);
         existingItem.quantity += quantity;
-        existingItem.cost = product.sellingPrice * existingItem.quantity;
+        existingItem.cost = finalSellingPrice * existingItem.quantity;
+        existingItem.sellingPrice = finalSellingPrice; // Keep track
       } else {
         updatedCartMap.set(itemCode, {
           itemCode,
           itemName: product.itemName,
-          category: product.category, // Ensure itemName is included
+          category: product.category,
           quantity,
-          cost: product.sellingPrice * quantity,
+          sellingPrice: finalSellingPrice, // Store price used
+          cost: finalSellingPrice * quantity,
+          supplierName: supplierName || "Default Supplier"
         });
       }
     }
