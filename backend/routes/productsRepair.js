@@ -77,7 +77,7 @@ router.post("/", async (req, res) => {
   try {
     console.log("POST /api/productsRepair - Received body:", req.body);
     const latestRepair = await ProductRepair.findOne().sort({ repairInvoice: -1 });
-    let newInvoiceNumber = 1;
+    let newInvoiceNumber = 11551;
     if (latestRepair && latestRepair.repairInvoice) {
       const latestNumber = parseInt(latestRepair.repairInvoice.replace("REP", ""), 10);
       newInvoiceNumber = latestNumber + 1;
