@@ -10,6 +10,11 @@ const itemSchema = new mongoose.Schema({
   grnNumber:{ type: String, required: false }
 });
 
+const pastpaymentSchema = new mongoose.Schema({
+  paymentdescription: { type: String, required: true },
+  paymentCharge: { type: Number, required: true, min: 0 }
+});
+
 const supplierSchema = new mongoose.Schema({
   date: { type: String, required: true },
   time: { type: String, required: true },
@@ -19,6 +24,7 @@ const supplierSchema = new mongoose.Schema({
   address: { type: String, required: false },
   receiptNumber: { type: String, required: false },
   totalPayments: { type: Number, required: false, default: 0, min: 0 },
+  pastPayments: [pastpaymentSchema],
   items: [itemSchema],
   changeHistory: [{
     field: { type: String, required: true },

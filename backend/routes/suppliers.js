@@ -212,6 +212,29 @@ router.post('/:id/items', getSupplier, async (req, res) => {
   }
 });
 
+// POST: Add an item to a supplier's cart
+router.post('/:id/pastpayments', getSupplier, async (req, res) => {
+  
+  const item = {
+    paymentdescription: req.body.paymentdescription || "Empty",
+    paymentCharge: req.body.paymentCharge || 0
+  };
+
+  res.supplier.pastPayments.push(item);
+
+  try {
+    const updatedSupplier = await res.supplier.save();
+    
+    // ✅ Send back the itemCode in response
+    res.status(201).json({
+      message: 'Past Payment added successfully',
+      supplier: updatedSupplier   
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // PATCH: Update an item in a supplier's cart
 router.patch('/:id/items/:itemIndex', getSupplier, async (req, res) => {
   const itemIndex = parseInt(req.params.itemIndex);
@@ -306,11 +329,17 @@ router.post('/:id/payments', getSupplier, async (req, res) => {
     return res.status(400).json({ message: 'Payment amount must be a positive number' });
   }
 
-  // Calculate total cost
-  const totalCost = res.supplier.items.reduce(
+  // Calculate total cost and amount due
+  const totalitemCost = supplier.items.reduce(
     (sum, item) => sum + (item.buyingPrice || 0) * (item.quantity || 0),
     0
   );
+  const pastcharges = supplier.pastpayments.reduce(
+    (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+    0
+  );
+
+  const totalCost = totalitemCost + pastcharges;
   const currentPayments = res.supplier.totalPayments || 0;
   const amountDue = totalCost - currentPayments;
 

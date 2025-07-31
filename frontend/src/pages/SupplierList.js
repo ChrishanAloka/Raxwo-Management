@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AddSupplier from './AddSupplier';
 import CartForm from './CartForm';
+import PastPayment from './PastPayment';
 import SummaryForm from '../components/SummaryForm';
 import PaymentForm from '../components/PaymentForm';
 import suppliericon from '../icon/add (1).png';
@@ -10,6 +11,7 @@ import editicon from '../icon/edit.png';
 import deleteicon from '../icon/delete.png';
 import cart from '../icon/shopping-cart.png';
 import viewicon from '../icon/clipboard.png';
+import jobBillIcon from "../icon/bill.png";
 import payicon from '../icon/payment.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faFile, faFilePdf, faFileExcel, faSearch, faTimes, faChartBar } from '@fortawesome/free-solid-svg-icons';
@@ -24,6 +26,7 @@ const SupplierList = ({ darkMode }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false);
+  const [showPastPaymentModal, setshowPastPaymentModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showItemDetailsModal, setShowItemDetailsModal] = useState(false);
@@ -118,6 +121,12 @@ const SupplierList = ({ darkMode }) => {
   const handleCart = (supplier) => {
     setSelectedSupplier(supplier);
     setShowCartModal(true);
+    setShowActionMenu(null);
+  };
+
+  const handlePastpayment = (supplier) => {
+    setSelectedSupplier(supplier);
+    setshowPastPaymentModal(true);
     setShowActionMenu(null);
   };
 
@@ -426,6 +435,12 @@ const filteredSuppliers = suppliers.filter(supplier => {
                               <span>Cart</span>
                             </div>
                           </button>
+                          <button onClick={() => handlePastpayment(supplier)} className="p-edit-btn">
+                            <div className="action-btn-content">
+                              <img src={jobBillIcon} alt="cart" width="30" height="30" className="p-edit-btn-icon" />
+                              <span>Add Past Payment</span>
+                            </div>
+                          </button>
                           <button onClick={() => handleEdit(supplier)} className="p-edit-btn">
                             <div className="action-btn-content">
                               <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
@@ -498,6 +513,21 @@ const filteredSuppliers = suppliers.filter(supplier => {
           refreshProducts={refreshProducts}
         />
       )}
+
+      {showPastPaymentModal && selectedSupplier && (
+        <PastPayment
+          supplier={selectedSupplier}
+          closeModal={() => {
+            setshowPastPaymentModal(false);
+            setSelectedSupplier(null);
+            fetchSuppliers();
+            refreshProducts();
+          }}
+          darkMode={darkMode}
+          refreshProducts={refreshProducts}
+        />
+      )}
+
       {notification && (
         <div className={`notification ${darkMode ? 'dark' : ''}`}>
           {notification}

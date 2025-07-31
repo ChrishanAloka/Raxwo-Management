@@ -8,10 +8,16 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
   const [error, setError] = useState(null);
 
   // Calculate total cost and amount due
-  const totalCost = supplier.items.reduce(
+  const totalitemCost = supplier.items.reduce(
     (sum, item) => sum + (item.buyingPrice || 0) * (item.quantity || 0),
     0
   );
+  const pastcharges = supplier.pastPayments.reduce(
+    (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+    0
+  );
+
+  const totalCost = totalitemCost + pastcharges;
   const totalPayments = supplier.totalPayments || 0;
   const totalAmountDue = totalCost - totalPayments;
   const remainingDue = totalAmountDue - (parseFloat(paymentAmount) || 0);
