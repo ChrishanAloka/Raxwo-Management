@@ -17,7 +17,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
     // Job Details
     repairInvoice: repair.repairInvoice || "",
     deviceType: repair.deviceType || "",
-    serialNumber: repair.serialNumber || "",
+    serialNumber: repair.serialNumber || "", 
     estimationValue: repair.estimationValue || "",
     checkingCharge: repair.checkingCharge || "",
     issueDescription: repair.issueDescription || "",
@@ -51,7 +51,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
         repairInvoice: repair.repairInvoice || "",
         deviceType: repair.deviceType || repair.itemName || "",
         serialNumber: repair.serialNumber || "",
-        estimationValue: repair.estimationValue !== undefined ? repair.estimationValue : "",
+        estimationValue: repair.estimationValue || "",
         checkingCharge: repair.checkingCharge !== undefined ? repair.checkingCharge : "",
         issueDescription: repair.issueDescription || "",
         additionalNotes: repair.additionalNotes || "",
@@ -208,7 +208,8 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
       customerAddress: formData.customerAddress || "N/A",
       itemName: formData.deviceType, // Use deviceType as itemName to satisfy backend schema
       serialNumber: formData.serialNumber || "N/A",
-      estimationValue: formData.estimationValue ? parseFloat(formData.estimationValue) : 0,
+      issueDescription: formData.issueDescription || "N/A",
+      estimationValue: formData.estimationValue || "0",
       checkingCharge: formData.checkingCharge ? parseFloat(formData.checkingCharge) : 0,
       additionalNotes: formData.additionalNotes || "N/A",
       repairCost: parseFloat(formData.repairCost) || 0,
@@ -479,7 +480,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
               <label className="repair-label">ESTIMATION VALUE</label>
               <input
                 className="repair-input"
-                type="number"
+                type="text"
                 name="estimationValue"
                 value={formData.estimationValue}
                 onChange={handleChange}

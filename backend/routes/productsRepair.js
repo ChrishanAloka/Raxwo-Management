@@ -82,7 +82,7 @@ router.post("/", async (req, res) => {
       const latestNumber = parseInt(latestRepair.repairInvoice.replace("REP", ""), 10);
       newInvoiceNumber = latestNumber + 1;
     }
-    const repairInvoice = `REP${String(newInvoiceNumber).padStart(2, "0")}`;
+    const repairInvoice = `${String(newInvoiceNumber).padStart(2, "0")}`;
     console.log("Generated repairInvoice:", repairInvoice);
 
     const repair = new ProductRepair({
@@ -90,7 +90,7 @@ router.post("/", async (req, res) => {
       customerType: req.body.customerType || "New Customer",
       customerName: req.body.customerName,
       customerPhone: req.body.customerPhone,
-      customerEmail: req.body.customerEmail || "N/A",
+      customerEmail: req.body.customerEmail || "N/A@email.com",
       // NIC and address fields kept but not displayed in UI as per requirements
       customerNIC: req.body.customerNIC || "N/A",
       customerAddress: req.body.customerAddress || "N/A",
@@ -101,7 +101,7 @@ router.post("/", async (req, res) => {
       itemName: req.body.deviceType || req.body.itemName, // Set itemName equal to deviceType
       technician: req.body.technician || "N/A",
       serialNumber: req.body.serialNumber || "N/A",
-      estimationValue: req.body.estimationValue ? parseFloat(req.body.estimationValue) : 0,
+      estimationValue: req.body.estimationValue || "0",
       checkingCharge: req.body.checkingCharge ? parseFloat(req.body.checkingCharge) : 0,
       issueDescription: req.body.issueDescription,
       additionalNotes: req.body.additionalNotes || "N/A",
@@ -621,11 +621,17 @@ router.patch("/:id", getRepair, async (req, res) => {
 
     // Update allowed fields
     const allowedUpdates = [
+      "customerType",
       "customerName",
       "customerPhone",
+      "customerEmail",
       "deviceType",
       "itemName",
       "issueDescription",
+      "serialNumber",
+      "estimationValue",
+      "additionalNotes",
+      "checkingCharge",
       "repairCart",
       "totalRepairCost",
       "repairStatus",
@@ -719,6 +725,8 @@ router.put("/:id", getRepair, async (req, res) => {
       changedBy
     } = req.body;
 
+    console.log("put req.body : ",req.body);
+
     // Calculate cart total
     const cartTotal = (repairCart || req.repair.repairCart || []).reduce(
       (total, item) => total + item.cost, 0
@@ -761,7 +769,7 @@ router.put("/:id", getRepair, async (req, res) => {
       itemName: itemName || req.repair.itemName,
       technician: technician || req.repair.technician || "N/A",
       serialNumber: serialNumber || req.repair.serialNumber || "N/A",
-      estimationValue: estimationValue !== undefined ? parseFloat(estimationValue) : req.repair.estimationValue || 0,
+      estimationValue: estimationValue || req.repair.estimationValue || "0", 
       checkingCharge: checkingCharge !== undefined ? parseFloat(checkingCharge) : req.repair.checkingCharge || 0,
       issueDescription: issueDescription || req.repair.issueDescription,
       additionalNotes: additionalNotes || req.repair.additionalNotes || "N/A",

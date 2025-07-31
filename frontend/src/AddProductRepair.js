@@ -548,7 +548,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
               <label className="repair-label">Estimation Value</label>
               <input
                 className="repair-input"
-                type="number"
+                type="text"
                 name="estimationValue"
                 value={formData.estimationValue}
                 onChange={handleChange}
