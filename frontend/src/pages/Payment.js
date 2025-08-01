@@ -44,6 +44,26 @@ const Payment = ({ darkMode }) => {
       return;
     }
 
+    // Load customer details from localStorage
+    setCustomerName(localStorage.getItem('customerName') || '');
+    setContactNumber(localStorage.getItem('contactNumber') || '');
+    setAddress(localStorage.getItem('address') || '');
+
+    // Load cart from localStorage
+    const savedCart = localStorage.getItem('paymentCart');
+    if (savedCart) {
+      try {
+        const parsedCart = JSON.parse(savedCart);
+        // Optional: Validate structure
+        if (Array.isArray(parsedCart)) {
+          setCart(parsedCart);
+        }
+      } catch (e) {
+        console.error('Failed to parse cart from localStorage', e);
+        localStorage.removeItem('paymentCart');
+      }
+    }
+
     const id = localStorage.getItem('userId');
     const name = localStorage.getItem('username');
     setCashierId(id || 'N/A');
@@ -81,25 +101,30 @@ const Payment = ({ darkMode }) => {
         setError('Failed to load products. Please try logging in again.');
       });
   }, [navigate]);
+  
 
   const addToCart = (product) => {
     setCart([...cart, { ...product, quantity: 1, discount: 0 }]);
+    localStorage.setItem('paymentCart', JSON.stringify(cart));
   };
 
   const removeFromCart = (index) => {
     setCart(cart.filter((_, i) => i !== index));
+    localStorage.setItem('paymentCart', JSON.stringify(cart));
   };
 
   const handleQuantityChange = (index, value) => {
     const updatedCart = [...cart];
     updatedCart[index].quantity = Math.max(1, Number(value));
     setCart(updatedCart);
+    localStorage.setItem('paymentCart', JSON.stringify(cart));
   };
 
   const applyDiscount = (index, discount) => {
     const updatedCart = [...cart];
     updatedCart[index].discount = Math.max(0, Number(discount));
     setCart(updatedCart);
+    localStorage.setItem('paymentCart', JSON.stringify(cart));
   };
 
   const calculateSubtotal = () => {
@@ -144,9 +169,35 @@ const Payment = ({ darkMode }) => {
       setAddress('');
       // Clear wholesale customer details after payment
       localStorage.removeItem('wholesaleCustomer');
+      localStorage.removeItem('paymentCart');
+      // Clear from localStorage
+      localStorage.removeItem('customerName');
+      localStorage.removeItem('contactNumber');
+      localStorage.removeItem('address');
+      // ... clear customer details
       setIsWholesale(false);
       setCustomerDetails(null);
     }
+  };
+
+  const handlePaymentClear = () => {
+      setCart([]);
+      
+      // Clear wholesale customer details after payment
+      localStorage.removeItem('wholesaleCustomer');
+      localStorage.removeItem('paymentCart');
+      // Clear from localStorage
+      localStorage.removeItem('customerName');
+      localStorage.removeItem('contactNumber');
+      localStorage.removeItem('address');
+      // ... clear customer details
+      // Clear customer details after payment
+      setCustomerName('');
+      setContactNumber('');
+      setAddress('');
+
+      setIsWholesale(false);
+      setCustomerDetails(null);
   };
 
   const handlePriceChange = (index, newPrice) => {
@@ -164,6 +215,7 @@ const Payment = ({ darkMode }) => {
   };
 
   setCart(updatedCart);
+  localStorage.setItem('paymentCart', JSON.stringify(cart));
 };
 
   const handleReturnClose = (returnInvoiceNumber) => {
@@ -225,21 +277,30 @@ const Payment = ({ darkMode }) => {
             type="text"
             placeholder="Customer Name"
             value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
+            onChange={(e) => {
+              setCustomerName(e.target.value);
+              localStorage.setItem('customerName', e.target.value);
+            }}
             className={`customer-input ${darkMode ? 'dark' : ''}`}
           />
           <input
             type="text"
             placeholder="Contact Number"
             value={contactNumber}
-            onChange={(e) => setContactNumber(e.target.value)}
+            onChange={(e) => {
+              setContactNumber(e.target.value);
+              localStorage.setItem('contactNumber', e.target.value);
+            }}
             className={`customer-input ${darkMode ? 'dark' : ''}`}
           />
           <input
             type="text"
             placeholder="Address"
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={(e) => {
+              setAddress(e.target.value);
+              localStorage.setItem('address', e.target.value);
+            }}
             className={`customer-input ${darkMode ? 'dark' : ''}`}
           />
         </div>
@@ -320,6 +381,7 @@ const Payment = ({ darkMode }) => {
               Items: {calculateTotalItems()}
             </h3>
           </div>
+          <div className="summary-row">
           <button
             className={`pay-btn ${darkMode ? 'dark' : ''}`}
             onClick={() => setShowPopup(true)}
@@ -327,6 +389,14 @@ const Payment = ({ darkMode }) => {
           >
             Complete Payment
           </button>
+          <button
+            className={`pay-btn ${darkMode ? 'dark' : ''}`}
+            onClick={() => handlePaymentClear()}
+            disabled={cart.length === 0 || !cashierId || !cashierName || cashierId === 'N/A'}
+          >
+            Clear All Data
+          </button>
+          </div>
           
         </div>
 
