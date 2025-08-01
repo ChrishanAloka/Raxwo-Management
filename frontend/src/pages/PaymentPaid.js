@@ -452,6 +452,7 @@ const generatePaymentBill = (paymentData) => {
             <option className="drop" value="">Select</option>
             <option className="drop" value="Cash">Cash</option>
             <option className="drop" value="Card">Card</option>
+            <option className="drop" value="Bank-Transfer">Bank Transfer</option>
           </select>
 
           <p className={`tot-amo ${darkMode ? "dark-mode" : ""}`}>
