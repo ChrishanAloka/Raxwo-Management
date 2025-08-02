@@ -23,7 +23,7 @@ const paymentSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['Cash', 'Card', 'Refund'],
+    enum: ['Bank-Transfer', 'Cash', 'Card', 'Refund'],
     required: true
   },
   cashierId: {
