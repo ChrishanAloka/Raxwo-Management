@@ -46,6 +46,10 @@ const paymentSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  description: {
+    type: String,
+    default: ''
+  },
   date: {
     type: Date,
     default: Date.now

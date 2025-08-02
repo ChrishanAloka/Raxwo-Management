@@ -17,8 +17,8 @@ const getNextInvoiceNumber = async () => {
 // POST: Create a new payment (Protected route)
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { items, totalAmount, discountApplied, paymentMethod, cashierId, cashierName, customerName, contactNumber, address, isWholesale, customerDetails } = req.body;
-    console.log('Received payment data in backend:', { items, totalAmount, discountApplied, paymentMethod, cashierId, cashierName, customerName, contactNumber, address, isWholesale, customerDetails }); // Debug log
+    const { items, totalAmount, discountApplied, paymentMethod, cashierId, cashierName, customerName, contactNumber, address, description, isWholesale, customerDetails } = req.body;
+    console.log('Received payment data in backend:', { items, totalAmount, discountApplied, paymentMethod, cashierId, cashierName, customerName, contactNumber, address, description, isWholesale, customerDetails }); // Debug log
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'No items provided' });
@@ -56,6 +56,7 @@ router.post('/', authMiddleware, async (req, res) => {
       customerName: customerName || '',
       contactNumber: contactNumber || '',
       address: address || '',
+      description: description || '',
       isWholesale: isWholesale || false,
       customerDetails: isWholesale ? customerDetails : null,
     });
@@ -75,6 +76,17 @@ router.post('/', authMiddleware, async (req, res) => {
 
 // GET: Retrieve all payments (Protected route)
 router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const payments = await Payment.find().populate('items.productId');
+    console.log('Fetched payments from backend:', payments); // Debug log
+    res.json(payments);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET: Retrieve all payments (Protected route)
+router.get('/forsummery', async (req, res) => {
   try {
     const payments = await Payment.find().populate('items.productId');
     console.log('Fetched payments from backend:', payments); // Debug log
