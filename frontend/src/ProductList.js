@@ -18,6 +18,7 @@ import barcodeicon from './icon/barcode.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faChartSimple, faFile, faFilePdf, faFileExcel, faSearch, faTimes, faUpload, faSync } from '@fortawesome/free-solid-svg-icons';
 import { v4 as uuidv4 } from 'uuid';
+import { useMemo } from "react";
 
 //const API_URL = 'https://raxwo-management.onrender.com/api/products';
  const API_URL = 'https://raxwo-management.onrender.com/api/products';
@@ -59,6 +60,7 @@ const ProductList = ({ darkMode }) => {
   const [totalProducts, setTotalProducts] = useState(0);
   const productsPerPage = 20;
   const itemsPerPage = 20;
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const handleClearAll = () => {
     setSearchQuery('');
@@ -214,14 +216,99 @@ const ProductList = ({ darkMode }) => {
   const filteredProductsForModal = searchQuery.trim() === ""
     ? products
     : products.filter(product => {
-        const queryWords = normalize(searchQuery).split(' ');
-        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+        const searchableText = (product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
 
-        return queryWords.every(word => searchableText.includes(word));
+        // Split query into words and test each as a whole word or number
+        const words = normalize(searchQuery).trim().split(/\s+/);
+
+        return words.every(word => {
+          // Create a regex with word boundaries for exact partial matching
+          const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          return regex.test(searchableText);
+        });
       });
 
-  const totalProductPages = Math.ceil(filteredProductsForModal.length / productsPerPage);
-  const paginatedProductsForModal = filteredProductsForModal.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
+  const sortedAndFilteredProducts = useMemo(() => {
+    // Start with filtered products
+    // Start with all products or filtered list
+    let result = products;
+
+    // Apply search filter only if query exists
+    if (searchQuery.trim() !== '') {
+      result = products.filter(product => {
+        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+        const words = normalize(searchQuery).trim().split(/\s+/);
+
+        return words.every(word => {
+          const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          if (/^\d+$/.test(word)) {
+            // Numeric: require word boundaries (exact number match)
+            const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+            return regex.test(searchableText);
+          } else {
+            // Text: allow partial substring match
+            const regex = new RegExp(escapedWord, 'i');
+            return regex.test(searchableText);
+          }
+        });
+      });
+    }
+
+    // Apply sorting if a column is selected
+    if (sortConfig.key) {
+      result = [...result].sort((a, b) => {
+        let valueA = '';
+        let valueB = '';
+
+        switch (sortConfig.key) {
+          case 'itemName':
+            valueA = a.itemName || '';
+            valueB = b.itemName || '';
+            break;
+          case 'category':
+            valueA = a.category || '';
+            valueB = b.category || '';
+            break;
+          case 'buyingPrice':
+            valueA = a.buyingPrice || 0;
+            valueB = b.buyingPrice || 0;
+            break;
+          case 'sellingPrice':
+            valueA = a.sellingPrice || 0;
+            valueB = b.sellingPrice || 0;
+            break;
+          case 'stock':
+            valueA = a.stock || 0;
+            valueB = b.stock || 0;
+            break;
+          case 'status':
+            valueA = a.stock > 0 ? 1 : 0; // In Stock = 1, Out of Stock = 0
+            valueB = b.stock > 0 ? 1 : 0;
+            break;
+          default:
+            return 0;
+        }
+
+        // Handle numeric vs string comparison
+        if (typeof valueA === 'number') {
+          return sortConfig.direction === 'asc'
+            ? valueA - valueB
+            : valueB - valueA;
+        } else {
+          valueA = String(valueA).toLowerCase();
+          valueB = String(valueB).toLowerCase();
+          if (valueA < valueB) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (valueA > valueB) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+      });
+    }
+
+    return result;
+  }, [products, searchQuery, sortConfig]);
+
+  const totalProductPages = Math.ceil(sortedAndFilteredProducts.length / productsPerPage);
+  const paginatedProductsForModal = sortedAndFilteredProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
 
   // Helper to fetch all products (no pagination)
   // const fetchAllProductsForReport = async (search = '') => {
@@ -240,7 +327,7 @@ const ProductList = ({ darkMode }) => {
       // const allProducts = await fetchAllProductsForReport(searchQuery);
       const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
       const clickedProductIds = clickedProducts.map(cp => cp._id);
-      const availableProductsForReport = filteredProductsForModal.filter(product => !clickedProductIds.includes(product._id));
+      const availableProductsForReport = sortedAndFilteredProducts.filter(product => !clickedProductIds.includes(product._id));
       const doc = new jsPDF();
       doc.text('Product List', 90, 20);
       const tableColumn = ['GRN', 'Item Name', 'Category', 'Buying Price', 'Selling Price', 'Stock', 'Supplier', 'Status', 'Created At'];
@@ -268,7 +355,7 @@ const ProductList = ({ darkMode }) => {
       // const allProducts = await fetchAllProductsForReport(searchQuery);
       const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
       const clickedProductIds = clickedProducts.map(cp => cp._id);
-      const availableProductsForReport = filteredProductsForModal.filter(product => !clickedProductIds.includes(product._id));
+      const availableProductsForReport = sortedAndFilteredProducts.filter(product => !clickedProductIds.includes(product._id));
       const formattedProducts = availableProductsForReport.map((product) => ({
         'GRN': product.grnNumber || 'N/A',
         'Item Name': product.itemName,
@@ -531,6 +618,15 @@ const ProductList = ({ darkMode }) => {
     }
   };
 
+  const handleSort = (key) => {
+  setSortConfig((prevConfig) => {
+    // If clicking the same column, toggle direction
+    const direction =
+      prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc';
+    return { key, direction };
+  });
+};
+
   return (
     <div className={`product-repair-list-container ${darkMode ? "dark" : ""}`}>
       <div className="header-section">
@@ -658,13 +754,55 @@ const ProductList = ({ darkMode }) => {
             <thead>
               <tr>
                 {/* <th>GRN</th> */}
-                <th>Item Name</th>
-                <th>Category</th>
-                <th>Buying Price</th>
-                <th>Selling Price</th>
-                <th>Stock</th>
+                <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Item Name
+                  {sortConfig.key === 'itemName' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('category')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Category
+                  {sortConfig.key === 'category' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('buyingPrice')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Buying Price
+                  {sortConfig.key === 'buyingPrice' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('sellingPrice')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Selling Price
+                  {sortConfig.key === 'sellingPrice' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('stock')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Stock
+                  {sortConfig.key === 'stock' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
                 {/* <th>Supplier</th> */}
-                <th>Status</th>
+                <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Status
+                  {sortConfig.key === 'status' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
                 {/* <th>Created At</th>
                 <th>Added Back</th> */}
                 <th>Action</th>

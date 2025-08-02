@@ -31,23 +31,66 @@ const Payment = ({ darkMode }) => {
   const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [address, setAddress] = useState('');
+  const [description, setDescription] = useState('');
 
   const [cashierId, setCashierId] = useState(localStorage.getItem('userId') || 'N/A');
   const [cashierName, setCashierName] = useState(localStorage.getItem('username') || 'Unknown');
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    console.log('Payment useEffect - Token:', token);
-    if (!token) {
-      console.log('No token found, redirecting to login');
-      navigate('/');
-      return;
+  // Reusable function to fetch available products
+  const fetchAvailableProducts = async (setProducts, navigate) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/');
+        return;
+      }
+
+      const response = await axios.get('https://raxwo-management.onrender.com/api/products', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const allProducts = Array.isArray(response.data) ? response.data : [];
+
+      // Get clicked/deleted products from localStorage
+      const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
+      const clickedProductIds = clickedProducts.map(cp => cp._id);
+
+      // Filter out deleted (clicked) products
+      const availableProducts = allProducts.filter(product =>
+        !product.clickedForAdd && !clickedProductIds.includes(product._id)
+      );
+
+      setProducts(availableProducts);
+    } catch (err) {
+      console.error('Error fetching products:', err.response?.data || err.message);
+      if (err.response?.status === 401) {
+        // Token expired or invalid
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('username');
+        localStorage.removeItem('role');
+        navigate('/');
+      } else {
+        // Optional: set error state if needed
+      }
     }
+  };
+
+  useEffect(() => {
+
+    fetchAvailableProducts(setProducts, navigate);
+
+    setCashierId(localStorage.getItem('userId') || 'N/A');
+    setCashierName(localStorage.getItem('username') || 'Unknown');
 
     // Load customer details from localStorage
     setCustomerName(localStorage.getItem('customerName') || '');
     setContactNumber(localStorage.getItem('contactNumber') || '');
     setAddress(localStorage.getItem('address') || '');
+    setDescription(localStorage.getItem('description') || '');
+    
 
     // Load cart from localStorage
     const savedCart = localStorage.getItem('paymentCart');
@@ -64,42 +107,6 @@ const Payment = ({ darkMode }) => {
       }
     }
 
-    const id = localStorage.getItem('userId');
-    const name = localStorage.getItem('username');
-    setCashierId(id || 'N/A');
-    setCashierName(name || 'Unknown');
-
-    axios.get('https://raxwo-management.onrender.com/api/products', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then(res => {
-        console.log('Products fetched:', res.data);
-        
-        // Filter products to only show those from the main product list (not deleted)
-        const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
-        const clickedProductIds = clickedProducts.map(cp => cp._id);
-        
-        const allProducts = Array.isArray(res.data) ? res.data : [];
-        const availableProducts = allProducts.filter(product => 
-          !product.clickedForAdd && !clickedProductIds.includes(product._id)
-        );
-        
-        console.log('Available products for payment:', availableProducts.length, 'out of', allProducts.length);
-        setProducts(availableProducts);
-      })
-      .catch(err => {
-        console.error('Error fetching products:', err.response?.data);
-        if (err.response?.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('userId');
-          localStorage.removeItem('username');
-          localStorage.removeItem('role');
-          navigate('/');
-        }
-        setError('Failed to load products. Please try logging in again.');
-      });
   }, [navigate]);
   
 
@@ -148,10 +155,16 @@ const Payment = ({ darkMode }) => {
   const filteredProducts = searchQuery.trim() === ""
     ? products
     : products.filter(product => {
-        const queryWords = normalize(searchQuery).split(' ');
-        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+        const searchableText = (product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
 
-        return queryWords.every(word => searchableText.includes(word));
+        // Split query into words and test each as a whole word or number
+        const words = normalize(searchQuery).trim().split(/\s+/);
+
+        return words.every(word => {
+          // Create a regex with word boundaries for exact partial matching
+          const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          return regex.test(searchableText);
+        });
       });
 
   const filteredCart = cart.filter((item) =>
@@ -167,6 +180,7 @@ const Payment = ({ darkMode }) => {
       setCustomerName('');
       setContactNumber('');
       setAddress('');
+      setDescription('');
       // Clear wholesale customer details after payment
       localStorage.removeItem('wholesaleCustomer');
       localStorage.removeItem('paymentCart');
@@ -174,9 +188,13 @@ const Payment = ({ darkMode }) => {
       localStorage.removeItem('customerName');
       localStorage.removeItem('contactNumber');
       localStorage.removeItem('address');
+      localStorage.removeItem('description');
       // ... clear customer details
       setIsWholesale(false);
       setCustomerDetails(null);
+
+      // ✅ Re-fetch updated product list (e.g., in case items were deleted or stock changed)
+      fetchAvailableProducts(setProducts, navigate);
     }
   };
 
@@ -190,11 +208,13 @@ const Payment = ({ darkMode }) => {
       localStorage.removeItem('customerName');
       localStorage.removeItem('contactNumber');
       localStorage.removeItem('address');
+      localStorage.removeItem('description');
       // ... clear customer details
       // Clear customer details after payment
       setCustomerName('');
       setContactNumber('');
       setAddress('');
+      setDescription('');
 
       setIsWholesale(false);
       setCustomerDetails(null);
@@ -382,6 +402,18 @@ const Payment = ({ darkMode }) => {
             </h3>
           </div>
           <div className="summary-row">
+          <input
+            type="text"
+            placeholder="Description"
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              localStorage.setItem('description', e.target.value);
+            }}
+            className={`customer-input ${darkMode ? 'dark' : ''}`}
+          />
+          </div>
+          <div className="summary-row">
           <button
             className={`pay-btn ${darkMode ? 'dark' : ''}`}
             onClick={() => setShowPopup(true)}
@@ -413,6 +445,7 @@ const Payment = ({ darkMode }) => {
             customerName={customerName}
             contactNumber={contactNumber}
             address={address}
+            description={description}
           />
         )}
 

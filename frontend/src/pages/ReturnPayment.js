@@ -65,10 +65,16 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
   const filteredProducts = searchQuery.trim() === ""
     ? products
     : products.filter(product => {
-        const queryWords = normalize(searchQuery).split(' ');
-        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+        const searchableText = (product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
 
-        return queryWords.every(word => searchableText.includes(word));
+        // Split query into words and test each as a whole word or number
+        const words = normalize(searchQuery).trim().split(/\s+/);
+
+        return words.every(word => {
+          // Create a regex with word boundaries for exact partial matching
+          const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          return regex.test(searchableText);
+        });
       });
 
   const addToReturn = (product) => {
@@ -218,7 +224,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
             className={`return-search ${darkMode ? "dark-mode" : ""}`}
           />
           <div className="product-results">
-            {filteredProducts.slice(0, 5).map(product => (
+            {filteredProducts.map(product => (
               <div key={product._id} className={`product-item ${darkMode ? "dark-mode" : ""}`}>
                 <span>{product.itemName} - {product.category} - Rs. {product.sellingPrice}</span>
                 <div className="product-results-button">

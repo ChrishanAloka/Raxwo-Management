@@ -86,15 +86,24 @@ const ProductRepairList = ({ darkMode }) => {
     setProductSearchQuery('');
     setProductPage(1);
   };
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+
   const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
 
   const filteredProductsForModal = productSearchQuery.trim() === ""
     ? products
     : products.filter(product => {
-        const queryWords = normalize(productSearchQuery).split(' ');
-        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+        const searchableText = (product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
 
-        return queryWords.every(word => searchableText.includes(word));
+        // Split query into words and test each as a whole word or number
+        const words = normalize(productSearchQuery).trim().split(/\s+/);
+
+        return words.every(word => {
+          // Create a regex with word boundaries for exact partial matching
+          const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          return regex.test(searchableText);
+        });
       });
   // console.log("Current product search query:", productSearchQuery);
   // console.log("Current products in state:", products);  
@@ -108,7 +117,7 @@ const ProductRepairList = ({ darkMode }) => {
     if (!repair.additionalServices || repair.additionalServices.length === 0) return true;
     return repair.additionalServices.every(service => service.isPaid);
   };
-    
+
   const filteredRepairs = useMemo(() => {
     const normalize = (str) => String(str || '').toLowerCase().trim();
     const query = normalize(searchTerm);
@@ -143,11 +152,72 @@ const ProductRepairList = ({ darkMode }) => {
       return queryWords.every(word => searchableText.includes(word));
     });
   }, [repairs, searchTerm, currentStatusFilter]);
+    
+  const sortedAndFilteredRepairs = useMemo(() => {
+    // Start with filtered repairs (your existing filtering logic)
+    let result = filteredRepairs;
+
+    // Apply sorting only if a column is selected
+    if (sortConfig.key) {
+      result = [...result].sort((a, b) => {
+        let valueA = '';
+        let valueB = '';
+
+        // Extract values based on column key
+        switch (sortConfig.key) {
+          case 'repairInvoice':
+            valueA = a.repairInvoice || a.repairCode || '';
+            valueB = b.repairInvoice || b.repairCode || '';
+            break;
+          case 'customerName':
+            valueA = a.customerName || '';
+            valueB = b.customerName || '';
+            break;
+          case 'customerPhone':
+            valueA = a.customerPhone || '';
+            valueB = b.customerPhone || '';
+            break;
+          case 'deviceType':
+            valueA = a.deviceType || a.itemName || '';
+            valueB = b.deviceType || b.itemName || '';
+            break;
+          case 'serialNumber':
+            valueA = a.serialNumber || '';
+            valueB = b.serialNumber || '';
+            break;
+          case 'issueDescription':
+            valueA = a.issueDescription || '';
+            valueB = b.issueDescription || '';
+            break;
+          case 'repairStatus':
+            valueA = a.repairStatus || '';
+            valueB = b.repairStatus || '';
+            break;
+          default:
+            return 0;
+        }
+
+        // Case-insensitive string comparison
+        valueA = String(valueA).toLowerCase();
+        valueB = String(valueB).toLowerCase();
+
+        if (valueA < valueB) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (valueA > valueB) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return result;
+  }, [filteredRepairs, sortConfig]);
     // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredRepairs.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredRepairs.length / itemsPerPage);
+  const currentItems = sortedAndFilteredRepairs.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedAndFilteredRepairs.length / itemsPerPage);
 
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -330,6 +400,7 @@ const ProductRepairList = ({ darkMode }) => {
     setSelectedRepair(repair);
     setSelectedProducts([]);
     setShowSelectModal(true);
+    fetchProducts();
   };
 
   const handleProductSelection = (product) => {
@@ -1671,6 +1742,15 @@ const ProductRepairList = ({ darkMode }) => {
     }
   };
 
+
+  const handleSort = (key) => {
+  setSortConfig((prevConfig) => {
+    const direction =
+      prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc';
+    return { key, direction };
+  });
+};
+
   return (
 
     <div className={`product-repair-list-container ${darkMode ? "dark" : ""}`}>
@@ -1799,7 +1879,7 @@ const ProductRepairList = ({ darkMode }) => {
   statusFilters
     .filter(status => status !== "All")
     .map(status => {
-      const repairsByStatus = repairs.filter(r => r.repairStatus === status);
+      const repairsByStatus = currentItems.filter(r => r.repairStatus === status);
       if (repairsByStatus.length === 0) return null;
       return (
         <div key={status} style={{ marginBottom: '40px' }}>
@@ -1811,13 +1891,62 @@ const ProductRepairList = ({ darkMode }) => {
           <table className={`repair-table ${darkMode ? "dark" : ""}`}>
             <thead>
               <tr>
-                <th>Job Number</th>
-                <th>Customer Name</th>
-                <th>Mobile</th>
-                <th>Device</th>
-                <th>IMEI/Serial No</th>
-                <th>Issue Description</th>
-                <th>Status</th>
+                <th onClick={() => handleSort('repairInvoice')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Job Number
+                  {sortConfig.key === 'repairInvoice' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('customerName')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Customer Name
+                  {sortConfig.key === 'customerName' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('customerPhone')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Mobile
+                  {sortConfig.key === 'customerPhone' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('deviceType')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Device
+                  {sortConfig.key === 'deviceType' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('serialNumber')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  IMEI/Serial No
+                  {sortConfig.key === 'serialNumber' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('issueDescription')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Issue Description
+                  {sortConfig.key === 'issueDescription' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('repairStatus')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Status
+                  {sortConfig.key === 'repairStatus' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
                 <th>Action</th>
                 <th>Technician Review</th>
               </tr>
@@ -1919,13 +2048,62 @@ const ProductRepairList = ({ darkMode }) => {
   <table className={`repair-table ${darkMode ? "dark" : ""}`}>
     <thead>
       <tr>
-        <th>Job Number</th>
-        <th>Customer Name</th>
-        <th>Mobile</th>
-        <th>Device</th>
-        <th>IMEI/Serial No</th>
-        <th>Issue Description</th>
-        <th>Status</th>
+        <th onClick={() => handleSort('repairInvoice')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+          Job Number
+          {sortConfig.key === 'repairInvoice' && (
+            <span style={{ marginLeft: '8px' }}>
+              {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+            </span>
+          )}
+        </th>
+        <th onClick={() => handleSort('customerName')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Customer Name
+                  {sortConfig.key === 'customerName' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+        <th onClick={() => handleSort('customerPhone')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+          Mobile
+          {sortConfig.key === 'customerPhone' && (
+            <span style={{ marginLeft: '8px' }}>
+              {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+            </span>
+          )}
+        </th>
+        <th onClick={() => handleSort('deviceType')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+          Device
+          {sortConfig.key === 'deviceType' && (
+            <span style={{ marginLeft: '8px' }}>
+              {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+            </span>
+          )}
+        </th>
+        <th onClick={() => handleSort('serialNumber')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+          IMEI/Serial No
+          {sortConfig.key === 'serialNumber' && (
+            <span style={{ marginLeft: '8px' }}>
+              {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+            </span>
+          )}
+        </th>
+        <th onClick={() => handleSort('issueDescription')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+          Issue Description
+          {sortConfig.key === 'issueDescription' && (
+            <span style={{ marginLeft: '8px' }}>
+              {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+            </span>
+          )}
+        </th>
+        <th onClick={() => handleSort('repairStatus')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+          Status
+          {sortConfig.key === 'repairStatus' && (
+            <span style={{ marginLeft: '8px' }}>
+              {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+            </span>
+          )}
+        </th>
         <th>Action</th>
         <th>Technician Review</th>
       </tr>

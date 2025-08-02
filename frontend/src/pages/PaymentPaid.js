@@ -4,7 +4,7 @@ import "../styles/PaymentPaid.css";
 import { jsPDF } from 'jspdf';
 import paymenticon from "../icon/pos-terminal3.png";
 
-const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashierName, isWholesale, customerDetails, customerName, contactNumber, address }) => {
+const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashierName, isWholesale, customerDetails, customerName, contactNumber, address, description }) => {
   const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
@@ -14,8 +14,8 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
   useEffect(() => {
     setPaidAmount("");
     setBalance(0);
-    console.log('PaymentPaid props:', { customerName, contactNumber, address }); // Debug log
-  }, [totalAmount, customerName, contactNumber, address]);
+    console.log('PaymentPaid props:', { customerName, contactNumber, address, description }); // Debug log
+  }, [totalAmount, customerName, contactNumber, address, description]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -299,6 +299,7 @@ const generatePaymentBill = (paymentData) => {
                     <p><strong>Customer:</strong> ${customerName || 'N/A'}</p>
                     <p><strong>Contact:</strong> ${contactNumber || 'N/A'}</p>
                     <p><strong>Address:</strong> ${address || 'N/A'}</p>
+                    <p><strong>Description:</strong> ${description || 'N/A'}</p>
                   `}
                 </div>
                 <div class="details-right">
@@ -361,7 +362,7 @@ const generatePaymentBill = (paymentData) => {
   const handleConfirmPayment = async () => {
     const paid = parseFloat(paidAmount) || 0;
     const token = localStorage.getItem("token");
-    console.log('PaymentPaid - Sending payment with:', { customerName, contactNumber, address }); // Debug log
+    console.log('PaymentPaid - Sending payment with:', { customerName, contactNumber, address, description }); // Debug log
 
     if (!items || items.length === 0) {
       alert("No items in the cart to process payment.");
@@ -411,7 +412,8 @@ const generatePaymentBill = (paymentData) => {
           customerDetails: isWholesale ? customerDetails : null,
           customerName: customerName || '',
           contactNumber: contactNumber || '',
-          address: address || ''
+          address: address || '',
+          description: description || ''
         }),
       });
 

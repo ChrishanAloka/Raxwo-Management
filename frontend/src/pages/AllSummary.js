@@ -10,6 +10,7 @@ const PRODUCTS_REPAIR_API_URL = 'https://raxwo-management.onrender.com/api/produ
 const SALARIES_API_URL = 'https://raxwo-management.onrender.com/api/salaries';
 const MAINTENANCE_API_URL = 'https://raxwo-management.onrender.com/api/maintenance';
 const EXTRA_INCOME_API_URL = 'https://raxwo-management.onrender.com/api/extra-income';
+const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments/forsummery';
 
 const AllSummary = ({ darkMode }) => {
   // State for expenses
@@ -27,6 +28,8 @@ const AllSummary = ({ darkMode }) => {
   const [filteredRepairs, setFilteredRepairs] = useState([]);
   const [extraIncome, setExtraIncome] = useState([]);
   const [filteredExtraIncome, setFilteredExtraIncome] = useState([]);
+  const [payments, setpayments] = useState([]);
+  const [filteredPayments, setFilteredPayments] = useState([]);
 
   // Common filter state
   const [filterType, setFilterType] = useState('all');
@@ -51,20 +54,22 @@ const AllSummary = ({ darkMode }) => {
     filterMaintenance();
     filterRepairs();
     filterExtraIncome();
+    filterePayments();
     // eslint-disable-next-line
-  }, [products, grnExpenses.raw, salaries, maintenance, repairs, extraIncome, filterType, filterDate, startDate, endDate, dateField, categoryFilter, statusFilter]);
+  }, [products, grnExpenses.raw, salaries, maintenance, repairs, extraIncome, payments, filterType, filterDate, startDate, endDate, dateField, categoryFilter, statusFilter]);
 
   const fetchAllData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [productsRes, suppliersRes, repairsRes, salariesRes, maintenanceRes, extraIncomeRes] = await Promise.all([
+      const [productsRes, suppliersRes, repairsRes, salariesRes, maintenanceRes, extraIncomeRes, paymentsRes] = await Promise.all([
         fetch(PRODUCTS_API_URL),
         fetch(SUPPLIERS_API_URL),
         fetch(PRODUCTS_REPAIR_API_URL),
         fetch(SALARIES_API_URL),
         fetch(MAINTENANCE_API_URL),
-        fetch(EXTRA_INCOME_API_URL)
+        fetch(EXTRA_INCOME_API_URL),
+        fetch(PAYMENTS_API_URL)
       ]);
       
       if (!productsRes.ok) throw new Error('Failed to fetch products');
@@ -73,6 +78,8 @@ const AllSummary = ({ darkMode }) => {
       if (!salariesRes.ok) throw new Error('Failed to fetch salaries');
       if (!maintenanceRes.ok) throw new Error('Failed to fetch maintenance');
       if (!extraIncomeRes.ok) throw new Error('Failed to fetch extra income');
+      if (!paymentsRes.ok) throw new Error('Failed to fetch payments');
+      
       
       const productsData = await productsRes.json();
       const suppliersData = await suppliersRes.json();
@@ -80,6 +87,8 @@ const AllSummary = ({ darkMode }) => {
       const salariesData = await salariesRes.json();
       const maintenanceData = await maintenanceRes.json();
       const extraIncomeData = await extraIncomeRes.json();
+      const paymentsData = await paymentsRes.json();
+      
       
       // Filter products to only show those from the main product list (not deleted)
       const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
@@ -94,6 +103,7 @@ const AllSummary = ({ darkMode }) => {
       setSalaries(Array.isArray(salariesData) ? salariesData : []);
       setMaintenance(Array.isArray(maintenanceData) ? maintenanceData : []);
       setExtraIncome(Array.isArray(extraIncomeData) ? extraIncomeData : []);
+      setpayments(Array.isArray(paymentsData) ? paymentsData : []);
 
       // Fetch all GRNs for all suppliers
       const allGrns = [];
@@ -480,6 +490,47 @@ const AllSummary = ({ darkMode }) => {
     setFilteredExtraIncome(filtered);
   };
 
+  const filterePayments = () => {
+    if (filterType === 'all') {
+      setFilteredPayments(payments);
+      return;
+    }
+    if (filterType === 'range') {
+      if (!startDate || !endDate) {
+        setFilteredPayments(payments);
+        return;
+      }
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      setFilteredPayments(payments.filter(ei => {
+        const d = new Date(ei.date);
+        return d >= start && d <= end;
+      }));
+      return;
+    }
+    if (!filterDate) {
+      setFilteredPayments(payments);
+      return;
+    }
+    const pdateObj = new Date(filterDate);
+    let filteredp = payments.filter(ei => !!ei.date);
+    if (filterType === 'daily') {
+      filteredp = filteredp.filter(ei => getLocalDateKey(ei.date) === getLocalDateKey(filterDate));
+    } else if (filterType === 'monthly') {
+      filteredp = filteredp.filter(ei => {
+        const d = new Date(ei.date);
+        return d.getFullYear() === pdateObj.getFullYear() && d.getMonth() === pdateObj.getMonth();
+      });
+    } else if (filterType === 'yearly') {
+      filteredp = filteredp.filter(ei => {
+        const d = new Date(ei.date);
+        return d.getFullYear() === pdateObj.getFullYear();
+      });
+    }
+    setFilteredPayments(filteredp);
+  };
+
   // Collect all categories from products and GRNs
   const allCategories = Array.from(new Set([
     ...products.map(p => p.category),
@@ -522,11 +573,13 @@ const AllSummary = ({ darkMode }) => {
 
   const totalExtraIncome = filteredExtraIncome.reduce((sum, ei) => sum + (ei.amount || 0), 0);
 
+  const totalPayments = filteredPayments.reduce((sum, ei) => sum + (ei.totalAmount || 0), 0);
+
   const totalExpenses = totalProductExpenses + totalSalaryExpenses + totalMaintenanceExpenses;
 
   const totalIncome = filteredRepairs.reduce((sum, repair) => {
     return sum + (repair.totalAdditionalServicesAmount + repair.totalRepairCost - repair.totalDiscountAmount || 0);
-  }, 0) + totalExtraIncome;
+  }, 0) + totalExtraIncome + totalPayments;
 
   const totalCheckingCharges = filteredRepairs.reduce((sum, repair) => {
     return sum + (repair.checkingCharge || 0);
@@ -600,6 +653,10 @@ const AllSummary = ({ darkMode }) => {
       {
         'Metric': 'Extra Income',
         'Amount (Rs.)': `Rs. ${totalExtraIncome.toFixed(2)}`
+      },
+      {
+        'Metric': 'Item Purchase',
+        'Amount (Rs.)': `Rs. ${totalPayments.toFixed(2)}`
       },
       {
         'Metric': 'Total Expenses',
@@ -1024,6 +1081,18 @@ const AllSummary = ({ darkMode }) => {
                   minWidth: '200px',
                   border: darkMode ? '1px solid #444' : '1px solid #ddd'
                 }}>
+                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Item Purchase</h4>
+                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                    Rs. {totalPayments.toFixed(2)}
+                  </p>
+                </div>
+                <div style={{ 
+                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+                  padding: '15px', 
+                  borderRadius: '8px', 
+                  minWidth: '200px',
+                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
+                }}>
                   <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Extra Income</h4>
                   <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
                     Rs. {totalExtraIncome.toFixed(2)}
@@ -1140,12 +1209,17 @@ const AllSummary = ({ darkMode }) => {
                   <tr>
                     <td>Total Income</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalIncome.toFixed(2)}</td>
-                    <td>Total revenue from repair jobs and extra income</td>
+                    <td>Total revenue from repair jobs, items purchase and extra income</td>
+                  </tr>
+                  <tr>
+                    <td>Item Purchase</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalPayments.toFixed(2)}</td>
+                    <td>Income from purchased Items</td>
                   </tr>
                   <tr>
                     <td>Extra Income</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalExtraIncome.toFixed(2)}</td>
-                    <td>Other income (not from repairs)</td>
+                    <td>Other income (not from repairs and item purchase)</td>
                   </tr>
                   <tr>
                     <td>Total Expenses</td>
