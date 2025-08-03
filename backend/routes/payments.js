@@ -77,9 +77,14 @@ router.post('/', authMiddleware, async (req, res) => {
 // GET: Retrieve all payments (Protected route)
 router.get('/', authMiddleware, async (req, res) => {
   try {
+    if(req.user.role === 'admin'){
     const payments = await Payment.find().populate('items.productId');
     console.log('Fetched payments from backend:', payments); // Debug log
     res.json(payments);
+    }
+    else{
+      res.status(500).json({ message: "User is not an admin" });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -91,6 +96,32 @@ router.get('/forsummery', async (req, res) => {
     const payments = await Payment.find().populate('items.productId');
     console.log('Fetched payments from backend:', payments); // Debug log
     res.json(payments);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// In your payment route
+router.patch('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    const allowedFields = ['invoiceNumber', 'paymentMethod', 'discountApplied', 'totalAmount', 'cashierName', 'cashierId', 'changedBy', 'changeSource'];
+    const filteredUpdates = Object.keys(updates)
+      .filter(key => allowedFields.includes(key))
+      .reduce((obj, key) => {
+        obj[key] = updates[key];
+        return obj;
+      }, {});
+
+    if (Object.keys(filteredUpdates).length === 0) {
+      return res.status(400).json({ message: "No valid fields to update" });
+    }
+
+    const payment = await Payment.findByIdAndUpdate(id, filteredUpdates, { new: true });
+    if (!payment) return res.status(404).json({ message: "Payment not found" });
+
+    res.json(payment);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
