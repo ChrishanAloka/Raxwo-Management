@@ -65,15 +65,20 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
   const filteredProducts = searchQuery.trim() === ""
     ? products
     : products.filter(product => {
-        const searchableText = (product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
-
-        // Split query into words and test each as a whole word or number
+        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
         const words = normalize(searchQuery).trim().split(/\s+/);
 
         return words.every(word => {
-          // Create a regex with word boundaries for exact partial matching
-          const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-          return regex.test(searchableText);
+          const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          if (/^\d+$/.test(word)) {
+            // Numeric: require word boundaries (exact number match)
+            const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+            return regex.test(searchableText);
+          } else {
+            // Text: allow partial substring match
+            const regex = new RegExp(escapedWord, 'i');
+            return regex.test(searchableText);
+          }
         });
       });
 

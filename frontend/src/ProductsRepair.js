@@ -82,6 +82,10 @@ const ProductRepairList = ({ darkMode }) => {
   const [itemsPerPage] = useState(10);
   const [productPage, setProductPage] = useState(1);
   const productsPerPage = 10;
+
+  const [repairPage, setRepairPage] = useState(1);
+  const repairsPerPage = 5;
+
   const handleClearAllProducts = () => {
     setProductSearchQuery('');
     setProductPage(1);
@@ -94,15 +98,20 @@ const ProductRepairList = ({ darkMode }) => {
   const filteredProductsForModal = productSearchQuery.trim() === ""
     ? products
     : products.filter(product => {
-        const searchableText = (product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
-
-        // Split query into words and test each as a whole word or number
+        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
         const words = normalize(productSearchQuery).trim().split(/\s+/);
 
         return words.every(word => {
-          // Create a regex with word boundaries for exact partial matching
-          const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-          return regex.test(searchableText);
+          const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          if (/^\d+$/.test(word)) {
+            // Numeric: require word boundaries (exact number match)
+            const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+            return regex.test(searchableText);
+          } else {
+            // Text: allow partial substring match
+            const regex = new RegExp(escapedWord, 'i');
+            return regex.test(searchableText);
+          }
         });
       });
   // console.log("Current product search query:", productSearchQuery);
@@ -216,8 +225,11 @@ const ProductRepairList = ({ darkMode }) => {
     // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = sortedAndFilteredRepairs.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = sortedAndFilteredRepairs;
   const totalPages = Math.ceil(sortedAndFilteredRepairs.length / itemsPerPage);
+
+  const totalRepairPages = Math.ceil(sortedAndFilteredRepairs.length / repairsPerPage);
+  const paginatedRepairsForModal = sortedAndFilteredRepairs.slice((repairPage - 1) * repairsPerPage, repairPage * repairsPerPage);
 
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -1770,7 +1782,10 @@ const ProductRepairList = ({ darkMode }) => {
             type="text"
             placeholder="       Search Item Name"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setRepairPage(1);
+            }}
             className={`product-list-search-bar ${darkMode ? "dark" : ""}`}
           />
           {searchTerm && (
@@ -1880,9 +1895,12 @@ const ProductRepairList = ({ darkMode }) => {
     .filter(status => status !== "All")
     .map(status => {
       const repairsByStatus = currentItems.filter(r => r.repairStatus === status);
+      const totalrepairsByStatusPages = Math.ceil(repairsByStatus.length / repairsPerPage);
+      const paginatedrepairsByStatusForModal = repairsByStatus.slice((repairPage - 1) * repairsPerPage, repairPage * repairsPerPage);
       if (repairsByStatus.length === 0) return null;
       return (
         <div key={status} style={{ marginBottom: '40px' }}>
+          
           <h3 style={{ textAlign: "left", color: darkMode ? "#e2e8f0" : "#2d3748", marginBottom: '10px' }}>
             {status} ({repairsByStatus.length})
           </h3>
@@ -1952,7 +1970,7 @@ const ProductRepairList = ({ darkMode }) => {
               </tr>
             </thead>
             <tbody>
-              {repairsByStatus.map((repair) => (
+              {paginatedrepairsByStatusForModal.map((repair) => (
                 <tr key={repair._id}>
                   <td data-label="Job Number">{repair.repairInvoice || repair.repairCode}</td>
                   <td data-label="Customer Name">{repair.customerName}</td>
@@ -2039,6 +2057,14 @@ const ProductRepairList = ({ darkMode }) => {
             </tbody>
           </table>
           </div>
+          {/* Pagination controls below the table */}
+          {totalrepairsByStatusPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '16px 0', gap: 10 }}>
+              <button onClick={() => setRepairPage(p => Math.max(1, p - 1))} disabled={repairPage === 1}>Prev</button>
+              <span>Page {repairPage} of {totalrepairsByStatusPages}</span>
+              <button onClick={() => setRepairPage(p => Math.min(totalrepairsByStatusPages, p + 1))} disabled={repairPage === totalrepairsByStatusPages}>Next</button>
+            </div>
+          )}
         </div>
       );
     })
@@ -2109,7 +2135,7 @@ const ProductRepairList = ({ darkMode }) => {
       </tr>
     </thead>
     <tbody>
-      {currentItems.map((repair) => (
+      {paginatedRepairsForModal.map((repair) => (
         <tr key={repair._id}>
           <td data-label="Job Number">{repair.repairInvoice || repair.repairCode}</td>
           <td data-label="Customer Name">{repair.customerName}</td>
@@ -2195,6 +2221,14 @@ const ProductRepairList = ({ darkMode }) => {
       ))}
     </tbody>
   </table>
+  {/* Pagination controls below the table */}
+  {totalRepairPages > 1 && (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '16px 0', gap: 10 }}>
+      <button onClick={() => setRepairPage(p => Math.max(1, p - 1))} disabled={repairPage === 1}>Prev</button>
+      <span>Page {repairPage} of {totalRepairPages}</span>
+      <button onClick={() => setRepairPage(p => Math.min(totalRepairPages, p + 1))} disabled={repairPage === totalRepairPages}>Next</button>
+    </div>
+  )}
   </div>
 )}
 

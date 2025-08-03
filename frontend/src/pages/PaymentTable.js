@@ -9,6 +9,8 @@ import "highcharts/highcharts-3d";
 import HighchartsReact from "highcharts-react-official";
 import '../styles/PaymentTable.css';
 import deleteIcon from "../icon/delete.png";
+import editicon from '../icon/edit.png';
+import EditPayment from '../EditPayment';
 
 const API_URL = 'https://raxwo-management.onrender.com/api/payments';
 
@@ -18,6 +20,8 @@ const PaymentTable = ({ darkMode }) => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showPaymenteditModal, setShowPaymenteditModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [showReportOptions, setShowReportOptions] = useState(false);
 
@@ -41,9 +45,15 @@ const PaymentTable = ({ darkMode }) => {
         },
       });
       if (!response.ok) {
-        throw new Error(`Server error: ${response.statusText}`);
+        const errorData = await response.json(); // ← Wait for JSON parsing
+        if (errorData.message === "User is not an admin") {
+          throw new Error("User is not an admin");
+        } 
+        // throw new Error(`Server error: ${response.statusText}`);
+        throw new Error(`Authentication Expired Please Log in`);
       }
       const data = await response.json();
+      console.log("data", data);
       setPayments(Array.isArray(data) ? data : []);
       setLoading(false);
     } catch (err) {
@@ -80,6 +90,11 @@ const PaymentTable = ({ darkMode }) => {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const handleEdit = (payment) => {
+    setSelectedPayment(payment);
+    setShowPaymenteditModal(true);
   };
 
   const calculateSummary = () => {
@@ -351,7 +366,7 @@ const PaymentTable = ({ darkMode }) => {
               <th>Time</th>
               <th>Invoice No.</th>
               <th>Item Name</th>
-              <th>Quantity</th>
+              {/* <th>Quantity</th> */}
               <th>Payment Method</th>
               <th>Cashier Name</th>
               <th>Discount</th>
@@ -361,14 +376,18 @@ const PaymentTable = ({ darkMode }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredPayments.flatMap(payment =>
-              payment.items.map((item, index) => (
-                <tr key={`${payment._id}-${index}`}>
+            {filteredPayments.flatMap(payment => (
+                <tr key={payment._id}>
                   <td>{new Date(payment.date).toLocaleDateString()}</td>
                   <td>{new Date(payment.date).toLocaleTimeString()}</td>
                   <td>{payment.invoiceNumber}</td>
-                  <td>{item.itemName}</td>
-                  <td>{item.quantity}</td>
+                  <td>{/* Combine all item names */}
+                    {payment.items.map(item => item.itemName).join(', ')}
+                  </td>
+                  {/* <td> */}
+                    {/* Combine quantities */}
+                    {/* {payment.items.map(item => item.quantity).join(', ')} */}
+                  {/* </td> */}
                   <td>{payment.paymentMethod}</td>
                   <td>{payment.cashierName}</td>
                   <td>Rs. {(payment.discountApplied || 0).toFixed(2)}</td>
@@ -389,6 +408,12 @@ const PaymentTable = ({ darkMode }) => {
                         <>
                           <div className="action-menu-overlay" onClick={() => setShowActionMenu(null)} />
                           <div className="action-menu">
+                            <button onClick={() => handleEdit(payment)} className="p-edit-btn">
+                              <div className="action-btn-content">
+                                <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
+                                <span>Edit</span>
+                              </div>
+                            </button>
                             <button onClick={() => handleDelete(payment._id)} className="p-delete-btn">
                               <div className="action-btn-content">
                                 <img src={deleteIcon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
@@ -401,7 +426,7 @@ const PaymentTable = ({ darkMode }) => {
                     </div>
                   </td>
                 </tr>
-              ))
+              )
             )}
           </tbody>
         </table>
@@ -440,6 +465,16 @@ const PaymentTable = ({ darkMode }) => {
           </div>
         </div>
       )}
+      {showPaymenteditModal && selectedPayment && (
+              <EditPayment
+                payment={selectedPayment}
+                closeModal={() => {
+                  setShowPaymenteditModal(false);
+                  fetchPayments()
+                }}
+                darkMode={darkMode}
+              />
+            )}
     </div>
   );
 };
