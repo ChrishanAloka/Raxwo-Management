@@ -11,6 +11,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
     totalAmount: "",
     cashierName: "",
     cashierId: "",
+    assignedTo: "",
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -21,6 +22,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
       setFormData({
         invoiceNumber: payment.invoiceNumber || "",
         paymentMethod: payment.paymentMethod || "",
+        assignedTo: payment.assignedTo || "",
         discountApplied: payment.discountApplied?.toString() || "0",
         totalAmount: payment.totalAmount?.toString() || "",
         cashierName: payment.cashierName || "",
@@ -48,6 +50,12 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
       setLoading(false);
       return;
     }
+    if (!formData.assignedTo.trim()) {
+      setError("Assign is required");
+      setLoading(false);
+      return;
+    }
+    
     if (!formData.paymentMethod.trim()) {
       setError("Payment Method is required");
       setLoading(false);
@@ -79,7 +87,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
       
       // Prepare only changed fields
       const updatePayload = { changedBy, changeSource: 'Payment' };
-      const fields = ['invoiceNumber', 'paymentMethod', 'discountApplied', 'totalAmount', 'cashierName', 'cashierId'];
+      const fields = ['invoiceNumber', 'paymentMethod', 'discountApplied', 'totalAmount', 'cashierName', 'cashierId', 'assignedTo'];
 
       fields.forEach(field => {
         let newValue = formData[field];
@@ -166,6 +174,25 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                 {/* <option value="Refund">Refund</option> */}
               </select>
 
+              <label className={`edit-label ${darkMode ? "dark" : ""}`}>Assigned To:</label>
+              <select
+                className={`edit-input ${darkMode ? "dark" : ""}`}
+                name="assignedTo"
+                value={formData.assignedTo}
+                onChange={handleChange}
+                required
+              >
+                <option value="" disabled>Select Person/Team</option>
+                <option value="Prabath">Prabath</option>
+                <option value="Nadeesh">Nadeesh</option>
+                <option value="Accessories">Accessories</option>
+                <option value="Genex-EX">Genex EX</option>
+                {/* <option value="Refund">Refund</option> */}
+              </select>
+              
+            </div>
+
+            <div className="right-column">
               <label className={`edit-label ${darkMode ? "dark" : ""}`}>DISCOUNT (Rs.)</label>
               <input
                 className={`edit-input ${darkMode ? "dark" : ""}`}
@@ -177,9 +204,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                 step="0.01"
                 readOnly
               />
-            </div>
 
-            <div className="right-column">
               <label className={`edit-label ${darkMode ? "dark" : ""}`}>TOTAL AMOUNT (Rs.)</label>
               <input
                 className={`edit-input ${darkMode ? "dark" : ""}`}

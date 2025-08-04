@@ -42,6 +42,7 @@ const AllSummary = ({ darkMode }) => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'expenses', 'income'
+  const [assignedToFilter, setAssignedToFilter] = useState('');
 
   useEffect(() => {
     fetchAllData();
@@ -56,7 +57,7 @@ const AllSummary = ({ darkMode }) => {
     filterExtraIncome();
     filterePayments();
     // eslint-disable-next-line
-  }, [products, grnExpenses.raw, salaries, maintenance, repairs, extraIncome, payments, filterType, filterDate, startDate, endDate, dateField, categoryFilter, statusFilter]);
+  }, [products, grnExpenses.raw, salaries, maintenance, repairs, extraIncome, payments, filterType, filterDate, startDate, endDate, dateField, categoryFilter, statusFilter, assignedToFilter]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -388,6 +389,9 @@ const AllSummary = ({ darkMode }) => {
       if (statusFilter) {
         filtered = filtered.filter(r => r.repairStatus === statusFilter);
       }
+      if (assignedToFilter) {
+        filtered = filtered.filter(r => r.assignedTo === assignedToFilter);
+      }
       setFilteredRepairs(filtered);
       return;
     }
@@ -401,6 +405,10 @@ const AllSummary = ({ darkMode }) => {
       
       if (statusFilter) {
         filtered = filtered.filter(r => r.repairStatus === statusFilter);
+      }
+
+      if (assignedToFilter) {
+        filtered = filtered.filter(r => r.assignedTo === assignedToFilter);
       }
       
       const start = new Date(startDate);
@@ -427,6 +435,10 @@ const AllSummary = ({ darkMode }) => {
     if (statusFilter) {
       filtered = filtered.filter(r => r.repairStatus === statusFilter);
     }
+
+    if (assignedToFilter) {
+    filtered = filtered.filter(r => r.assignedTo === assignedToFilter);
+  }
     
     if (filterType === 'daily') {
       filtered = filtered.filter(r => {
@@ -451,13 +463,21 @@ const AllSummary = ({ darkMode }) => {
 
   const filterExtraIncome = () => {
     if (filterType === 'all') {
-      setFilteredExtraIncome(extraIncome);
-      return;
+      let filtered = extraIncome;
+    if (assignedToFilter) {
+      filtered = filtered.filter(ei => ei.assignedTo === assignedToFilter);
+    }
+    setFilteredExtraIncome(filtered);
+    return;
     }
     if (filterType === 'range') {
       if (!startDate || !endDate) {
         setFilteredExtraIncome(extraIncome);
         return;
+      }
+      let filtered = extraIncome.filter(ei => !!ei.date);
+      if (assignedToFilter) {
+        filtered = filtered.filter(ei => ei.assignedTo === assignedToFilter);
       }
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -474,6 +494,9 @@ const AllSummary = ({ darkMode }) => {
     }
     const dateObj = new Date(filterDate);
     let filtered = extraIncome.filter(ei => !!ei.date);
+    if (assignedToFilter) {
+      filtered = filtered.filter(ei => ei.assignedTo === assignedToFilter);
+    }
     if (filterType === 'daily') {
       filtered = filtered.filter(ei => getLocalDateKey(ei.date) === getLocalDateKey(filterDate));
     } else if (filterType === 'monthly') {
@@ -492,7 +515,11 @@ const AllSummary = ({ darkMode }) => {
 
   const filterePayments = () => {
     if (filterType === 'all') {
-      setFilteredPayments(payments);
+      let filtered = payments;
+      if (assignedToFilter) {
+        filtered = filtered.filter(p => p.assignedTo === assignedToFilter);
+      }
+      setFilteredPayments(filtered);
       return;
     }
     if (filterType === 'range') {
@@ -500,13 +527,18 @@ const AllSummary = ({ darkMode }) => {
         setFilteredPayments(payments);
         return;
       }
+      let filtered = payments.filter(p => !!p.date);
+      if (assignedToFilter) {
+        filtered = filtered.filter(p => p.assignedTo === assignedToFilter);
+      }
       const start = new Date(startDate);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-      setFilteredPayments(payments.filter(ei => {
-        const d = new Date(ei.date);
+      filtered = filtered.filter(p => {
+        const d = new Date(p.date);
         return d >= start && d <= end;
-      }));
+      });
+      setFilteredPayments(filtered);
       return;
     }
     if (!filterDate) {
@@ -514,7 +546,10 @@ const AllSummary = ({ darkMode }) => {
       return;
     }
     const pdateObj = new Date(filterDate);
-    let filteredp = payments.filter(ei => !!ei.date);
+    let filteredp = payments.filter(p => !!p.date);
+    if (assignedToFilter) {
+      filteredp = filteredp.filter(p => p.assignedTo === assignedToFilter);
+    }
     if (filterType === 'daily') {
       filteredp = filteredp.filter(ei => getLocalDateKey(ei.date) === getLocalDateKey(filterDate));
     } else if (filterType === 'monthly') {
@@ -839,6 +874,28 @@ const AllSummary = ({ darkMode }) => {
           <option value="yearly">Yearly</option>
           <option value="range">Date Range</option>
         </select>
+
+        {/* === NEW: Assigned To Filter === */}
+        <label style={{ color: darkMode ? '#e2e8f0' : '#333' }}>Assignee: </label>
+        <select
+          value={assignedToFilter}
+          onChange={(e) => setAssignedToFilter(e.target.value)}
+          style={{
+            backgroundColor: darkMode ? '#374151' : '#fff',
+            color: darkMode ? '#e2e8f0' : '#333',
+            border: darkMode ? '1px solid #4a5568' : '1px solid #ddd',
+            padding: '8px 12px',
+            borderRadius: '4px',
+            minWidth: '150px'
+          }}
+        >
+          <option value="">All Assignees</option>
+          <option value="Prabath">Prabath</option>
+          <option value="Nadeesh">Nadeesh</option>
+          <option value="Accessories">Accessories</option>
+          <option value="Genex-EX">Genex EX</option>
+        </select>
+        {/* === END NEW FILTER === */}
         {filterType === 'range' ? (
           <div style={{ display: 'inline-block', marginLeft: 10 }}>
             <input

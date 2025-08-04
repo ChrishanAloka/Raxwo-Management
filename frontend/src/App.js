@@ -49,17 +49,63 @@ import LogHistoryPage from './pages/LogHistoryPage';
 import DeletedProducts from './pages/DeletedProducts';
 import HiddenProducts from './pages/HiddenProducts';
 import CategoryProductList from './CategoryProductList';
+import jwtDecode from 'jwt-decode';
 
-// PrivateRoute component to protect routes
+const decodeToken = (token) => {
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload));
+  } catch (error) {
+    return null;
+  }
+};
+
+const isTokenExpired = (token) => {
+  const decoded = decodeToken(token);
+  if (!decoded?.exp) return true;
+  const currentTime = Date.now() / 1000;
+  return decoded.exp < currentTime;
+};
+
+// PrivateRoute Component
 const PrivateRoute = ({ children }) => {
-  const isAuthenticated = !!localStorage.getItem('token');
   const location = useLocation();
+  const token = localStorage.getItem('token');
 
-  return isAuthenticated ? (
-    children
-  ) : (
-    <Navigate to="/cashier/login" replace state={{ from: location }} />
-  );
+  // Check if token exists and is not expired
+  const isValidToken = token && !isTokenExpired(token);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      const decoded = decodeToken(token);
+      const expiryTime = decoded.exp * 1000; // in ms
+      const timeout = expiryTime - Date.now();
+
+      const logoutTimer = setTimeout(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('username');
+        localStorage.removeItem('role');
+        window.location.href = '/cashier/login'; // Force redirect
+      }, timeout);
+
+      return () => clearTimeout(logoutTimer);
+    }
+  }, []);
+
+  if (!isValidToken) {
+    // Clear invalid/expired token
+    if (token) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('username');
+      localStorage.removeItem('role');
+    }
+    return <Navigate to="/cashier/login" replace state={{ from: location }} />;
+  }
+
+  return children;
 };
 
 const App = () => {

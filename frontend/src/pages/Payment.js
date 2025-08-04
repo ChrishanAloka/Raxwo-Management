@@ -32,6 +32,7 @@ const Payment = ({ darkMode }) => {
   const [contactNumber, setContactNumber] = useState('');
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
+  const [assignedTo, setAssignedTo] = useState('');
 
   const [cashierId, setCashierId] = useState(localStorage.getItem('userId') || 'N/A');
   const [cashierName, setCashierName] = useState(localStorage.getItem('username') || 'Unknown');
@@ -90,6 +91,7 @@ const Payment = ({ darkMode }) => {
     setContactNumber(localStorage.getItem('contactNumber') || '');
     setAddress(localStorage.getItem('address') || '');
     setDescription(localStorage.getItem('description') || '');
+    setAssignedTo(localStorage.getItem('assignedTo') || '');
     
 
     // Load cart from localStorage
@@ -186,6 +188,7 @@ const Payment = ({ darkMode }) => {
       setContactNumber('');
       setAddress('');
       setDescription('');
+      setAssignedTo('');
       // Clear wholesale customer details after payment
       localStorage.removeItem('wholesaleCustomer');
       localStorage.removeItem('paymentCart');
@@ -194,6 +197,7 @@ const Payment = ({ darkMode }) => {
       localStorage.removeItem('contactNumber');
       localStorage.removeItem('address');
       localStorage.removeItem('description');
+      localStorage.removeItem('assignedTo');
       // ... clear customer details
       setIsWholesale(false);
       setCustomerDetails(null);
@@ -214,12 +218,14 @@ const Payment = ({ darkMode }) => {
       localStorage.removeItem('contactNumber');
       localStorage.removeItem('address');
       localStorage.removeItem('description');
+      localStorage.removeItem('assignedTo');
       // ... clear customer details
       // Clear customer details after payment
       setCustomerName('');
       setContactNumber('');
       setAddress('');
       setDescription('');
+      setAssignedTo('');
 
       setIsWholesale(false);
       setCustomerDetails(null);
@@ -418,6 +424,26 @@ const Payment = ({ darkMode }) => {
             className={`customer-input ${darkMode ? 'dark' : ''}`}
           />
           </div>
+          
+          {/* Assigned To Dropdown - Added Here */}
+          <div className="summary-row">
+            <select
+              value={assignedTo || ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setAssignedTo(value); // Make sure you have this state defined
+                localStorage.setItem("assignedTo", value); // Optional: persist in localStorage
+              }}
+              className={`customer-input ${darkMode ? 'dark' : ''}`}
+            >
+              <option value="" disabled selected >Assign to Technician/Team</option>
+              <option value="Prabath">Prabath</option>
+              <option value="Nadeesh">Nadeesh</option>
+              <option value="Accessories">Accessories</option>
+              <option value="Genex-EX">Genex EX</option>
+            </select>
+          </div>
+
           <div className="summary-row">
           <button
             className={`pay-btn ${darkMode ? 'dark' : ''}`}
@@ -451,6 +477,7 @@ const Payment = ({ darkMode }) => {
             contactNumber={contactNumber}
             address={address}
             description={description}
+            assignedTo={assignedTo}
           />
         )}
 

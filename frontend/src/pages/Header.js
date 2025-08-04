@@ -3,6 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import '../styles/Header.css';
 import usericon from '../icon/businessman.png';
 
+// Helper to decode JWT without external library
+const decodeToken = (token) => {
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload));
+  } catch (error) {
+    return null;
+  }
+};
+
+// Helper to format timestamp to HH:MM AM/PM
+const formatExpiryTime = (expTimestamp) => {
+  const date = new Date(expTimestamp * 1000);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
 const Header = ({ darkMode, setDarkMode }) => {
   const [showUserCard, setShowUserCard] = useState(false);
   const [user, setUser] = useState({
@@ -10,6 +26,9 @@ const Header = ({ darkMode, setDarkMode }) => {
     name: localStorage.getItem('username') || 'Unknown',
     role: localStorage.getItem('role') || 'Unknown',
   });
+  const [expiryTime, setExpiryTime] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null); // e.g., "12 min"
+  const [isExpiringSoon, setIsExpiringSoon] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,14 +39,48 @@ const Header = ({ darkMode, setDarkMode }) => {
         role: localStorage.getItem('role') || 'Unknown',
       });
     };
+
+     const updateExpiryTime = () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const decoded = decodeToken(token);
+        if (decoded?.exp) {
+          const expTime = decoded.exp * 1000; // in ms
+          setExpiryTime(expTime);
+          const left = expTime - Date.now();
+          const minutesLeft = Math.floor(left / 60000);
+          setTimeLeft(`${minutesLeft} min`);
+          setIsExpiringSoon(minutesLeft <= 10 && left > 0);
+          if (left <= 0) {
+            // Token expired
+            handleLogout();
+          }
+        } else {
+          setExpiryTime(null);
+        }
+      } else {
+        setExpiryTime(null);
+      }
+    };
+
+
     updateUser();
-    window.addEventListener('storage', updateUser);
+    updateExpiryTime();
+
+    // Update every 30 seconds
+    const interval = setInterval(updateExpiryTime, 30000);
+
+    window.addEventListener('storage', () => {
+      updateUser();
+      updateExpiryTime();
+    });
     window.addEventListener('userChanged', updateUser);
     return () => {
+      clearInterval(interval);
       window.removeEventListener('storage', updateUser);
       window.removeEventListener('userChanged', updateUser);
     };
-  }, []);
+  }, [navigate]);
 
   const toggleUserCard = () => {
     setShowUserCard(!showUserCard);
@@ -97,6 +150,46 @@ const Header = ({ darkMode, setDarkMode }) => {
           </div>
           <div className="user-card-body">
             <p className="user-detail"><strong>ID:</strong> {user.id}</p>
+            {/* === Session Expiry Info === */}
+            {expiryTime ? (
+              <div className="session-info">
+                <p
+                  className="user-detail"
+                  style={{
+                    color: isExpiringSoon ? '#e53e3e' : darkMode ? '#a0aec0' : '#4a5568',
+                    fontWeight: isExpiringSoon ? 'bold' : 'normal'
+                  }}
+                >
+                  <strong>Expires at:</strong> {formatExpiryTime(expiryTime / 1000)}
+                </p>
+                <p
+                  className="user-detail"
+                  style={{
+                    fontSize: '12px',
+                    color: isExpiringSoon ? '#e53e3e' : darkMode ? '#a0aec0' : '#718096'
+                  }}
+                >
+                  Time left: {timeLeft}
+                </p>
+                {isExpiringSoon && (
+                  <p
+                    style={{
+                      color: '#e53e3e',
+                      fontSize: '12px',
+                      marginTop: '4px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    ⚠️ Session expiring soon!
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="user-detail" style={{ color: '#e53e3e' }}>
+                <strong>Session:</strong> Not active
+              </p>
+            )}
+            {/* === End Session Info === */}
           </div>
           <div className="user-card-footer">
             <button

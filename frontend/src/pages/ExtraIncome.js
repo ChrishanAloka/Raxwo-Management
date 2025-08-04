@@ -21,6 +21,7 @@ const ExtraIncome = ({ darkMode }) => {
     incomeType: "",
     amount: "",
     description: "",
+    assignedTo:"",
   });
   // State for table data
   const [extraIncomes, setExtraIncomes] = useState([]);
@@ -102,6 +103,7 @@ const ExtraIncome = ({ darkMode }) => {
         incomeType: formData.incomeType,
         amount: parseFloat(formData.amount),
         description: formData.description,
+        assignedTo: formData.assignedTo,
       };
       const response = await fetch(API_URL, {
         method: "POST",
@@ -126,6 +128,7 @@ const ExtraIncome = ({ darkMode }) => {
         incomeType: "",
         amount: "",
         description: "",
+        assignedTo: "",
       });
       setShowAddModal(false);
       onUpdate();
@@ -150,6 +153,7 @@ const ExtraIncome = ({ darkMode }) => {
         incomeType: editingRecord.incomeType,
         amount: parseFloat(editingRecord.amount),
         description: editingRecord.description,
+        assignedTo: editingRecord.assignedTo,
       };
       const response = await fetch(`${API_URL}/${editingRecord._id}`, {
         method: "PUT",
@@ -549,6 +553,30 @@ const ExtraIncome = ({ darkMode }) => {
                 value={formData.description}
                 onChange={handleInputChange}
               />
+              {/* === NEW: Assigned To Dropdown === */}
+                <label className={`madd-label ${darkMode ? "dark" : ""}`}>Assign To:</label>
+                <select
+                  name="assignedTo"
+                  className={`madd-input ${darkMode ? "dark" : ""}`}
+                  value={formData.assignedTo || ""}
+                  onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+                  required
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ccc",
+                    backgroundColor: darkMode ? "#444" : "#fff",
+                    color: darkMode ? "#fff" : "#333",
+                    width: "100%",
+                  }}
+                >
+                  <option value="" disabled selected>Select Technician/Team</option>
+                  <option value="Prabath">Prabath</option>
+                  <option value="Nadeesh">Nadeesh</option>
+                  <option value="Accessories">Accessories</option>
+                  <option value="Genex-EX">Genex EX</option>
+                </select>
+              {/* === END NEW FIELD === */}
               <div className="button-group">
                 <button type="submit" className="me-submit-btn">Submit</button>
                 <button type="button" className="me-cancel-btn" onClick={() => setShowAddModal(false)}>
@@ -612,6 +640,30 @@ const ExtraIncome = ({ darkMode }) => {
                 value={editingRecord.description}
                 onChange={(e) => setEditingRecord({ ...editingRecord, description: e.target.value })}
               />
+              {/* === NEW: Assigned To Dropdown === */}
+                <label className={`madd-label ${darkMode ? "dark" : ""}`}>Assign To:</label>
+                <select
+                  name="assignedTo"
+                  className={`madd-input ${darkMode ? "dark" : ""}`}
+                  value={editingRecord.assignedTo || ""}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, assignedTo: e.target.value })}
+                  required
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ccc",
+                    backgroundColor: darkMode ? "#444" : "#fff",
+                    color: darkMode ? "#fff" : "#333",
+                    width: "100%",
+                  }}
+                >
+                  <option value="" disabled selected>Select Technician/Team</option>
+                  <option value="Prabath">Prabath</option>
+                  <option value="Nadeesh">Nadeesh</option>
+                  <option value="Accessories">Accessories</option>
+                  <option value="Genex-EX">Genex EX</option>
+                </select>
+              {/* === END NEW FIELD === */}
               <div className="button-group">
                 <button type="submit" className="me-submit-btn">Submit</button>
                 <button type="button" className="me-cancel-btn" onClick={() => setEditingRecord(null)}>

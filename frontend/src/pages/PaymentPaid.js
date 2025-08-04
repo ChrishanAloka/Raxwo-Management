@@ -4,7 +4,7 @@ import "../styles/PaymentPaid.css";
 import { jsPDF } from 'jspdf';
 import paymenticon from "../icon/pos-terminal3.png";
 
-const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashierName, isWholesale, customerDetails, customerName, contactNumber, address, description }) => {
+const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashierName, isWholesale, customerDetails, customerName, contactNumber, address, description, assignedTo }) => {
   const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
@@ -14,8 +14,8 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
   useEffect(() => {
     setPaidAmount("");
     setBalance(0);
-    console.log('PaymentPaid props:', { customerName, contactNumber, address, description }); // Debug log
-  }, [totalAmount, customerName, contactNumber, address, description]);
+    console.log('PaymentPaid props:', { customerName, contactNumber, address, description, assignedTo }); // Debug log
+  }, [totalAmount, customerName, contactNumber, address, description, assignedTo]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -413,7 +413,8 @@ const generatePaymentBill = (paymentData) => {
           customerName: customerName || '',
           contactNumber: contactNumber || '',
           address: address || '',
-          description: description || ''
+          description: description || '',
+          assignedTo: assignedTo || ''
         }),
       });
 

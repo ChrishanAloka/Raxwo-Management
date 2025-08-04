@@ -84,7 +84,7 @@ const ProductRepairList = ({ darkMode }) => {
   const productsPerPage = 10;
 
   const [repairPage, setRepairPage] = useState(1);
-  const repairsPerPage = 5;
+  const repairsPerPage = 10;
 
   const handleClearAllProducts = () => {
     setProductSearchQuery('');
@@ -582,6 +582,26 @@ const ProductRepairList = ({ darkMode }) => {
         return;
       }
 
+      // 🔍 Validation: Check if any product is missing sellingPrice
+      const invalidProducts = selectedProducts.filter(
+        (p) => p.sellingPrice == null || isNaN(p.sellingPrice) || p.sellingPrice <= 0
+      );
+
+      if (invalidProducts.length > 0) {
+        setError("Please enter a valid selling price (greater than 0) for all selected products.");
+        
+        // Optional: Focus or highlight first invalid product
+        const firstInvalidIndex = selectedProducts.indexOf(invalidProducts[0]);
+        const input = document.querySelectorAll(`.selling-price-input`)[firstInvalidIndex];
+        if (input) input.focus();
+
+        return;
+      }
+
+      // ✅ All validations passed — proceed with update
+      setLoading(true);
+      setError("");
+
       // Ensure all selected products have a valid supplierName
       const productsWithSupplier = selectedProducts.map(product => {
         // Always set supplierName to ensure it's present and valid
@@ -597,11 +617,6 @@ const ProductRepairList = ({ darkMode }) => {
         };
       });
 
-      // console.log("Sending selectedProducts with supplier:", productsWithSupplier);
-
-      // Show loading message
-      setLoading(true);
-      setError("");
 
       const response = await fetch(`${API_URL}/update-cart/${selectedRepair._id}`, {
         method: "PATCH",
@@ -2355,6 +2370,87 @@ const ProductRepairList = ({ darkMode }) => {
                   </div>
                 )}
               </div>
+              <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
+                <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Assigned To:</strong>
+                <select
+                  value={selectedRepair.assignedTo || ""} // assuming you store the value in `assignedTo`
+                  onChange={async (e) => {
+                    const newValue = e.target.value;
+                    setLoading(true);
+                    setError("");
+                    try {
+                      // Update the backend
+                      const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ assignedTo: newValue }),
+                      });
+
+                      if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || "Failed to update assignment");
+                      }
+
+                      const updatedRepair = await response.json();
+
+                      // Update local state
+                      setRepairs(prevRepairs =>
+                        prevRepairs.map(r => (r._id === updatedRepair._id ? updatedRepair : r))
+                      );
+                      setSelectedRepair(updatedRepair);
+
+                      setMessage("Assignment updated successfully!");
+                    } catch (err) {
+                      console.error("Error updating assignment:", err);
+                      setError(err.message);
+                      // Optional: revert selection on error
+                      setSelectedRepair(prev => ({ ...prev, assignedTo: prev.assignedTo }));
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                    backgroundColor: darkMode ? "#444" : "#fff",
+                    color: darkMode ? "#fff" : "#333",
+                    width: "100%",
+                    marginTop: "5px",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.7 : 1
+                  }}
+                >
+                  <option value="" disabled>Select Person/Team</option>
+                  <option value="Prabath">Prabath</option>
+                  <option value="Nadeesh">Nadeesh</option>
+                  <option value="Accessories">Accessories</option>
+                  <option value="Genex-EX">Genex EX</option>
+                </select>
+
+                {loading && (
+                  <div style={{
+                    marginTop: "5px",
+                    color: darkMode ? "#63b3ed" : "#3182ce",
+                    fontSize: "14px",
+                    textAlign: "center"
+                  }}>
+                    Updating assignment...
+                  </div>
+                )}
+
+                {error && (
+                  <div style={{
+                    marginTop: "5px",
+                    color: "#e53e3e",
+                    fontSize: "14px",
+                    textAlign: "center"
+                  }}>
+                    {error}
+                  </div>
+                )}
+              </div>
             </div>
             <div style={{ marginBottom: "20px" }}>
               <h3 style={{
@@ -3141,6 +3237,7 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
                             }}
                             className={`selling-price-input ${darkMode ? "dark" : ""}`}
                             placeholder="Price"
+                            required
                             style={{ width: "90px", padding: "4px", fontSize: "14px", textAlign: "center" }}
                           />
                         </td>
