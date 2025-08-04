@@ -17,6 +17,7 @@ const productRepairSchema = new mongoose.Schema({
   serialNumber: { type: String, required: false },
   estimationValue: { type: String, required: false, default: 0 },
   checkingCharge: { type: Number, required: false, default: 0 },
+  assignedTo: { type: String, default: "" },
   issueDescription: { type: String, required: true },
   additionalNotes: { type: String, required: false },
   sellingPrice: Number,

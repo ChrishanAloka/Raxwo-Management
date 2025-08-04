@@ -21,6 +21,10 @@ const extraIncomeSchema = new mongoose.Schema({
     trim: true,
     default: "",
   },
+  assignedTo: { 
+    type: String, 
+    default: '' 
+  },
   createdAt: {
     type: Date,
     default: Date.now,

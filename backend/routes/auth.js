@@ -32,7 +32,7 @@ router.post('/register', async (req, res) => {
     user = new User({ username, email, phone, password: hashedPassword, role });
     await user.save();
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '5h' });
     res.json({
       token,
       user: { id: user._id, username: user.username, email: user.email, phone: user.phone, role: user.role }
@@ -59,7 +59,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ msg: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '5h' });
     console.log('Generated Token:', token);
     res.json({
       token,

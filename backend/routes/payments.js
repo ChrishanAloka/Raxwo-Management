@@ -17,8 +17,8 @@ const getNextInvoiceNumber = async () => {
 // POST: Create a new payment (Protected route)
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { items, totalAmount, discountApplied, paymentMethod, cashierId, cashierName, customerName, contactNumber, address, description, isWholesale, customerDetails } = req.body;
-    console.log('Received payment data in backend:', { items, totalAmount, discountApplied, paymentMethod, cashierId, cashierName, customerName, contactNumber, address, description, isWholesale, customerDetails }); // Debug log
+    const { items, totalAmount, discountApplied, paymentMethod, cashierId, cashierName, customerName, contactNumber, address, description, assignedTo, isWholesale, customerDetails } = req.body;
+    console.log('Received payment data in backend:', { items, totalAmount, discountApplied, paymentMethod, cashierId, cashierName, customerName, contactNumber, address, description, assignedTo, isWholesale, customerDetails }); // Debug log
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'No items provided' });
@@ -57,6 +57,7 @@ router.post('/', authMiddleware, async (req, res) => {
       contactNumber: contactNumber || '',
       address: address || '',
       description: description || '',
+      assignedTo: assignedTo || '',
       isWholesale: isWholesale || false,
       customerDetails: isWholesale ? customerDetails : null,
     });
@@ -106,7 +107,7 @@ router.patch('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    const allowedFields = ['invoiceNumber', 'paymentMethod', 'discountApplied', 'totalAmount', 'cashierName', 'cashierId', 'changedBy', 'changeSource'];
+    const allowedFields = ['invoiceNumber', 'paymentMethod', 'discountApplied', 'totalAmount', 'cashierName', 'cashierId', 'changedBy', 'changeSource', 'assignedTo'];
     const filteredUpdates = Object.keys(updates)
       .filter(key => allowedFields.includes(key))
       .reduce((obj, key) => {

@@ -632,6 +632,7 @@ router.patch("/:id", getRepair, async (req, res) => {
       "estimationValue",
       "additionalNotes",
       "checkingCharge",
+      "assignedTo",
       "repairCart",
       "totalRepairCost",
       "repairStatus",

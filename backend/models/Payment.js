@@ -50,6 +50,10 @@ const paymentSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  assignedTo: { 
+    type: String, 
+    default: '' 
+  },
   date: {
     type: Date,
     default: Date.now
