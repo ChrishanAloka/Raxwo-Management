@@ -59,7 +59,7 @@ async function getRepair(req, res, next) {
 // GET: Get all repairs
 router.get("/", async (req, res) => {
   try {
-    const repairs = await ProductRepair.find();
+    const repairs = await ProductRepair.find().sort({ createdAt: -1 });
     console.log("GET /api/productsRepair - Raw repairs data:", repairs.map(repair => ({
       id: repair._id,
       review: repair.technicianReview,
