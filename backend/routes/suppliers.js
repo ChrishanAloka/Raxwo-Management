@@ -330,11 +330,11 @@ router.post('/:id/payments', getSupplier, async (req, res) => {
   }
 
   // Calculate total cost and amount due
-  const totalitemCost = supplier.items.reduce(
+  const totalitemCost = res.supplier.items.reduce(
     (sum, item) => sum + (item.buyingPrice || 0) * (item.quantity || 0),
     0
   );
-  const pastcharges = supplier.pastpayments.reduce(
+  const pastcharges = res.supplier.pastPayments.reduce(
     (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
     0
   );
