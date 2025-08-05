@@ -52,3 +52,30 @@
   object-fit: contain;
   display: block;
 } 
+
+
+.scrollable-items-container {
+  max-height: 300px; /* Adjust based on your layout */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
+}
+
+/* Optional: scrollbar styling (especially for dark mode) */
+.scrollable-items-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable-items-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollable-items-container::-webkit-scrollbar-thumb {
+  background: #1abc9c;
+  border-radius: 6px;
+}
+
+.scrollable-items-container {
+  scrollbar-width: thin;
+  scrollbar-color: #1abc9c transparent;
+}

@@ -345,6 +345,8 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
             </div>
           </div>
           
+          {/* Scrollable container for items */}
+        <div className="scrollable-items-container">
           {items.map((itemData, index) => (
             <div key={index} className="form-row">
               <div className="left-column">
@@ -424,6 +426,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
               </div>
             </div>
           ))}
+        </div>
           
           <div className="button-group">
             <button type="button" className="add-item-btn" onClick={addItem}>
