@@ -6,14 +6,30 @@ router.post("/", async (req, res) => {
     try {
         console.log("Incoming request body:", req.body); // Debugging
         
-        const { serviceType, price, remarks } = req.body;
+        const { serviceType, price, remarks, date, time} = req.body;
 
         if (!serviceType || !price) {
             return res.status(400).json({ message: "Service Type and Price are required" });
         }
 
-        const date = new Date().toISOString().split("T")[0]; // Auto-fill date (YYYY-MM-DD)
-        const time = new Date().toLocaleTimeString(); // Auto-fill time (HH:MM:SS)
+        // const date = new Date().toISOString().split("T")[0]; // Auto-fill date (YYYY-MM-DD)
+        // const time = new Date().toLocaleTimeString(); // Auto-fill time (HH:MM:SS)
+        // Combine date and time to form a valid ISO string
+        const dateTimeString = `${date}T${time}`;
+        const parsedTime = new Date(dateTimeString);
+
+        // Validate the resulting date/time
+        if (isNaN(parsedTime)) {
+            return res.status(400).json({ message: "Invalid date or time format" });
+        }
+
+        // Format to HH:mm:ss (24-hour format)
+        const utime = parsedTime.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        }); // e.g., "14:30:00"
 
         // ✅ Fix: Ensure `no` is always a valid number
         const lastRecord = await Maintenance.findOne().sort({ no: -1 });
@@ -26,7 +42,7 @@ router.post("/", async (req, res) => {
         const newMaintenance = new Maintenance({ 
             no: newNo, 
             date, 
-            time, 
+            time: utime, 
             serviceType, 
             price, 
             remarks 
@@ -68,10 +84,35 @@ router.get("/:id", async (req, res) => {
 // Update Maintenance Record
 router.put("/:id", async (req, res) => {
     try {
-        const { serviceType, price, remarks } = req.body;
+        
+        const { serviceType, price, remarks, date, time } = req.body;
+
+        // Validate required fields
+        if (!serviceType || typeof price !== 'number' || !date || !time) {
+            return res.status(400).json({ 
+                message: "Missing required fields: serviceType, price, date, or time" 
+            });
+        }
+        // Combine date and time to form a valid ISO string
+        const dateTimeString = `${date}T${time}`;
+        const parsedTime = new Date(dateTimeString);
+
+        // Validate the resulting date/time
+        if (isNaN(parsedTime)) {
+            return res.status(400).json({ message: "Invalid date or time format" });
+        }
+
+        // Format to HH:mm:ss (24-hour format)
+        const utime = parsedTime.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        }); // e.g., "14:30:00"
+
         const updatedMaintenance = await Maintenance.findByIdAndUpdate(
             req.params.id,
-            { serviceType, price, remarks },
+            { serviceType, price, remarks, date, time: utime },
             { new: true }
         );
 

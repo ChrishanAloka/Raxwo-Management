@@ -70,7 +70,7 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
           <label className={`madd-label ${darkMode ? "dark" : ""}`}>Price</label>
           <input
             className={`madd-input ${darkMode ? "dark" : ""}`}
-            type="text"
+            type="number"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             required

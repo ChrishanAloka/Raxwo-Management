@@ -42,7 +42,7 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
         <form onSubmit={handleUpdate}>
           <label className={`me-lable ${darkMode ? "dark" : ""}`}>Date</label>
           <input
-            type="text"
+            type="date"
             className={`me-input ${darkMode ? "dark" : ""}`}
             value={editedRecord.date}
             onChange={(e) => setEditedRecord({ ...editedRecord, date: e.target.value })}
@@ -50,7 +50,7 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
           />
           <label className={`me-lable ${darkMode ? "dark" : ""}`}>Time</label>
           <input
-            type="text"
+            type="time"
             className={`me-input ${darkMode ? "dark" : ""}`}
             value={editedRecord.time}
             onChange={(e) => setEditedRecord({ ...editedRecord, time: e.target.value })}
