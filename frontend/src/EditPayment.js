@@ -187,6 +187,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                 <option value="Nadeesh">Nadeesh</option>
                 <option value="Accessories">Accessories</option>
                 <option value="Genex-EX">Genex EX</option>
+                <option value="I-Device">I Device</option>
                 {/* <option value="Refund">Refund</option> */}
               </select>
               

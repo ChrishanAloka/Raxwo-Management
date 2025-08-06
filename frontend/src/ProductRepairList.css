@@ -686,4 +686,11 @@
   height: 100vh;
   background: transparent;
   z-index: 9;
+  pointer-events: none; /* 👈 Allows scrolling */
 }
+
+/* Only when the menu is open, make overlay clickable */
+/* This should be toggled via JS: add class "active" when menu opens */
+/* .action-menu-overlay.active {
+  pointer-events: auto;
+} */

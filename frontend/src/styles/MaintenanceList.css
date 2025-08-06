@@ -1058,4 +1058,5 @@ input.dark:focus, select.dark:focus {
   height: 100vh;
   background: transparent;
   z-index: 9;
+  pointer-events: none; /* 👈 Allows scrolling */
 }

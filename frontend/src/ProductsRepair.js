@@ -72,6 +72,10 @@ const ProductRepairList = ({ darkMode }) => {
   const [showCashierChangesModal, setShowCashierChangesModal] = useState(false);
   const [cashierChanges, setCashierChanges] = useState({});
   const [showAllStatusesInline, setShowAllStatusesInline] = useState(false);
+
+  const [editingItemIndex, setEditingItemIndex] = useState(null);
+  const [tempSellingPrice, setTempSellingPrice] = useState('');
+
   const handleClearSearch = () => {
     setSearchTerm("");
   };
@@ -753,6 +757,12 @@ const ProductRepairList = ({ darkMode }) => {
 
   const handleCompletePayment = async () => {
     try {
+      // ✅ CHECK: Ensure a payment method is selected
+      if (!selectedRepair.paymentMethod || selectedRepair.paymentMethod.trim() === "") {
+        setError("Please select a payment method before completing the payment.");
+        return; // Prevent further execution
+      }
+
       // Check if there are any unpaid additional services
       const hasUnpaidServices = selectedRepair.additionalServices &&
         selectedRepair.additionalServices.some(service => !service.isPaid);
@@ -1322,6 +1332,9 @@ const ProductRepairList = ({ darkMode }) => {
                   .join("")}
               </tbody>
             </table>
+            <div class="details">
+              <p><strong>Product Description :</strong> ${repair.cartDescription}</p>
+            </div>
             <div class="totals">
               <p><strong>Cart Total:</strong> Rs. ${calculateCartTotal(repair.repairCart)}</p>
               ${repair.services && repair.services.length > 0 ? `
@@ -1726,6 +1739,61 @@ const ProductRepairList = ({ darkMode }) => {
     } catch (err) {
       console.error("Error updating repair status:", err);
       setError(err.message || "Failed to update repair status");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const handleSaveSellingPrice = async (itemCode, newPrice) => {
+    if (isNaN(newPrice) || newPrice < 0) {
+      setError("Please enter a valid selling price.");
+      return;
+    }
+
+    const updatedCart = selectedRepair.repairCart.map(item =>
+      item.itemCode === itemCode
+        ? {
+            ...item,
+            sellingPrice: newPrice,
+            cost: newPrice * item.quantity,
+          }
+        : item
+    );
+
+    const cartTotal = updatedCart.reduce((sum, item) => sum + item.cost, 0);
+    const baseTotal = cartTotal + (selectedRepair.repairCost || 0);
+    const totalDiscountAmount = services.reduce((sum, s) => sum + s.discountAmount, 0);
+    const totalAdditionalServicesAmount = selectedRepair.totalAdditionalServicesAmount || 0;
+    const finalAmount = baseTotal - totalDiscountAmount + totalAdditionalServicesAmount;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          repairCart: updatedCart,
+          totalRepairCost: cartTotal,
+          finalAmount,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update selling price");
+
+      const updatedRepair = await response.json();
+
+      // Update local state
+      setSelectedRepair(updatedRepair);
+      setRepairs(repairs.map(r => (r._id === updatedRepair._id ? updatedRepair : r)));
+      setMessage("Selling price updated successfully!");
+    } catch (err) {
+      console.error("Error updating selling price:", err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -2427,6 +2495,7 @@ const ProductRepairList = ({ darkMode }) => {
                   <option value="Nadeesh">Nadeesh</option>
                   <option value="Accessories">Accessories</option>
                   <option value="Genex-EX">Genex EX</option>
+                  <option value="I-Device">I Device</option>
                 </select>
 
                 {loading && (
@@ -2440,6 +2509,78 @@ const ProductRepairList = ({ darkMode }) => {
                   </div>
                 )}
 
+                {error && (
+                  <div style={{
+                    marginTop: "5px",
+                    color: "#e53e3e",
+                    fontSize: "14px",
+                    textAlign: "center"
+                  }}>
+                    {error}
+                  </div>
+                )}
+              </div>
+              <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
+                <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Payment Method:</strong>
+                <select
+                  value={selectedRepair.paymentMethod || ""}
+                  onChange={async (e) => {
+                    const newValue = e.target.value;
+                    setLoading(true);
+                    setError("");
+                    try {
+                      const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ paymentMethod: newValue }),
+                      });
+                      if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || "Failed to update payment method");
+                      }
+                      const updatedRepair = await response.json();
+                      // Update local state
+                      setRepairs(prevRepairs =>
+                        prevRepairs.map(r => (r._id === updatedRepair._id ? updatedRepair : r))
+                      );
+                      setSelectedRepair(updatedRepair);
+                      setMessage("Payment method updated successfully!");
+                    } catch (err) {
+                      console.error("Error updating payment method:", err);
+                      setError(err.message);
+                      // Optional: revert on error
+                      setSelectedRepair(prev => ({ ...prev, paymentMethod: prev.paymentMethod }));
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                    backgroundColor: darkMode ? "#444" : "#fff",
+                    color: darkMode ? "#fff" : "#333",
+                    width: "100%",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.7 : 1
+                  }}
+                >
+                  <option value="">Select Payment Method</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                  <option value="Bank-Transfer">Bank Transfer</option>
+                </select>
+                {loading && (
+                  <div style={{
+                    marginTop: "5px",
+                    color: darkMode ? "#63b3ed" : "#3182ce",
+                    fontSize: "14px",
+                    textAlign: "center"
+                  }}>
+                    Updating...
+                  </div>
+                )}
                 {error && (
                   <div style={{
                     marginTop: "5px",
@@ -2471,7 +2612,7 @@ const ProductRepairList = ({ darkMode }) => {
                     }}>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Item Name</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Qty</th>
-                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Cost</th>
+                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Selling Price</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Action</th>
                     </tr>
                   </thead>
@@ -2480,7 +2621,42 @@ const ProductRepairList = ({ darkMode }) => {
                       <tr key={index} style={{ backgroundColor: index % 2 === 0 ? (darkMode ? "#4a4a4a" : "#fafafa") : (darkMode ? "#444" : "#fff") }}>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.itemName} - {item.category}</td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.quantity}</td>
-                        <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>Rs. {item.cost}</td>
+                        <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
+                          {selectedRepair.repairStatus !== "Completed" ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              defaultValue={item.sellingPrice || 0}
+                              onBlur={(e) => {
+                                const newValue = parseFloat(e.target.value);
+                                if (isNaN(newValue) || newValue === item.sellingPrice) return; // No change or invalid
+                                handleSaveSellingPrice(item.itemCode, newValue);
+                              }}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  const newValue = parseFloat(e.target.value);
+                                  if (isNaN(newValue)) return;
+                                  handleSaveSellingPrice(item.itemCode, newValue);
+                                }
+                              }}
+                              style={{
+                                width: "90px",
+                                padding: "4px",
+                                borderRadius: "4px",
+                                border: "1px solid #aaa",
+                                fontSize: "14px",
+                                textAlign: "center",
+                                backgroundColor: darkMode ? "#444" : "#fff",
+                                color: darkMode ? "#fff" : "#333",
+                              }}
+                              disabled={loading}
+                              placeholder="Price"
+                            />
+                          ) : (
+                            <span>Rs. {item.sellingPrice?.toFixed(2) || "0.00"}</span>
+                          )}
+                        </td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
                           {selectedRepair.repairStatus !== "Completed" && (
                             <button
@@ -2509,7 +2685,73 @@ const ProductRepairList = ({ darkMode }) => {
                 </table>
               ) : (
                 <p style={{ color: darkMode ? "#ccc" : "#666", fontStyle: "italic" }}>No items in cart.</p>
-              )}            </div>
+              )}            
+            </div>
+
+            {/* ✅ NEW: Description Field After Cart */}
+            {selectedRepair.repairStatus !== "Completed" ? (
+              <div style={{ marginTop: "15px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "5px",
+                    color: darkMode ? "#ccc" : "#555",
+                    fontSize: "14px",
+                  }}
+                >
+                  Cart Description (Optional):
+                </label>
+                <textarea
+                  value={selectedRepair.cartDescription || ""}
+                  onChange={async (e) => {
+                    const newDesc = e.target.value;
+                    const updatedRepair = { ...selectedRepair, cartDescription: newDesc };
+
+                    // Update UI immediately (optimistic update)
+                    setSelectedRepair(updatedRepair);
+                    setRepairs(repairs.map(r => (r._id === updatedRepair._id ? updatedRepair : r)));
+
+                    try {
+                      // setLoading(true);
+                      await fetch(`${API_URL}/${selectedRepair._id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ cartDescription: newDesc }),
+                      });
+                      // setMessage("Cart description updated successfully.");
+                    } catch (err) {
+                      console.error("Error saving cart description:", err);
+                      setError("Failed to save description.");
+                      // Optionally revert on error
+                      setSelectedRepair(selectedRepair);
+                      setRepairs(repairs.map(r => (r._id === selectedRepair._id ? selectedRepair : r)));
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  placeholder="Add a note about this repair cart..."
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                    backgroundColor: darkMode ? "#444" : "#fff",
+                    color: darkMode ? "#fff" : "#333",
+                    fontSize: "14px",
+                    minHeight: "60px",
+                    resize: "vertical",
+                  }}
+                />
+              </div>
+            ) : (
+              selectedRepair.cartDescription && (
+                <div style={{ marginTop: "15px", padding: "10px", backgroundColor: darkMode ? "#444" : "#f9f9f9", borderRadius: "4px" }}>
+                  <strong style={{ color: darkMode ? "#ccc" : "#555" }}>Cart Description:</strong>
+                  <p style={{ margin: "5px 0 0 0", color: darkMode ? "#fff" : "#333" }}>{selectedRepair.cartDescription}</p>
+                </div>
+              )
+            )}
+
             <div style={{
               display: "flex",
               justifyContent: "space-between",
@@ -2557,19 +2799,19 @@ const ProductRepairList = ({ darkMode }) => {
                             <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>Rs. {service.discountAmount}</td>
                             <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{service.description || "N/A"}</td>
                             <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
-                            <button
-  onClick={() => handleRemoveService(index)}  // ✅ Add this line
-  style={{
-    backgroundColor: "rgb(231, 76, 60)",
-    color: "white",
-    border: "none",
-    padding: "5px 10px",
-    borderRadius: "3px",
-    cursor: "pointer"
-  }}
->
-  Remove
-</button>
+                              <button
+                                onClick={() => handleRemoveService(index)}  // ✅ Add this line
+                                style={{
+                                  backgroundColor: "rgb(231, 76, 60)",
+                                  color: "white",
+                                  border: "none",
+                                  padding: "5px 10px",
+                                  borderRadius: "3px",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                Remove
+                              </button>
                             </td>
                           </tr>
                         ))}

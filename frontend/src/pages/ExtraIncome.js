@@ -22,6 +22,7 @@ const ExtraIncome = ({ darkMode }) => {
     amount: "",
     description: "",
     assignedTo:"",
+    paymentMethod: "",
   });
   // State for table data
   const [extraIncomes, setExtraIncomes] = useState([]);
@@ -104,6 +105,7 @@ const ExtraIncome = ({ darkMode }) => {
         amount: parseFloat(formData.amount),
         description: formData.description,
         assignedTo: formData.assignedTo,
+        paymentMethod: formData.paymentMethod,
       };
       const response = await fetch(API_URL, {
         method: "POST",
@@ -129,6 +131,7 @@ const ExtraIncome = ({ darkMode }) => {
         amount: "",
         description: "",
         assignedTo: "",
+        paymentMethod: "",
       });
       setShowAddModal(false);
       onUpdate();
@@ -154,6 +157,7 @@ const ExtraIncome = ({ darkMode }) => {
         amount: parseFloat(editingRecord.amount),
         description: editingRecord.description,
         assignedTo: editingRecord.assignedTo,
+        paymentMethod: editingRecord.paymentMethod,
       };
       const response = await fetch(`${API_URL}/${editingRecord._id}`, {
         method: "PUT",
@@ -575,6 +579,22 @@ const ExtraIncome = ({ darkMode }) => {
                   <option value="Nadeesh">Nadeesh</option>
                   <option value="Accessories">Accessories</option>
                   <option value="Genex-EX">Genex EX</option>
+                  <option value="I-Device">I Device</option>
+                </select>
+              {/* === END NEW FIELD === */}
+              {/* === NEW: Payment Method Dropdown === */}
+                <label className={`madd-label ${darkMode ? "dark" : ""}`}>Payment Method:</label>
+                <select
+                  name="paymentMethod"
+                  className={`madd-input ${darkMode ? "dark" : ""}`}
+                  value={formData.paymentMethod}
+                  onChange={handleInputChange}
+                  required // Makes it mandatory
+                >
+                  <option value="">Select Payment Method</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                  <option value="Bank-Transfer">Bank Transfer</option>
                 </select>
               {/* === END NEW FIELD === */}
               <div className="button-group">
@@ -662,6 +682,22 @@ const ExtraIncome = ({ darkMode }) => {
                   <option value="Nadeesh">Nadeesh</option>
                   <option value="Accessories">Accessories</option>
                   <option value="Genex-EX">Genex EX</option>
+                  <option value="I-Device">I Device</option>
+                </select>
+              {/* === END NEW FIELD === */}
+              {/* === NEW: Payment Method Dropdown === */}
+                <label className={`madd-label ${darkMode ? "dark" : ""}`}>Payment Method:</label>
+                <select
+                  name="paymentMethod"
+                  className={`madd-input ${darkMode ? "dark" : ""}`}
+                  value={editingRecord.paymentMethod}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, paymentMethod: e.target.value })}
+                  required // Makes it mandatory
+                >
+                  <option value="">Select Payment Method</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                  <option value="Bank-Transfer">Bank Transfer</option>
                 </select>
               {/* === END NEW FIELD === */}
               <div className="button-group">

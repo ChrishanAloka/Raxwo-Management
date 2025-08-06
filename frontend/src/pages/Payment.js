@@ -441,6 +441,7 @@ const Payment = ({ darkMode }) => {
               <option value="Nadeesh">Nadeesh</option>
               <option value="Accessories">Accessories</option>
               <option value="Genex-EX">Genex EX</option>
+              <option value="I-Device">I Device</option>
             </select>
           </div>
 

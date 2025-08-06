@@ -33,6 +33,7 @@
   height: 100vh;
   background: transparent;
   z-index: 9;
+  pointer-events: none; /* 👈 Allows scrolling */
 }
 
 .p-edit-btn-icon,

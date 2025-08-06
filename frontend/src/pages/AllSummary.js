@@ -43,6 +43,7 @@ const AllSummary = ({ darkMode }) => {
   const [statusFilter, setStatusFilter] = useState('');
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'expenses', 'income'
   const [assignedToFilter, setAssignedToFilter] = useState('');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
 
   useEffect(() => {
     fetchAllData();
@@ -57,7 +58,7 @@ const AllSummary = ({ darkMode }) => {
     filterExtraIncome();
     filterePayments();
     // eslint-disable-next-line
-  }, [products, grnExpenses.raw, salaries, maintenance, repairs, extraIncome, payments, filterType, filterDate, startDate, endDate, dateField, categoryFilter, statusFilter, assignedToFilter]);
+  }, [products, grnExpenses.raw, salaries, maintenance, repairs, extraIncome, payments, filterType, filterDate, startDate, endDate, dateField, categoryFilter, statusFilter, assignedToFilter, paymentMethodFilter]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -392,6 +393,9 @@ const AllSummary = ({ darkMode }) => {
       if (assignedToFilter) {
         filtered = filtered.filter(r => r.assignedTo === assignedToFilter);
       }
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(r => r.paymentMethod === paymentMethodFilter);
+      }
       setFilteredRepairs(filtered);
       return;
     }
@@ -409,6 +413,10 @@ const AllSummary = ({ darkMode }) => {
 
       if (assignedToFilter) {
         filtered = filtered.filter(r => r.assignedTo === assignedToFilter);
+      }
+
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(r => r.paymentMethod === paymentMethodFilter);
       }
       
       const start = new Date(startDate);
@@ -437,8 +445,11 @@ const AllSummary = ({ darkMode }) => {
     }
 
     if (assignedToFilter) {
-    filtered = filtered.filter(r => r.assignedTo === assignedToFilter);
-  }
+      filtered = filtered.filter(r => r.assignedTo === assignedToFilter);
+    }
+    if (paymentMethodFilter) {
+      filtered = filtered.filter(r => r.paymentMethod === paymentMethodFilter);
+    }
     
     if (filterType === 'daily') {
       filtered = filtered.filter(r => {
@@ -467,6 +478,9 @@ const AllSummary = ({ darkMode }) => {
     if (assignedToFilter) {
       filtered = filtered.filter(ei => ei.assignedTo === assignedToFilter);
     }
+    if (paymentMethodFilter) {
+      filtered = filtered.filter(ei => ei.paymentMethod === paymentMethodFilter);
+    }
     setFilteredExtraIncome(filtered);
     return;
     }
@@ -478,6 +492,9 @@ const AllSummary = ({ darkMode }) => {
       let filtered = extraIncome.filter(ei => !!ei.date);
       if (assignedToFilter) {
         filtered = filtered.filter(ei => ei.assignedTo === assignedToFilter);
+      }
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(ei => ei.paymentMethod === paymentMethodFilter);
       }
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -496,6 +513,9 @@ const AllSummary = ({ darkMode }) => {
     let filtered = extraIncome.filter(ei => !!ei.date);
     if (assignedToFilter) {
       filtered = filtered.filter(ei => ei.assignedTo === assignedToFilter);
+    }
+    if (paymentMethodFilter) {
+      filtered = filtered.filter(ei => ei.paymentMethod === paymentMethodFilter);
     }
     if (filterType === 'daily') {
       filtered = filtered.filter(ei => getLocalDateKey(ei.date) === getLocalDateKey(filterDate));
@@ -519,6 +539,9 @@ const AllSummary = ({ darkMode }) => {
       if (assignedToFilter) {
         filtered = filtered.filter(p => p.assignedTo === assignedToFilter);
       }
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(p => p.paymentMethod === paymentMethodFilter);
+      }
       setFilteredPayments(filtered);
       return;
     }
@@ -530,6 +553,9 @@ const AllSummary = ({ darkMode }) => {
       let filtered = payments.filter(p => !!p.date);
       if (assignedToFilter) {
         filtered = filtered.filter(p => p.assignedTo === assignedToFilter);
+      }
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(p => p.paymentMethod === paymentMethodFilter);
       }
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -549,6 +575,9 @@ const AllSummary = ({ darkMode }) => {
     let filteredp = payments.filter(p => !!p.date);
     if (assignedToFilter) {
       filteredp = filteredp.filter(p => p.assignedTo === assignedToFilter);
+    }
+    if (paymentMethodFilter) {
+      filteredp = filteredp.filter(p => p.paymentMethod === paymentMethodFilter);
     }
     if (filterType === 'daily') {
       filteredp = filteredp.filter(ei => getLocalDateKey(ei.date) === getLocalDateKey(filterDate));
@@ -615,6 +644,10 @@ const AllSummary = ({ darkMode }) => {
   const totalIncome = filteredRepairs.reduce((sum, repair) => {
     return sum + (repair.totalAdditionalServicesAmount + repair.totalRepairCost - repair.totalDiscountAmount || 0);
   }, 0) + totalExtraIncome + totalPayments;
+
+  const totalRepairIncome = filteredRepairs.reduce((sum, repair) => {
+    return sum + (repair.totalAdditionalServicesAmount + repair.totalRepairCost - repair.totalDiscountAmount || 0);
+  }, 0);
 
   const totalCheckingCharges = filteredRepairs.reduce((sum, repair) => {
     return sum + (repair.checkingCharge || 0);
@@ -684,6 +717,10 @@ const AllSummary = ({ darkMode }) => {
       {
         'Metric': 'Total Income',
         'Amount (Rs.)': `Rs. ${totalIncome.toFixed(2)}`
+      },
+      {
+        'Metric': 'Repair Income',
+        'Amount (Rs.)': `Rs. ${totalRepairIncome.toFixed(2)}`
       },
       {
         'Metric': 'Extra Income',
@@ -894,8 +931,33 @@ const AllSummary = ({ darkMode }) => {
           <option value="Nadeesh">Nadeesh</option>
           <option value="Accessories">Accessories</option>
           <option value="Genex-EX">Genex EX</option>
+          <option value="I-Device">I Device</option>
         </select>
         {/* === END NEW FILTER === */}
+
+        <div style={{ marginTop: "10px", display: "flex", gap: "10px", flexWrap: "wrap", color: darkMode ? '#e2e8f0' : '#333' }}>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <label style={{ marginRight: "8px" }}>Payment Method:</label>
+            <select
+              value={paymentMethodFilter}
+              onChange={(e) => setPaymentMethodFilter(e.target.value)}
+              style={{
+                backgroundColor: darkMode ? '#374151' : '#fff',
+                color: darkMode ? '#e2e8f0' : '#333',
+                border: darkMode ? '1px solid #4a5568' : '1px solid #ddd',
+                padding: '6px 8px',
+                borderRadius: '4px',
+                minWidth: '150px'
+              }}
+            >
+              <option value="">All Methods</option>
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="Bank-Transfer">Bank Transfer</option>
+            </select>
+          </div>
+        </div>
+
         {filterType === 'range' ? (
           <div style={{ display: 'inline-block', marginLeft: 10 }}>
             <input
@@ -1138,6 +1200,19 @@ const AllSummary = ({ darkMode }) => {
                   minWidth: '200px',
                   border: darkMode ? '1px solid #444' : '1px solid #ddd'
                 }}>
+                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Repair Income</h4>
+                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                    Rs. {totalRepairIncome.toFixed(2)}
+                  </p>
+                </div>
+                
+                <div style={{ 
+                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+                  padding: '15px', 
+                  borderRadius: '8px', 
+                  minWidth: '200px',
+                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
+                }}>
                   <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Item Purchase</h4>
                   <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
                     Rs. {totalPayments.toFixed(2)}
@@ -1268,6 +1343,12 @@ const AllSummary = ({ darkMode }) => {
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalIncome.toFixed(2)}</td>
                     <td>Total revenue from repair jobs, items purchase and extra income</td>
                   </tr>
+                  <tr>
+                    <td>Repair Income</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalRepairIncome.toFixed(2)}</td>
+                    <td>Total revenue from repair jobs</td>
+                  </tr>
+                  
                   <tr>
                     <td>Item Purchase</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalPayments.toFixed(2)}</td>
