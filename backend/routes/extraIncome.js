@@ -5,8 +5,8 @@ const ExtraIncome = require("../models/ExtraIncome");
 // Create a new extra income record
 router.post("/", async (req, res) => {
   try {
-    const { date, incomeType, amount, description, assignedTo} = req.body;
-    console.log("Creating extra income:", { date, incomeType, amount, description, assignedTo });
+    const { date, incomeType, amount, description, assignedTo, paymentMethod} = req.body;
+    console.log("Creating extra income:", { date, incomeType, amount, description, assignedTo, paymentMethod });
 
     const extraIncome = new ExtraIncome({
       date: new Date(date),
@@ -14,6 +14,7 @@ router.post("/", async (req, res) => {
       amount: parseFloat(amount),
       description,
       assignedTo,
+      paymentMethod,
     });
 
     await extraIncome.save();
@@ -40,8 +41,8 @@ router.get("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, incomeType, amount, description, assignedTo } = req.body;
-    console.log(`Updating extra income ID ${id}:`, { date, incomeType, amount, description, assignedTo});
+    const { date, incomeType, amount, description, assignedTo, paymentMethod } = req.body;
+    console.log(`Updating extra income ID ${id}:`, { date, incomeType, amount, description, assignedTo, paymentMethod});
 
     const extraIncome = await ExtraIncome.findByIdAndUpdate(
       id,
@@ -51,6 +52,7 @@ router.put("/:id", async (req, res) => {
         amount: parseFloat(amount),
         description,
         assignedTo,
+        paymentMethod,
       },
       { new: true, runValidators: true }
     );
