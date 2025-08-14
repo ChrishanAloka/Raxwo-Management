@@ -794,9 +794,9 @@ router.delete('/:id', getProduct, async (req, res) => {
 });
 
 // GET: Get a product by itemCode
-router.get('/itemCode/:itemCode', async (req, res) => {
+router.get('/grnNumber/:grnNumber', async (req, res) => {
   try {
-    const product = await Product.findOne({ itemCode: req.params.itemCode });
+    const product = await Product.find({ grnNumber: req.params.grnNumber });
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }

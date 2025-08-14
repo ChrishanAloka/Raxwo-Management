@@ -79,7 +79,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
   try {
     if(req.user.role === 'admin'){
-    const payments = await Payment.find().populate('items.productId');
+    const payments = await Payment.find().populate('items.productId').sort({ createdAt: -1 });
     console.log('Fetched payments from backend:', payments); // Debug log
     res.json(payments);
     }
