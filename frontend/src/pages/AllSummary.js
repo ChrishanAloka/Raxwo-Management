@@ -637,7 +637,31 @@ const AllSummary = ({ darkMode }) => {
 
   const totalExtraIncome = filteredExtraIncome.reduce((sum, ei) => sum + (ei.amount || 0), 0);
 
-  const totalPayments = filteredPayments.reduce((sum, ei) => sum + (ei.totalAmount || 0), 0);
+  const totalCash = filteredPayments
+    .filter(p => p.paymentMethod?.toLowerCase() === 'cash')
+    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+  const totalCard = filteredPayments
+    .filter(p => p.paymentMethod?.toLowerCase() === 'card')
+    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+  const totalBankTransfer = filteredPayments
+    .filter(p => p.paymentMethod?.toLowerCase() === 'bank-transfer')
+    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+  const totalRefund = filteredPayments
+    .filter(p => p.paymentMethod?.toLowerCase() === 'refund')
+    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+  const totalBankCheck = filteredPayments
+    .filter(p => p.paymentMethod?.toLowerCase() === 'bank-check')
+    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+  const totalCredit = filteredPayments
+    .filter(p => p.paymentMethod?.toLowerCase() === 'credit')
+    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+  const totalPayments = filteredPayments.reduce((sum, ei) => sum + (ei.totalAmount || 0), 0) - totalCredit;
 
   const totalExpenses = totalProductExpenses + totalSalaryExpenses + totalMaintenanceExpenses;
 
@@ -1225,6 +1249,18 @@ const AllSummary = ({ darkMode }) => {
                   minWidth: '200px',
                   border: darkMode ? '1px solid #444' : '1px solid #ddd'
                 }}>
+                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Item Purchase for Credit</h4>
+                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                    Rs. {totalCredit.toFixed(2)}
+                  </p>
+                </div>
+                <div style={{ 
+                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+                  padding: '15px', 
+                  borderRadius: '8px', 
+                  minWidth: '200px',
+                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
+                }}>
                   <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Extra Income</h4>
                   <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
                     Rs. {totalExtraIncome.toFixed(2)}
@@ -1278,7 +1314,7 @@ const AllSummary = ({ darkMode }) => {
                     Rs. {totalMaintenanceExpenses.toFixed(2)}
                   </p>
                 </div>
-                <div style={{ 
+                {/* <div style={{ 
                   background: darkMode ? '#2a2a2a' : '#f0f0f0', 
                   padding: '15px', 
                   borderRadius: '8px', 
@@ -1289,7 +1325,7 @@ const AllSummary = ({ darkMode }) => {
                   <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
                     Rs. {totalCheckingCharges.toFixed(2)}
                   </p>
-                </div>
+                </div> */}
                 <div style={{ 
                   background: darkMode ? '#2a2a2a' : '#f0f0f0', 
                   padding: '15px', 
@@ -1353,6 +1389,36 @@ const AllSummary = ({ darkMode }) => {
                     <td>Item Purchase</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalPayments.toFixed(2)}</td>
                     <td>Income from purchased Items</td>
+                  </tr>
+                  <tr>
+                    <td style={{ paddingLeft: '20px' }}>• Cash Payments</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalCash.toFixed(2)}</td>
+                    <td>Income from Cash Payments of purchased Items</td>
+                  </tr>
+                  <tr>
+                    <td style={{ paddingLeft: '20px' }}>• Card Payments</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalCard.toFixed(2)}</td>
+                    <td>Income from Card Payments of purchased Items</td>
+                  </tr>
+                  <tr>
+                    <td style={{ paddingLeft: '20px' }}>• Bank Transfer</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalBankTransfer.toFixed(2)}</td>
+                    <td>Income from Bank Transfers of purchased Items</td>
+                  </tr>
+                  <tr>
+                    <td style={{ paddingLeft: '20px' }}>• Bank Checks</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalBankCheck.toFixed(2)}</td>
+                    <td>Income from Bank Checks of purchased Items</td>
+                  </tr>
+                  <tr>
+                    <td style={{ paddingLeft: '20px' }}>• Return Purchase</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalRefund.toFixed(2)}</td>
+                    <td>Cost from return purchased Items</td>
+                  </tr>
+                  <tr>
+                    <td>Item Purchase for Credit</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalCredit.toFixed(2)}</td>
+                    <td>Credit from purchased Items</td>
                   </tr>
                   <tr>
                     <td>Extra Income</td>

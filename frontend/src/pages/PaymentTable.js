@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faFile, faFilePdf, faFileExcel, faSearch, faTimes, faChartSimple } from '@fortawesome/free-solid-svg-icons';
 import jsPDF from 'jspdf';
+import html2canvas from "html2canvas";
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import Highcharts from "highcharts";
@@ -95,6 +96,502 @@ const PaymentTable = ({ darkMode }) => {
   const handleEdit = (payment) => {
     setSelectedPayment(payment);
     setShowPaymenteditModal(true);
+  };
+
+  const generatePaymentBill = (paymentData) => {
+    const shopName = localStorage.getItem('shopName') || 'GENIUS';
+    const shopAddress = localStorage.getItem('shopAddress') || '#422 Thimbirigasyaya Road, Colombo 05';
+    const shopPhone = localStorage.getItem('shopPhone') || '0770235330';
+    const shopEmail = localStorage.getItem('shopEmail') || 'igentuslk@gmail.com';
+
+    const customerName = paymentData.customerName || "SAHAN";
+    const contactNumber = paymentData.contactNumber || "JB76666666";
+    const address = paymentData.address || "-";
+    const items = paymentData.items || [];
+    const totalAmount = paymentData.totalAmount || 0;
+    const paymentMethod = paymentData.paymentMethod || "-";
+
+    const invoiceNumber = paymentData.invoiceNumber || 'INV-0001';
+    const invoiceNo = invoiceNumber.split('-')[1];
+
+    const subtotal = items.reduce((sum, item) => sum + (item.totalAmount * item.quantity), 0);
+    const totalDiscount = items.reduce((sum, item) => sum + (item.discount || 0), 0);
+
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Payment Receipt - ${invoiceNumber}</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <style>
+          @page {
+            size: 80mm 140mm;
+            margin: 5mm;
+          }
+          body {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            margin: 0;
+            padding: 5mm;
+            background: white;
+            color: #000;
+            width: 70mm;
+            position: relative;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 5px;
+          }
+          .shop-name {
+            font-size: 14px;
+            font-weight: bold;
+          }
+          .tagline {
+            font-size: 9px;
+          }
+          .contact {
+            font-size: 9px;
+          }
+          .divider {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+          }
+          .invoice {
+            font-weight: bold;
+            text-align: center;
+            margin: 5px 0;
+          }
+          .details {
+            margin: 5px 0;
+            line-height: 1.4;
+          }
+          .items {
+            margin: 5px 0;
+          }
+          .item-row {
+            display: flex;
+            justify-content: space-between;
+          }
+          .item-name {
+            width: 40%;
+          }
+          .item-qty {
+            width: 10%;
+          }
+          .item-amt {
+            width: 30%;
+            text-align: right;
+          }
+          .total {
+            margin-top: 5px;
+            font-weight: bold;
+            text-align: right;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 8px;
+          }
+          .print-btn, .download-btn {
+            display: block;
+            width: 80px;
+            margin: 10px auto;
+            padding: 8px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 12px;
+          }
+          .download-btn {
+            background-color: #28a745;
+          }
+          @media print {
+            .print-btn, .download-btn { display: none; }
+            body { margin: 0; padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="shop-name">${shopName}</div>
+          <div class="tagline">YOUR TRUSTED REPAIR PARTNER</div>
+          <div class="contact">${shopAddress}<br>Phone: ${shopPhone} / ${shopEmail}</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="invoice">INVOICE NO ${invoiceNo} - ${paymentMethod}</div>
+
+        <div class="divider"></div>
+
+        <div class="details">
+          <div><strong>NAME:</strong> ${customerName}</div>
+          <div><strong>CONTACT:</strong> ${contactNumber}</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="items">
+          <div class="item-row" style="font-weight: bold;">
+            <span class="item-qty">QTY</span>
+            <span class="item-name">DESCRIPTION</span>
+            <span class="item-amt">AMOUNT</span>
+          </div>
+          <div class="divider"></div>
+          ${items.map(item => `
+            <div class="item-row">
+              <span class="item-qty">${item.quantity}</span>
+              <span class="item-name">${item.itemName.length > 12 ? item.itemName.substring(0) : item.itemName}</span>
+              <span class="item-amt">Rs. ${(item.price * item.quantity).toFixed(2)}</span>
+            </div>
+            ${item.discount > 0 ? `
+              <div class="item-row">
+                <span></span>
+                <span class="item-name">Discount</span>
+                <span class="item-amt">Rs. ${item.discount.toFixed(2)}</span>
+              </div>
+            ` : ''}
+          `).join('')}
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="total">
+          TOTAL: Rs. ${totalAmount.toFixed(2)}
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="footer">
+          Thank you for your business!<br>
+          Software by Exyplan Software<br>
+          Contact: 074 357 3323
+        </div>
+
+        <button class="print-btn" onclick="window.print()">Print</button>
+        <button class="download-btn" onclick="downloadPDF()">Download PDF</button>
+
+        <script type="text/javascript">
+          function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+
+            // Configure html2canvas
+            html2canvas(document.body, {
+              scale: 3,                    // High quality
+              useCORS: true,               // Load cross-origin images
+              logging: false,
+              backgroundColor: '#ffffff',
+              scrollY: -window.scrollY,    // Capture full body without scroll issues
+              width: document.body.scrollWidth,  // Force full width
+              height: document.body.scrollHeight,
+              windowWidth: document.body.scrollWidth,
+              windowHeight: document.body.scrollHeight
+            }).then(function(canvas) {
+              const imgData = canvas.toDataURL('image/png', 1.0);
+
+              // Get actual rendered content dimensions in mm
+              const dpi = 96; // Assumed screen DPI (common default)
+              const mmToInch = 25.4;
+              const pxToMm = mmToInch / dpi;
+
+              const widthInPx = canvas.width;
+              const heightInPx = canvas.height;
+
+              const widthInMm = (widthInPx * pxToMm);
+              const heightInMm = (heightInPx * pxToMm);
+
+              // Create PDF with exact size of content
+              const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [widthInMm, heightInMm]  // Dynamic size to fit content
+              });
+
+              // Add image at full width and correct height
+              pdf.addImage(imgData, 'PNG', 0, 0, widthInMm, heightInMm);
+              pdf.save('Receipt_${invoiceNumber}.pdf');
+            });
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    const win = window.open("", "_blank");
+    win.document.write(receiptHTML);
+    win.document.close();
+  };
+
+  const generateCustomBill = (paymentData) => {
+    const shopName = localStorage.getItem('shopName') || 'Default Shop';
+    const shopAddress = localStorage.getItem('shopAddress') || '123 Main St, City, Country';
+    const shopPhone = localStorage.getItem('shopPhone') || '(123) 456-7890';
+    const shopLogo = localStorage.getItem('shopLogo') || '';
+    const currentDate = new Date().toLocaleString();
+
+    const customerName = paymentData.customerName || "N/A";
+    const contactNumber = paymentData.contactNumber || "N/A";
+    const address = paymentData.address || "N/A";
+    const description = paymentData.description || "N/A";
+    const paymentMethod = paymentData.paymentMethod || "Not Selected";
+    const items = paymentData.items || [];
+    const totalAmount = paymentData.totalAmount || 0;
+    const paidAmount = paymentData.totalAmount || 0;
+    const balance = totalAmount - paidAmount;
+
+    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const totalDiscount = items.reduce((sum, item) => sum + (item.discount || 0), 0);
+
+    const billHTML = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>POS Bill - ${paymentData.invoiceNumber}</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <style>
+          @media print {
+            @page {
+              size: A4;
+              margin: 10mm;
+            }
+            body, .container {
+              width: 210mm;
+              min-height: 297mm;
+              margin: 0 auto;
+              padding: 15mm;
+              box-shadow: none;
+              background: white;
+            }
+            .print-btn, .download-btn { display: none; }
+          }
+
+          @media screen {
+            .container {
+              width: 210mm;
+              min-height: 297mm;
+              margin: 0 auto;
+              padding: 15mm;
+              box-shadow: 0 0 20px rgba(0,0,0,0.1);
+              background: white;
+            }
+          }
+          body {
+            font-family: 'Helvetica', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            color: #000;
+          }
+          .container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 15mm;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            background: white;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+          }
+          .header img {
+            max-width: 100px;
+            max-height: 100px;
+            margin-bottom: 10px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #333;
+          }
+          .header p {
+            margin: 5px 0;
+            color: #666;
+          }
+          .details, .totals {
+            margin-bottom: 20px;
+          }
+          .details p, .totals p {
+            margin: 5px 0;
+            font-size: 14px;
+          }
+          .details strong {
+            display: inline-block;
+            width: 150px;
+            color: #333;
+          }
+          .details-container {
+            display: flex;
+            justify-content: space-between;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f2f2f2;
+            color: #333;
+          }
+          .totals {
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f9f9f9;
+          }
+          .print-btn, .download-btn {
+            display: block;
+            width: 120px;
+            margin: 20px auto;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 16px;
+          }
+          .download-btn {
+            background-color: #28a745;
+          }
+          @media print {
+             .action-buttons {
+                display: none !important;
+              }
+              body, .container {
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                background: white;
+              }
+          }
+            
+        </style>
+      </head>
+      <body>
+        <div class="action-buttons" style="display: flex; justify-content: center; gap: 15px; margin: 20px 0;">
+          <button class="print-btn" onclick="window.print()">Print Bill</button>
+          <button class="download-btn" onclick="downloadPDF()">Download PDF</button>
+        </div>
+        <div class="container">
+          <div class="header">
+            ${shopLogo ? `<img src="${shopLogo}" alt="Shop Logo" />` : ''}
+            <h1>Payment Receipt</h1>
+            <p>${shopName}</p>
+            <p>${shopAddress}</p>
+            <p>Phone: ${shopPhone}</p>
+          </div>
+
+          <div class="details">
+            <div class="details-container">
+              <div>
+                <p><strong>Customer:</strong> ${customerName}</p>
+                <p><strong>Contact:</strong> ${contactNumber}</p>
+                <p><strong>Description:</strong> ${description}</p>
+              </div>
+              <div>
+                <p><strong>Date:</strong> ${currentDate}</p>
+                <p><strong>Invoice:</strong> ${paymentData.invoiceNumber}</p>
+                <p><strong>Payment Method:</strong> ${paymentMethod}</p>
+              </div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Item Name</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Discount</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(item => {
+                const itemName = item.itemName || 'Unknown Item';
+                const quantity = item.quantity || 0;
+                const price = item.price || 0;
+                const discount = typeof item.discount === 'number' ? item.discount : 0;
+                const total = (price * quantity - discount).toFixed(2);
+                return `
+                  <tr>
+                    <td>${itemName}</td>
+                    <td>${quantity}</td>
+                    <td>Rs. ${price.toFixed(2)}</td>
+                    <td>Rs. ${discount.toFixed(2)}</td>
+                    <td>Rs. ${total}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+
+          <div class="totals">
+            <div class="details-container">
+              <div>
+                <p><strong>Subtotal:</strong> Rs. ${subtotal.toFixed(2)}</p>
+                <p><strong>Total Discount:</strong> Rs. ${totalDiscount.toFixed(2)}</p>
+                <p><strong>Total Amount:</strong> Rs. ${totalAmount.toFixed(2)}</p>
+              </div>
+              <div>
+                <p><strong>Paid Amount:</strong> Rs. ${paidAmount.toFixed(2)}</p>
+                <p><strong>Balance:</strong> Rs. ${balance.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+
+        <script type="text/javascript">
+          function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const element = document.querySelector('.container');
+            html2canvas(element, {
+              scale: 2,
+              useCORS: true,
+              logging: false,
+              backgroundColor: '#ffffff'
+            }).then(function(canvas) {
+              const imgData = canvas.toDataURL('image/png');
+              const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+              });
+              const imgProps = pdf.getImageProperties(imgData);
+              const pdfWidth = pdf.internal.pageSize.getWidth();
+              const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+              pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+              pdf.save('FullBill_${paymentData.invoiceNumber}.pdf');
+            });
+
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    const win = window.open("", "_blank");
+    win.document.write(billHTML);
+    win.document.close();
   };
 
   const calculateSummary = () => {
@@ -418,6 +915,22 @@ const PaymentTable = ({ darkMode }) => {
                               <div className="action-btn-content">
                                 <img src={deleteIcon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
                                 <span>Delete</span>
+                              </div>
+                            </button>
+                            <button 
+                              onClick={() => generatePaymentBill(payment)}
+                              className="p-edit-btn"
+                            >
+                              <div className="action-btn-content">
+                                <span>Print Receipt</span>
+                              </div>
+                            </button>
+                            <button 
+                              onClick={() => generateCustomBill(payment)}
+                              className="p-edit-btn"
+                            >
+                              <div className="action-btn-content">
+                                <span>Print Full Bill</span>
                               </div>
                             </button>
                           </div>

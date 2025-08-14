@@ -26,6 +26,7 @@ const CategoryProductList = ({ darkMode }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const productsPerPage = 20;
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   
 
   // Paginated fetch for display
@@ -139,6 +140,11 @@ const CategoryProductList = ({ darkMode }) => {
       });
     }
 
+    // Apply low stock filter if checkbox is checked
+    if (showLowStockOnly) {
+      result = result.filter(product => (product.stock || 0) <= 2);
+    }
+
     // Apply sorting
     if (sortConfig.key) {
       result = [...result].sort((a, b) => {
@@ -185,7 +191,7 @@ const CategoryProductList = ({ darkMode }) => {
     }
 
     return result;
-  }, [products, searchQuery, sortConfig]);
+  }, [products, searchQuery, sortConfig, showLowStockOnly]);
 
   const totalProductPages = Math.ceil(sortedAndFilteredProducts.length / productsPerPage);
   const paginatedProductsForModal = sortedAndFilteredProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
@@ -339,6 +345,19 @@ const CategoryProductList = ({ darkMode }) => {
         <div className='filter-action-row' style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: 14, color: '#666', marginRight: 8 }}>
             Products: {totalProducts}
+          </span>
+          {/* Low Stock Filter Checkbox */}
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: 14, color: '#666', marginRight: 13 }}>
+            Show Low Stock (≤ 2) 
+          
+            <span style={{ fontSize: 14, color: '#666', marginLeft: 8, marginTop: 8 }}>
+              <input
+                type="checkbox"
+                checked={showLowStockOnly}
+                onChange={(e) => setShowLowStockOnly(e.target.checked)}
+              />
+            </span>
+          
           </span>
           <button
             onClick={() => setShowReportOptions(true)}

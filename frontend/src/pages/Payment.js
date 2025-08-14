@@ -251,6 +251,23 @@ const Payment = ({ darkMode }) => {
 
   const handleReturnClose = (returnInvoiceNumber) => {
     setShowReturnPopup(false);
+    setCart([]);
+    // Clear customer details after payment
+    setCustomerName('');
+    setContactNumber('');
+    setAddress('');
+    setDescription('');
+    setAssignedTo('');
+    // Clear wholesale customer details after payment
+    localStorage.removeItem('wholesaleCustomer');
+    localStorage.removeItem('paymentCart');
+    // Clear from localStorage
+    localStorage.removeItem('customerName');
+    localStorage.removeItem('contactNumber');
+    localStorage.removeItem('address');
+    localStorage.removeItem('description');
+    localStorage.removeItem('assignedTo');
+    
     if (returnInvoiceNumber) {
       setLatestInvoiceNumber(returnInvoiceNumber);
     }
@@ -297,6 +314,7 @@ const Payment = ({ darkMode }) => {
             <button
               className={`return-payment-btn ${darkMode ? 'dark' : ''}`}
               onClick={() => setShowReturnPopup(true)}
+              disabled={!customerName || !contactNumber || !cashierId || !cashierName || cashierId === 'N/A'}
             >
               Return Payment
             </button>
@@ -324,7 +342,7 @@ const Payment = ({ darkMode }) => {
             }}
             className={`customer-input ${darkMode ? 'dark' : ''}`}
           />
-          <input
+          {/* <input
             type="text"
             placeholder="Address"
             value={address}
@@ -333,7 +351,7 @@ const Payment = ({ darkMode }) => {
               localStorage.setItem('address', e.target.value);
             }}
             className={`customer-input ${darkMode ? 'dark' : ''}`}
-          />
+          /> */}
         </div>
         <div className={`cart-scroll ${darkMode ? 'dark' : ''}`}>
           <table className={`cart-table ${darkMode ? 'dark' : ''}`}>
@@ -456,7 +474,6 @@ const Payment = ({ darkMode }) => {
           <button
             className={`pay-btn ${darkMode ? 'dark' : ''}`}
             onClick={() => handlePaymentClear()}
-            disabled={cart.length === 0 || !cashierId || !cashierName || cashierId === 'N/A'}
           >
             Clear All Data
           </button>
@@ -506,7 +523,7 @@ const Payment = ({ darkMode }) => {
           </div>
         )}
 
-        <div className={`checkbox-group ${darkMode ? 'dark' : ''}`}>
+        {/* <div className={`checkbox-group ${darkMode ? 'dark' : ''}`}>
           <label className={`check-box-lbl ${darkMode ? 'dark' : ''}`}>
             <input
               type="checkbox"
@@ -517,7 +534,7 @@ const Payment = ({ darkMode }) => {
             />
                 &nbsp;&nbsp;Credit and Wholesale
           </label>
-        </div>
+        </div> */}
       </div>
 
       {showCustomerForm && (

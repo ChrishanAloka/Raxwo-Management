@@ -345,6 +345,8 @@ const ProductRepairList = ({ darkMode }) => {
   };
 
   useEffect(() => {
+    // Make jsPDF available globally so popup windows can access it
+    window.jspdf = { jsPDF };
     fetchRepairs();
     fetchProducts();
   }, []);
@@ -1202,12 +1204,14 @@ const ProductRepairList = ({ darkMode }) => {
     const unpaidServicesAmount = unpaidServices.reduce((total, s) => total + Math.max(0, parseFloat(s.serviceAmount || 0)), 0).toFixed(2);
     const baseRepairCost = parseFloat(repair.totalRepairCost || 0).toFixed(2);
     const actualUnpaidTotal = isPaid ? 0 : parseFloat(baseRepairCost) + parseFloat(unpaidServicesAmount);
-  
+
     const billWindow = window.open("", "_blank");
     billWindow.document.write(`
       <html>
         <head>
           <title>Repair Bill</title>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
           <style>
             body {
               font-family: Arial, sans-serif;
@@ -1270,22 +1274,34 @@ const ProductRepairList = ({ darkMode }) => {
             .totals p {
               font-weight: bold;
             }
-            .print-btn {
-              display: block;
-              width: 100px;
-              margin: 20px auto;
-              padding: 10px;
-              background-color: #28a745;
-              color: white;
-              border: none;
-              cursor: pointer;
+            .btn-group {
               text-align: center;
+              margin: 20px 0;
+            }
+            .print-btn, .download-btn {
+              margin: 0 10px;
+              padding: 10px 20px;
+              font-size: 16px;
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              color: white;
+              text-decoration: none;
+            }
+            .print-btn {
+              background-color: #28a745;
             }
             .print-btn:hover {
               background-color: #218838;
             }
+            .download-btn {
+              background-color: #007bff;
+            }
+            .download-btn:hover {
+              background-color: #0056b3;
+            }
             @media print {
-              .print-btn {
+              .btn-group {
                 display: none;
               }
             }
@@ -1310,7 +1326,6 @@ const ProductRepairList = ({ darkMode }) => {
             <table>
               <thead>
                 <tr>
-                  
                   <th>Item Name</th>
                   <th>Category</th>
                   <th>Quantity</th>
@@ -1360,17 +1375,42 @@ const ProductRepairList = ({ darkMode }) => {
                 <p><strong>Total Additional Services:</strong> Rs. ${repair.totalAdditionalServicesAmount || 0}</p>
               </div>
               ` : ''}
-              ${repair.repairStatus !== "Pending" ? `
               <p style="font-size: 16px; font-weight: bold; color: ${isPaid ? 'green' : 'red'}; border-top: 1px solid #ccc; padding-top: 10px;">
                 ${isPaid ? '✅ TO BE PAID TOTAL' : '❌ UNPAID TOTAL'}: Rs. ${repair.finalAmount || repair.totalRepairCost || 0}
               </p>
-              ` : `
-<p style="font-size: 16px; font-weight: bold; color: ${isPaid ? 'green' : 'red'}; border-top: 1px solid #ccc; padding-top: 10px;">
-                ${isPaid ? '✅ TO BE PAID TOTAL' : '❌ UNPAID TOTAL'}: Rs. ${repair.finalAmount || repair.totalRepairCost || 0}
-              </p>              `}
             </div>
-            <button class="print-btn" onclick="window.print()">Print Bill</button>
+
+            <!-- Buttons -->
+            <div class="btn-group">
+              <button class="print-btn" onclick="window.print()">Print Bill</button>
+              <button class="download-btn" onclick="downloadPDF()">Download PDF</button>
+            </div>
           </div>
+
+          <script type="text/javascript">
+            function downloadPDF() {
+              const { jsPDF } = window.jspdf;
+              const element = document.querySelector('.bill-container');
+              html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+              }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({
+                  orientation: 'portrait',
+                  unit: 'mm',
+                  format: 'a4'
+                });
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save('Repair_Bill_${repair.repairInvoice || repair.repairCode}.pdf');
+              });
+            }
+          </script>
         </body>
       </html>
     `);
@@ -1378,190 +1418,321 @@ const ProductRepairList = ({ darkMode }) => {
   };
 
   const generateJobBill = (repair) => {
-    // console.log("Generating new bill with repair data:", repair); // Debug log
-    // Create a new PDF document in portrait mode, A4 size
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
+    const isPaid = isRepairPaid(repair);
+    const unpaidServices = repair.additionalServices?.filter(service => !service.isPaid) || [];
+    const unpaidServicesAmount = unpaidServices.reduce(
+      (total, s) => total + Math.max(0, parseFloat(s.serviceAmount || 0)),
+      0
+    ).toFixed(2);
 
-    // Define colors to match the screenshot
-    const black = [0, 0, 0];
-    const lightGray = [240, 240, 240];
-    const lightBlue = [230, 240, 250]; // Background color for footer
-    const darkGray = [50, 50, 50];
-    const Gray = [100, 100, 100];
+    const baseRepairCost = parseFloat(repair.totalRepairCost || 0).toFixed(2);
+    const finalAmount = isPaid ? 0 : (parseFloat(baseRepairCost) + parseFloat(unpaidServicesAmount)).toFixed(2);
 
-    // Custom dashed line function
-    const drawDashedLine = (x1, y1, x2, y2, dashLength = 2) => {
-      const deltaX = x2 - x1;
-      const deltaY = y2 - y1;
-      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-      const dashCount = Math.floor(distance / (dashLength * 2));
-      const xStep = deltaX / (dashCount * 2);
-      const yStep = deltaY / (dashCount * 2);
+    const issueDate = new Date().toLocaleDateString('en-GB');
+    const issueTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-      for (let i = 0; i < dashCount * 2; i += 2) {
-        const startX = x1 + (i * xStep);
-        const startY = y1 + (i * yStep);
-        const endX = x1 + ((i + 1) * xStep);
-        const endY = y1 + ((i + 1) * yStep);
-        doc.line(startX, startY, endX, endY);
-      }
-    };
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Job Sheet - ${repair.repairInvoice || repair.repairCode}</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <style>
+          @media print {
+            * {
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .print-btn-container {
+              display: none !important;
+            }
+            body, .container {
+              margin: 0;
+              padding: 0;
+              box-shadow: none;
+            }
+            .container {
+              width: 210mm;
+              height: 297mm;
+            }
+            @page {
+              size: A4;
+              margin: 0;
+            }
+          }
 
-    // Function to check and add a new page if needed
-    const checkPageBreak = (currentY, spaceNeeded, addFooter = false) => {
-      const pageHeight = 297; // A4 height in mm
-      const bottomMargin = addFooter ? 30 : 10; // Reserve space for footer if needed
-      if (currentY + spaceNeeded > pageHeight - bottomMargin) {
-        if (addFooter) {
-          doc.setFillColor(...lightBlue);
-          doc.rect(0, pageHeight - 30, 210, 30, 'F'); // Add footer on current page
-        }
-        doc.addPage();
-        return 10; // Start at the top of the new page
-      }
-      return currentY;
-    };
+          @page {
+            size: A4;
+            margin: 0;
+          }
+          body {
+            font-family: 'Helvetica', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            color: #000;
+            box-sizing: border-box;
+          }
+          .container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 15mm;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            background: white;
+          }
+          .header {
+            background-color: #f0f0f0 !important;
+            padding: 10px 0;
+            text-align: center;
+            border-bottom: 1px solid #000;
+          }
+          .company-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0;
+          }
+          .tagline {
+            font-size: 10px;
+            margin: 3px 0;
+          }
+          .contact-info {
+            text-align: right;
+            margin: 10px 0 0 0;
+            font-size: 12px;
+            color: #666;
+          }
+          .job-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+          }
+          .job-details {
+            font-size: 10px;
+            color: #666;
+            line-height: 1.6;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 9px;
+          }
+          th, td {
+            border: 1px solid #000;
+            padding: 6px;
+            text-align: left;
+          }
+          th {
+            background-color: #f0f0f0 !important;
+            font-weight: bold;
+          }
+          .terms-section {
+            margin: 15px 0;
+            font-size: 8px;
+            color: #666;
+            line-height: 1.4;
+          }
+          .terms-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+          .notes-section {
+            margin: 15px 0;
+            font-size: 10px;
+          }
+          .notes-title {
+            font-weight: bold;
+          }
+          .signature-area {
+            margin: 30px 0;
+            display: flex;
+            justify-content: space-between;
+          }
+          .signature-line {
+            width: 70%;
+            border-top: 1px dashed #000;
+            margin-top: 15px;
+            height: 0;
+          }
+          .signature-label {
+            text-align: center;
+            font-size: 8px;
+            margin-top: 3px;
+          }
+          .footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 30mm;
+            background-color: #e6f0fa !important;
+            z-index: -1;
+          }
+          .print-btn-container {
+            text-align: center;
+            margin: 20px 0;
+          }
+          .print-btn, .download-btn {
+            margin: 0 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            text-decoration: none;
+          }
+          .download-btn {
+            background-color: #007bff;
+          }
+          .download-btn:hover {
+            background-color: #0056b3;
+          }
+          .print-btn {
+            background-color: #28a745;
+          }
+          .print-btn:hover {
+            background-color: #218838;
+          }
+        </style>
+      </head>
+      <body>
 
-    // Add header with light gray background
-    doc.setFillColor(...lightGray);
-    doc.rect(0, 0, 210, 50, 'F');
+        <div class="container">
+          <div class="header">
+            <h1 class="company-name">EXXPLAN Repair Services</h1>
+            <p class="tagline">Your Trusted Repair Partner</p>
+          </div>
 
-    // Add company name and tagline
-    doc.setTextColor(...black);
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("EXXPLAN Repair Services", 105, 25, { align: "center" });
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text("Your Trusted Repair Partner", 105, 30, { align: "center" });
+          <div class="contact-info">
+            EXXPLAN Repair Services Pvt Ltd<br>
+            No 422, Thimbirigasyaya Road, Colombo 05<br>
+            (+94)77 2025 330
+          </div>
 
-    // Add company contact info
-    doc.setTextColor(...Gray);
-    doc.text("EXXPLAN Repair Services Pvt Ltd", 183, 55);
-    doc.text("No 422, Thimbirigasyaya Road, Colombo 05", 138, 60);
-    doc.text("(+94)77 2025 330", 179, 65);
+          <div class="job-title">JOB SHEET</div>
+          <div class="job-details">
+            SERVICE JOB NO: ${repair.repairInvoice || repair.repairCode || 'REP14'}<br>
+            DATE: ${issueDate}<br>
+            TIME: ${issueTime}
+          </div>
 
-    // Add job sheet title and details
-    doc.setFontSize(12);
-    doc.setTextColor(...black);
-    doc.setFont("helvetica", "bold");
-    doc.text("JOB SHEET", 20, 55);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...Gray);
-    doc.text(`SERVICE JOB NO: ${repair.repairInvoice || repair.repairCode || 'REP14'}`, 20, 65);
-    doc.text(`DATE: ${new Date().toLocaleDateString('en-GB')}`, 20, 70); // 19/05/2025
-    doc.text(`TIME: ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`, 20, 75); // 20:31
+          <table>
+            <thead>
+              <tr>
+                <th>Customer Name:</th>
+                <th>Device:</th>
+                <th>IMEI/SN:</th>
+                <th>Contact Number:</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${repair.customerName || 'test test'}</td>
+                <td>${repair.deviceType || repair.itemName || 'test dev'}</td>
+                <td>${repair.serialNumber || 'S300'}</td>
+                <td>${repair.customerPhone || '0774096667'}</td>
+              </tr>
+            </tbody>
+          </table>
 
-    // Add customer and device information table
-    let tableY = doc.lastAutoTable.finalY + 10;
-    tableY = checkPageBreak(tableY, 20);
-    doc.autoTable({
-      startY: 90,
-      head: [["Customer Name:", "Device:", "IMEI/SN:", "Contact Number:"]],
-      body: [
-        [
-          repair.customerName || 'test test',
-          repair.deviceType || repair.itemName || 'test dev',
-          repair.serialNumber || 'S300',
-          repair.customerPhone || '0774096667'
-        ]
-      ],
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 2, textColor: Gray },
-      headStyles: { fillColor: lightGray, fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 50 },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 40 },
-        3: { cellWidth: 50 }
-      },
-      margin: { left: 20, right: 20 },
-      pageBreak: 'auto' // Enable automatic page breaks
-    });
+          <table>
+            <thead>
+              <tr>
+                <th>Device Issue/Issues</th>
+                <th>Checking Charge</th>
+                <th>Estimation Value (Rs.)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${repair.issueDescription || 'Battery failure'}</td>
+                <td>Rs. ${repair.checkingCharge || '2000'}</td>
+                <td>Rs. ${repair.estimationValue || '5'}</td>
+              </tr>
+            </tbody>
+          </table>
 
-    // Add job description table
-    let jobDescTableY = doc.lastAutoTable.finalY + 10;
-    jobDescTableY = checkPageBreak(jobDescTableY, 20); // Check if we need a new page for the table
-    doc.autoTable({
-      startY: jobDescTableY,
-      head: [["Device Issue/Issues", "Checking Charge", "Estimation Value (Rs.)"]],
-      body: [
-        [
-          repair.issueDescription || 'Battery failure',
-          `Rs. ${repair.checkingCharge || '2000'}`,
-          `Rs. ${repair.estimationValue || '50'}`
-        ]
-      ],
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 2, textColor: black }, // Reduced font size
-      headStyles: { fillColor: lightGray, fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 80 }, // Reduced width to prevent cutoff
-        1: { cellWidth: 50, halign: 'center' },
-        2: { cellWidth: 50, halign: 'center' }
-      },
-      margin: { left: 20, right: 20 },
-      pageBreak: 'auto' // Enable automatic page breaks
-    });
+          <div class="terms-section">
+            <div class="terms-title">TERMS & CONDITIONS FOR THE REPAIR OF DEVICES</div>
+            <div>
+              ${[
+                "1. The customer should receive a job sheet when an unit is handed over for repairs to EXXPLAN Repair Services Pvt Ltd and the contents filled in should be verified by the customer.",
+                "2. The customer should produce the original job sheet at the time of collecting the unit. EXXPLAN Repair Services Pvt Ltd reserves the right to refuse to return upon non-availability of the original job sheet.",
+                "3. Units repaired by EXXPLAN Repair Services Pvt Ltd are warranted for a period of 1(one) month from the date of collection of the unit by the customer.",
+                "4. EXXPLAN Repair Services Pvt Ltd ensures that all units are repaired within 7(seven) from the date of the damaged unit has been handed over.",
+                "5. The customer should collect the repaired unit within 14(Fourteen) days and if the unit is beyond repair our team will keep you informed and make necessary arrangements to collect the same.",
+                "6. EXXPLAN Repair Services Pvt Ltd will not be responsible or liable for any units not collected within days from the date of the job sheet issued.",
+                "7. EXXPLAN Repair Services Pvt Ltd will not be responsible for any damage or breakdown incurred during the process of repairing the unit.",
+                "8. The customer is deemed to accept all Terms & Conditions mentioned in the job sheet."
+              ].map(term => `<p style="margin: 3px 0;">${term}</p>`).join('')}
+            </div>
+          </div>
 
-    // Add terms and conditions
-    let termsY = doc.lastAutoTable.finalY + 10;
-    termsY = checkPageBreak(termsY, 15); // Check if we need a new page for the header
-    doc.setFontSize(8); // Reduced font size to fit more content
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...Gray);
-    doc.text("TERMS & CONDITIONS FOR THE REPAIR OF DEVICES", 20, termsY);
-    termsY += 4;
+          <div class="notes-section">
+            <div class="notes-title">Additional Notes</div>
+            <div style="height: 60px; border: 1px dashed #000; padding: 5px; font-size: 9px; color: #777;">
+              <!-- Empty space for user notes -->
+            </div>
+          </div>
 
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...Gray); // Set text color to dark gray
-    const terms = [
-      "1. The customer should receive a job sheet when an unit is handed over for repairs to EXXPLAN Repair Services Pvt Ltd and the contents filled in should be verified by the customer.",
-      "2. The customer should produce the original job sheet at the time of collecting the unit. EXXPLAN Repair Services Pvt Ltd reserves the right to refuse to return upon non-availability of the original job sheet.",
-      "3. Units repaired by EXXPLAN Repair Services Pvt Ltd are warranted for a period of 1(one) month from the date of collection of the unit by the customer.",
-      "4. EXXPLAN Repair Services Pvt Ltd ensures that all units are repaired within 7(seven) from the date of the damaged unit has been handed over.",
-      "5. The customer should collect the repaired unit within 14(Fourteen) days and if the unit is beyond repair our team will keep you informed and make necessary arrangements to collect the same.",
-      "6. EXXPLAN Repair Services Pvt Ltd will not be responsible or liable for any units not collected within days from the date of the job sheet issued.",
-      "7. EXXPLAN Repair Services Pvt Ltd will not be responsible for any damage or breakdown incurred during the process of repairing the unit.",
-      "8. The customer is deemed to accept all Terms & Conditions mentioned in the job sheet."
-    ];
-    terms.forEach((term, index) => {
-      const lines = doc.splitTextToSize(`${index + 1}. ${term}`, 170); // Split long text
-      termsY = checkPageBreak(termsY, lines.length * 4); // Check for each line
-      doc.text(lines, 20, termsY);
-      termsY += lines.length * 4;
-    });
+          <div class="signature-area">
+            <div style="width: 45%;">
+              <div class="signature-line"></div>
+              <div class="signature-label">Customer Signature</div>
+            </div>
+            <div style="width: 45%;">
+              <div class="signature-line"></div>
+              <div class="signature-label">Authorized Signature</div>
+            </div>
+          </div>
 
-    // Add additional notes section
-    let notesY = termsY + 5;
-    notesY = checkPageBreak(notesY, 10); // Check for additional notes
-    doc.setFont("helvetica", "bold");
-    doc.text("Additional Notes", 20, notesY);
-    doc.setFont("helvetica", "normal");
+          <div class="footer"></div>
+        </div>
 
-    // Add signature lines
-    let signatureY = notesY + 20;
-    signatureY = checkPageBreak(signatureY, 15, true); // Check for signatures, reserve space for footer
-    doc.setLineWidth(0.5);
-    doc.setDrawColor(...black);
-    drawDashedLine(20, signatureY, 100, signatureY, 2); // Customer signature
-    drawDashedLine(110, signatureY, 190, signatureY, 2); // Authorized signature
-    doc.setFontSize(8);
-    doc.text("Customer Signature", 60, signatureY + 5, { align: "center" });
-    doc.text("Authorized Signature", 150, signatureY + 5, { align: "center" });
+        <div class="print-btn-container">
+          <button class="print-btn" onclick="window.print()">Print Job Sheet</button>
+          <button class="download-btn" onclick="downloadPDF()">Download PDF</button>
+        </div>
 
-    // Add light blue footer on the last page
-    const pageHeight = 297;
-    doc.setFillColor(...lightBlue);
-    doc.rect(0, pageHeight - 30, 210, 30, 'F');
+        <script type="text/javascript">
+          function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const element = document.querySelector('.container');
+            html2canvas(element, {
+              scale: 2,
+              useCORS: true,
+              logging: false,
+              backgroundColor: '#ffffff'
+            }).then(canvas => {
+              const imgData = canvas.toDataURL('image/png');
+              const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+              });
+              const imgProps = pdf.getImageProperties(imgData);
+              const pdfWidth = pdf.internal.pageSize.getWidth();
+              const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+              pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+              pdf.save('JobSheet_${repair.repairInvoice || repair.repairCode}.pdf');
+            });
+          }
+        </script>
 
-    // Save the PDF
-    doc.save(`JobSheet_${repair.repairInvoice || repair.repairCode || 'REP14'}_${Date.now()}.pdf`);
+      </body>
+      </html>
+    `;
+
+    const billWindow = window.open('', '_blank');
+    billWindow.document.write(htmlContent);
+    billWindow.document.close();
   };
 
   // const filteredRepairs = repairs.filter((repair) =>
@@ -3282,7 +3453,7 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
             </div>
 
             {/* Add Change History section for admin users */}
-            {localStorage.getItem('role') === 'admin' && selectedRepair && selectedRepair.changeHistory && (
+            {/* {localStorage.getItem('role') === 'admin' && selectedRepair && selectedRepair.changeHistory && (
               <div style={{ marginTop: '20px' }}>
                 {selectedRepair.isHistoryView ? (
                   // Cashier changes view
@@ -3332,7 +3503,7 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
                   />
                 )}
               </div>
-            )}
+            )} */}
           </div>
         </div>
       )}

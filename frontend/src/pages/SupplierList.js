@@ -149,16 +149,16 @@ const SupplierList = ({ darkMode }) => {
     if (!selectedSupplier || !selectedItemCode) return;
     try {
       setLoading(true);
-      const response = await fetch(`https://raxwo-management.onrender.com/api/products?itemCode=${selectedItemCode}`);
+      const response = await fetch(`https://raxwo-management.onrender.com/api/products/grnNumber/${selectedItemCode}`);
       if (!response.ok) {
         throw new Error('Failed to fetch item details');
       }
       const data = await response.json();
       // Don't filter by deleted products for item details - show all items for the supplier
       const filteredData = (Array.isArray(data) ? data : data.products || []).filter(
-        (product) => product.supplierName === selectedSupplier.supplierName && product.itemCode === selectedItemCode
+        (product) => product.Supllier === selectedSupplier.supplierName && product.grnNumber === selectedItemCode
       );
-      setItemDetails(filteredData);
+      setItemDetails(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -311,7 +311,13 @@ const filteredSuppliers = suppliers.filter(supplier => {
             <div className="product-summary-modal-header">
               <h3 className="product-summary-modal-title">Item Details</h3>
               <button
-                onClick={() => setShowItemDetailsModal(false)}
+                onClick={() => {
+                  setShowItemDetailsModal(false);
+                  setSelectedSupplier(null);     // Clear selected supplier
+                  setSelectedItemCode('');       // Clear selected item code
+                  setItemDetails([]);            // Clear fetched item details
+                  // Optionally: setLoading(false); if you want to reset loading state too
+                }}
                 className="product-summary-modal-close-icon"
               >
                 ✕
@@ -341,10 +347,10 @@ const filteredSuppliers = suppliers.filter(supplier => {
               >
                 <option value="">Select GRN</option>
                 {products
-                  .filter(p => selectedSupplier && p.supplierName === selectedSupplier.supplierName)
+                  .filter(p => selectedSupplier && p.Supplier === selectedSupplier.supplierName)
                   .map((product) => (
-                    <option key={product._id} value={product.itemCode}>
-                      {product.itemCode}
+                    <option key={product._id} value={product.grnNumber}>
+                      {product.grnNumber}
                     </option>
                   ))}
               </select>
@@ -374,13 +380,13 @@ const filteredSuppliers = suppliers.filter(supplier => {
                 <tbody>
                   {itemDetails.map((product) => (
                     <tr key={product._id}>
-                      <td>{product.itemCode || 'N/A'}</td>
+                      <td>{product.grnNumber || 'N/A'}</td>
                       <td>{product.itemName}</td>
                       <td>{product.category}</td>
                       <td>Rs. {product.buyingPrice.toFixed(2)}</td>
                       <td>Rs. {product.sellingPrice.toFixed(2)}</td>
                       <td>{product.stock}</td>
-                      <td>{product.supplierName || 'N/A'}</td>
+                      <td>{product.Supplier || 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>

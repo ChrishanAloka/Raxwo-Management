@@ -103,48 +103,210 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
     return returnItems.reduce((total, item) => total + (item.returnPrice * item.quantity), 0);
   };
 
-  const generateReturnBill = (returnData) => {
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a6'
-    });
+  const generateReturnReceiptHTML = (returnData) => {
+    const shopName = localStorage.getItem('shopName') || 'GENIUS';
+    const shopAddress = localStorage.getItem('shopAddress') || '#422 Thimbirigasyaya Road, Colombo 05';
+    const shopPhone = localStorage.getItem('shopPhone') || '0770235330';
+    const shopEmail = localStorage.getItem('shopEmail') || 'igentuslk@gmail.com';
 
-    // Retrieve shop details from localStorage
-    const shopName = localStorage.getItem('shopName') || 'Default Shop';
-    const shopAddress = localStorage.getItem('shopAddress') || '123 Main St, City, Country';
-    const shopPhone = localStorage.getItem('shopPhone') || '(123) 456-7890';
+    const { returnInvoiceNumber, cashierName, cashierId } = returnData;
+    const currentDate = new Date().toLocaleString();
+    const totalRefund = calculateReturnTotal(); // Make sure this is accessible
 
-    // Add shop details to the receipt
-    doc.setFontSize(12);
-    doc.text("RETURN RECEIPT", 55, 10, { align: "center" });
-    doc.setFontSize(10);
-    doc.text(shopName, 55, 15, { align: "center" });
-    doc.text(shopAddress, 55, 20, { align: "center" });
-    doc.text(`Phone: ${shopPhone}`, 55, 25, { align: "center" });
-    doc.text(`Date: ${new Date().toLocaleString()}`, 10, 35);
-    doc.text(`Cashier: ${cashierName} (ID: ${cashierId})`, 10, 40);
-    doc.text(`Return Invoice: ${returnData.returnInvoiceNumber}`, 10, 45);
+    const returnItems = returnData.items || [];
 
-    let y = 55;
-    doc.text("------------------------------------", 10, y);
-    y += 5;
-    doc.text("Item Name          Qty    Total", 10, y);
-    y += 5;
-    doc.text("------------------------------------", 10, y);
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Return Receipt - ${returnInvoiceNumber}</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <style>
+          @page {
+            size: 80mm 140mm;
+            margin: 5mm;
+          }
+          body {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            margin: 0;
+            padding: 5mm;
+            background: white;
+            color: #000;
+            width: 70mm;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 5px;
+          }
+          .shop-name {
+            font-size: 14px;
+            font-weight: bold;
+          }
+          .tagline {
+            font-size: 9px;
+          }
+          .contact {
+            font-size: 9px;
+          }
+          .divider {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+          }
+          .invoice {
+            font-weight: bold;
+            text-align: center;
+            margin: 5px 0;
+          }
+          .details {
+            margin: 5px 0;
+            line-height: 1.4;
+          }
+          .items {
+            margin: 5px 0;
+          }
+          .item-row {
+            display: flex;
+            justify-content: space-between;
+          }
+          .item-name {
+            width: 40%;
+          }
+          .item-qty {
+            width: 10%;
+          }
+          .item-amt {
+            width: 30%;
+            text-align: right;
+          }
+          .total {
+            margin-top: 5px;
+            font-weight: bold;
+            text-align: right;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 8px;
+          }
+          .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 10px 0;
+          }
+          .print-btn, .download-btn {
+            padding: 8px 12px;
+            font-size: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+          }
+          .print-btn {
+            background-color: #007bff;
+            color: white;
+          }
+          .download-btn {
+            background-color: #28a745;
+            color: white;
+          }
+          @media print {
+            .action-buttons {
+              display: none !important;
+            }
+            body {
+              margin: 0;
+              padding: 5mm;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="shop-name">${shopName}</div>
+          <div class="tagline">YOUR TRUSTED REPAIR PARTNER</div>
+          <div class="contact">${shopAddress}<br>Phone: ${shopPhone} / ${shopEmail}</div>
+        </div>
 
-    returnItems.forEach(item => {
-      const total = (item.sellingPrice * item.quantity).toFixed(2);
-      y += 5;
-      doc.text(`${item.itemName.slice(0, 15)} ${item.quantity}     Rs. ${total}`, 10, y);
-    });
+        <div class="divider"></div>
 
-    y += 5;
-    doc.text("------------------------------------", 10, y);
-    y += 5;
-    doc.text(`Total Refund: Rs. ${calculateReturnTotal().toFixed(2)}`, 10, y);
+        <div class="invoice">RETURN RECEIPT</div>
 
-    doc.save(`Return_Receipt_${returnData.returnInvoiceNumber}.pdf`);
+        <div class="divider"></div>
+
+        <div class="details">
+          <div><strong>DATE:</strong> ${currentDate}</div>
+          <div><strong>CASHIER:</strong> ${cashierName} (ID: ${cashierId})</div>
+          <div><strong>RETURN NO:</strong> ${returnInvoiceNumber}</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="items">
+          <div class="item-row" style="font-weight: bold;">
+            <span class="item-qty">QTY</span>
+            <span class="item-name">ITEM</span>
+            <span class="item-amt">AMOUNT</span>
+          </div>
+          <div class="divider"></div>
+          ${returnItems.map(item => {
+            const total = (item.returnPrice * item.quantity).toFixed(2);
+            return `
+              <div class="item-row">
+                <span class="item-qty">${item.quantity}</span>
+                <span class="item-name">${item.itemName.length > 12 ? item.itemName : item.itemName}</span>
+                <span class="item-amt">Rs. ${total}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="total">TOTAL REFUND: Rs. ${totalRefund.toFixed(2)}</div>
+
+        <div class="divider"></div>
+
+        <div class="footer">
+          Thank you for your business!<br>
+          Software by Exyplan Software<br>
+          Contact: 074 357 3323
+        </div>
+
+        <div class="action-buttons">
+          <button class="print-btn" onclick="window.print()">Print</button>
+          <button class="download-btn" onclick="downloadPDF()">Download PDF</button>
+        </div>
+
+        <script type="text/javascript">
+          function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            html2canvas(document.body, {
+              scale: 3,
+              useCORS: true,
+              backgroundColor: '#ffffff',
+              width: document.body.scrollWidth,
+              height: document.body.scrollHeight
+            }).then(canvas => {
+              const imgData = canvas.toDataURL('image/png');
+              const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [75, (canvas.height * 75) / canvas.width]
+              });
+              const imgWidth = 70;
+              const imgHeight = (canvas.height * imgWidth) / canvas.width;
+              pdf.addImage(imgData, 'PNG', 2, 5, imgWidth, imgHeight);
+              pdf.save('Return_${returnInvoiceNumber}.pdf');
+            });
+          }
+        </script>
+      </body>
+      </html>
+    `;
   };
 
   const handleReturnPayment = async () => {
@@ -191,11 +353,26 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
       console.log('Return response:', data); // Debug log
       setLoading(false);
 
+      const popup = window.open('', '_blank');
+
       if (response.ok) {
-        alert(`Return successful!\nTotal Refund: Rs. ${calculateReturnTotal().toFixed(2)}\nReturn Invoice: ${data.returnInvoiceNumber}`);
-        generateReturnBill(data);
+        const returnData = {
+          returnInvoiceNumber: data.returnInvoiceNumber,
+          cashierName,
+          cashierId,
+          items: returnItems
+        };
+
+        const html = generateReturnReceiptHTML(returnData);
+        popup.document.write(html);
+        popup.document.close();
+
+        if(popup.document.close()){
+          alert(`Return successful!\nTotal Refund: Rs. ${calculateReturnTotal().toFixed(2)}\nReturn Invoice: ${data.returnInvoiceNumber}`);
+        }
         onClose(data.returnInvoiceNumber);
       } else {
+        popup.close();
         if (response.status === 401) {
           alert("Session expired or invalid token. Please log in again.");
           localStorage.removeItem('token');

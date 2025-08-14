@@ -930,7 +930,7 @@
   background: whitesmoke;
   border-radius: 12px;
   padding: 30px;
-  width: 800px;
+  min-width: 800px;
   max-width: 90%;
   max-height: 100vh;
   overflow-y: auto;
