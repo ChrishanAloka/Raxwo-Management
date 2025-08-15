@@ -158,59 +158,126 @@ const ProductList = ({ darkMode }) => {
     setShowBarcodeModal(true);
   };
 
+  // const handleAddProductClick = async (product) => {
+  //   // Show confirmation dialog
+  //   const isConfirmed = window.confirm(`Are you sure you want to delete "${product.itemName}"? This action cannot be undone.`);
+    
+  //   if (!isConfirmed) {
+  //     return; // User cancelled the deletion
+  //   }
+    
+  //   try {
+  //     console.log('Delete clicked for:', product.itemName);
+      
+  //     // Store clicked product in localStorage for now
+  //     const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
+  //     const username = localStorage.getItem('username') || localStorage.getItem('cashierName') || 'system';
+  //     const newClickedProduct = {
+  //       ...product,
+  //       clickedAt: new Date().toISOString(),
+  //       clickedFrom: 'product-list',
+  //       clickedBy: username
+  //     };
+      
+  //     // Check if product is already clicked
+  //     const isAlreadyClicked = clickedProducts.some(cp => cp._id === product._id);
+  //     if (!isAlreadyClicked) {
+  //       clickedProducts.push(newClickedProduct);
+  //       localStorage.setItem('clickedProducts', JSON.stringify(clickedProducts));
+  //       console.log('Product added to localStorage:', newClickedProduct);
+  //     }
+      
+  //     console.log('Stored clicked products:', clickedProducts);
+      
+  //     // Immediately remove the clicked product from the current list
+  //     setProducts(prevProducts => prevProducts.filter(p => p._id !== product._id));
+      
+  //     // Show success message
+  //     alert(`${product.itemName} has been deleted and moved to the deleted products page.`);
+      
+  //     // Navigate to the add product page with the product data
+  //     console.log('ProductList - Navigating to DeleteProduct with product:', product);
+  //     navigate('/AddProduct', {
+  //       state: {
+  //         product: product,
+  //         clickedAt: new Date().toISOString(),
+  //         clickedFrom: 'product-list',
+  //         darkMode: darkMode
+  //       }
+  //     });
+  //   } catch (err) {
+  //     console.error('Error in handleAddProductClick:', err);
+  //     setError(err.message);
+  //     alert('Error marking product as clicked: ' + err.message);
+  //   }
+  // };
+
   const handleAddProductClick = async (product) => {
-    // Show confirmation dialog
-    const isConfirmed = window.confirm(`Are you sure you want to delete "${product.itemName}"? This action cannot be undone.`);
-    
-    if (!isConfirmed) {
-      return; // User cancelled the deletion
+  // Confirm deletion
+  const isConfirmed = window.confirm(`Are you sure you want to delete "${product.itemName}"? This will hide it from the product list.`);
+  if (!isConfirmed) return;
+
+  try {
+    console.log('Deleting product:', product.itemName);
+
+    const username = localStorage.getItem('username') || 
+                     localStorage.getItem('cashierName') || 
+                     'system';
+
+    // 🚀 Send request to backend to soft-delete
+    const response = await fetch(`${API_URL}/${product._id}/deleteProduct`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ deletedBy: username })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to delete product');
     }
-    
-    try {
-      console.log('Delete clicked for:', product.itemName);
-      
-      // Store clicked product in localStorage for now
-      const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
-      const username = localStorage.getItem('username') || localStorage.getItem('cashierName') || 'system';
-      const newClickedProduct = {
-        ...product,
-        clickedAt: new Date().toISOString(),
-        clickedFrom: 'product-list',
-        clickedBy: username
-      };
-      
-      // Check if product is already clicked
-      const isAlreadyClicked = clickedProducts.some(cp => cp._id === product._id);
-      if (!isAlreadyClicked) {
-        clickedProducts.push(newClickedProduct);
-        localStorage.setItem('clickedProducts', JSON.stringify(clickedProducts));
-        console.log('Product added to localStorage:', newClickedProduct);
-      }
-      
-      console.log('Stored clicked products:', clickedProducts);
-      
-      // Immediately remove the clicked product from the current list
-      setProducts(prevProducts => prevProducts.filter(p => p._id !== product._id));
-      
-      // Show success message
-      alert(`${product.itemName} has been deleted and moved to the deleted products page.`);
-      
-      // Navigate to the add product page with the product data
-      console.log('ProductList - Navigating to DeleteProduct with product:', product);
-      navigate('/AddProduct', {
-        state: {
-          product: product,
-          clickedAt: new Date().toISOString(),
-          clickedFrom: 'product-list',
-          darkMode: darkMode
-        }
-      });
-    } catch (err) {
-      console.error('Error in handleAddProductClick:', err);
-      setError(err.message);
-      alert('Error marking product as clicked: ' + err.message);
-    }
-  };
+
+    console.log('Product soft-deleted:', result.product);
+
+    // ✅ Remove from UI
+    setProducts(prev => prev.filter(p => p._id !== product._id));
+
+    // ✅ Optional: Save to localStorage for history (used in AddProduct page)
+    // const clickedProducts = JSON.parse(localStorage.getItem('clickedProducts') || '[]');
+    // const alreadyExists = clickedProducts.some(cp => cp._id === product._id);
+
+    // if (!alreadyExists) {
+    //   const newClickedProduct = {
+    //     ...product,
+    //     clickedAt: new Date().toISOString(),
+    //     clickedFrom: 'product-list',
+    //     clickedBy: username,
+    //     deletedAt: new Date().toISOString() // sync with backend
+    //   };
+    //   clickedProducts.push(newClickedProduct);
+    //   localStorage.setItem('clickedProducts', JSON.stringify(clickedProducts));
+    // }
+
+    // ✅ Show success message
+    alert(`${product.itemName} has been deleted and hidden from the product list.`);
+
+    // ✅ Navigate to deleted products page
+    navigate('/AddProduct', {
+      // state: {
+      //   product: product,
+      //   clickedAt: new Date().toISOString(),
+      //   clickedFrom: 'product-list',
+      //   darkMode: darkMode
+      // }
+    });
+
+  } catch (err) {
+    console.error('Error deleting product:', err);
+    alert(`Error: ${err.message}`);
+  }
+};
 
   const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
 

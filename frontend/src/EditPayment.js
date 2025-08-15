@@ -171,6 +171,8 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                 <option value="Cash">Cash</option>
                 <option value="Card">Card</option>
                 <option value="Bank-Transfer">Bank Transfer</option>
+                <option value="Bank-Check">Bank Check</option>
+                <option value="Credit">Credit</option>
                 {/* <option value="Refund">Refund</option> */}
               </select>
 

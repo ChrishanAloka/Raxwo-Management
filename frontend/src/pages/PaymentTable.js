@@ -12,6 +12,7 @@ import '../styles/PaymentTable.css';
 import deleteIcon from "../icon/delete.png";
 import editicon from '../icon/edit.png';
 import EditPayment from '../EditPayment';
+import { useMemo } from 'react'; // Make sure this is imported
 
 const API_URL = 'https://raxwo-management.onrender.com/api/payments';
 
@@ -25,6 +26,7 @@ const PaymentTable = ({ darkMode }) => {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [showReportOptions, setShowReportOptions] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   useEffect(() => {
     fetchPayments();
@@ -724,7 +726,7 @@ const PaymentTable = ({ darkMode }) => {
       'Total Amount',
       'Discount',
     ];
-    const tableRows = filteredPayments.flatMap(payment =>
+    const tableRows = sortedAndFilteredPayments.flatMap(payment =>
       payment.items.map(item => [
         new Date(payment.date).toLocaleDateString(),
         new Date(payment.date).toLocaleTimeString(),
@@ -744,7 +746,7 @@ const PaymentTable = ({ darkMode }) => {
   };
 
   const generateExcel = () => {
-    const formattedPayments = filteredPayments.flatMap(payment =>
+    const formattedPayments = sortedAndFilteredPayments.flatMap(payment =>
       payment.items.map(item => ({
         Date: new Date(payment.date).toLocaleDateString(),
         Time: new Date(payment.date).toLocaleTimeString(),
@@ -765,19 +767,126 @@ const PaymentTable = ({ darkMode }) => {
     setShowReportOptions(false);
   };
 
+  const handleSort = (key) => {
+    setSortConfig((prevConfig) => {
+      // If clicking same column, toggle direction
+      const direction =
+        prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc';
+      return { key, direction };
+    });
+  };
+
   const normalize = str => (str || '').toLowerCase().replace(/\s+/g, '');
 
-  const filteredPayments = payments.filter(payment =>
-    payment.items.some(item =>
-      normalize(item.itemName).includes(normalize(searchQuery)) ||
-      (payment.invoiceNumber || '').toString().includes(searchQuery.replace(/\s+/g, '')) ||
-      normalize(payment.cashierName).includes(normalize(searchQuery)) ||
-      normalize(payment.cashierId).includes(normalize(searchQuery)) ||
-      normalize(payment.paymentMethod).includes(normalize(searchQuery)) ||
-      normalize(new Date(payment.date).toLocaleDateString()).includes(normalize(searchQuery)) ||
-      normalize(new Date(payment.date).toLocaleTimeString()).includes(normalize(searchQuery))
-    )
-  );
+  const sortedAndFilteredPayments = useMemo(() => {
+    // Start with filtered list
+    // let result = payments.filter(payment =>
+    //   payment.items.some(item =>
+    //     normalize(item.itemName).includes(normalize(searchQuery)) ||
+    //     (payment.invoiceNumber || '').toString().includes(searchQuery.replace(/\s+/g, '')) ||
+    //     normalize(payment.cashierName).includes(normalize(searchQuery)) ||
+    //     normalize(payment.cashierId).includes(normalize(searchQuery)) ||
+    //     normalize(payment.paymentMethod).includes(normalize(searchQuery)) ||
+    //     normalize(new Date(payment.date).toLocaleDateString()).includes(normalize(searchQuery)) ||
+    //     normalize(new Date(payment.date).toLocaleTimeString()).includes(normalize(searchQuery))
+    //   )
+    // );
+
+    let result = payments;
+
+    // Apply search filter only if query exists
+    if (searchQuery.trim() !== '') {
+      result = payments.filter(payment => {
+        const searchableText = normalize(payment.items.itemName + ' ' + payment.invoiceNumber + ' ' + payment.cashierName + ' ' + payment.cashierId + ' ' + payment.paymentMethod);
+        const words = normalize(searchQuery).trim().split(/\s+/);
+
+        return words.every(word => {
+          const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          if (/^\d+$/.test(word)) {
+            // Numeric: require word boundaries (exact number match)
+            const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+            return regex.test(searchableText);
+          } else {
+            // Text: allow partial substring match
+            const regex = new RegExp(escapedWord, 'i');
+            return regex.test(searchableText);
+          }
+        });
+      });
+    }
+
+    // Apply sorting if a column is selected
+    if (sortConfig.key) {
+      result = [...result].sort((a, b) => {
+        let valueA = '';
+        let valueB = '';
+
+        switch (sortConfig.key) {
+          case 'date':
+            valueA = new Date(a.date);
+            valueB = new Date(b.date);
+            break;
+
+          case 'invoiceNumber':
+            valueA = a.invoiceNumber || '';
+            valueB = b.invoiceNumber || '';
+            break;
+
+          case 'itemName':
+            valueA = a.items.map(item => item.itemName).join(' ').toLowerCase();
+            valueB = b.items.map(item => item.itemName).join(' ').toLowerCase();
+            break;
+
+          case 'paymentMethod':
+            valueA = a.paymentMethod || '';
+            valueB = b.paymentMethod || '';
+            break;
+
+          case 'cashierName':
+            valueA = a.cashierName || '';
+            valueB = b.cashierName || '';
+            break;
+
+          case 'cashierId':
+            valueA = a.cashierId || '';
+            valueB = b.cashierId || '';
+            break;
+
+          case 'discount':
+            valueA = a.discountApplied || 0;
+            valueB = b.discountApplied || 0;
+            break;
+
+          case 'totalAmount':
+            valueA = a.totalAmount || 0;
+            valueB = b.totalAmount || 0;
+            break;
+
+          default:
+            return 0;
+        }
+
+        // Handle numeric comparison
+        if (typeof valueA === 'number') {
+          return sortConfig.direction === 'asc' ? valueA - valueB : valueB - valueA;
+        }
+
+        // Handle date comparison
+        if (valueA instanceof Date && valueB instanceof Date) {
+          return sortConfig.direction === 'asc' ? valueA - valueB : valueB - valueA;
+        }
+
+        // String comparison
+        valueA = String(valueA).toLowerCase();
+        valueB = String(valueB).toLowerCase();
+        if (valueA < valueB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valueA > valueB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [payments, searchQuery, sortConfig]);
 
   const handleClearSearch = () => {
     setSearchQuery('');
@@ -853,27 +962,90 @@ const PaymentTable = ({ darkMode }) => {
       {error && <p className="error-message">{error}</p>}
       {loading ? (
         <p className="loading">Loading payments...</p>
-      ) : filteredPayments.length === 0 ? (
+      ) : sortedAndFilteredPayments.length === 0 ? (
         <p className="no-products">No payments found.</p>
       ) : (
         <table className={`product-table ${darkMode ? 'dark' : ''}`}>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Invoice No.</th>
-              <th>Item Name</th>
+              <th onClick={() => handleSort('date')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                Date
+                {sortConfig.key === 'date' && (
+                  <span style={{ marginLeft: '6px' }}>
+                    {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
+                  </span>
+                )}
+              </th>
+              <th onClick={() => handleSort('date')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                Time
+                {sortConfig.key === 'date' && (
+                  <span style={{ marginLeft: '6px' }}>
+                    {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
+                  </span>
+                )}
+              </th>
+              <th onClick={() => handleSort('invoiceNumber')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                Invoice No.
+                {sortConfig.key === 'invoiceNumber' && (
+                  <span style={{ marginLeft: '6px' }}>
+                    {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
+                  </span>
+                )}
+              </th>
+              <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                Item Name
+                {sortConfig.key === 'itemName' && (
+                  <span style={{ marginLeft: '6px' }}>
+                    {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
+                  </span>
+                )}
+              </th>
               {/* <th>Quantity</th> */}
-              <th>Payment Method</th>
-              <th>Cashier Name</th>
-              <th>Discount</th>
-              <th>Total Amount</th>
-              <th>Cashier ID</th>
+              <th onClick={() => handleSort('paymentMethod')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                Payment Method
+                {sortConfig.key === 'paymentMethod' && (
+                  <span style={{ marginLeft: '6px' }}>
+                    {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
+                  </span>
+                )}
+              </th>
+              <th onClick={() => handleSort('cashierName')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                Cashier Name
+                {sortConfig.key === 'cashierName' && (
+                  <span style={{ marginLeft: '6px' }}>
+                    {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
+                  </span>
+                )}
+              </th>
+              <th onClick={() => handleSort('discount')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                Discount
+                {sortConfig.key === 'discount' && (
+                  <span style={{ marginLeft: '6px' }}>
+                    {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
+                  </span>
+                )}
+              </th>
+              <th onClick={() => handleSort('totalAmount')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                Total Amount
+                {sortConfig.key === 'totalAmount' && (
+                  <span style={{ marginLeft: '6px' }}>
+                    {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
+                  </span>
+                )}
+              </th>
+              <th onClick={() => handleSort('cashierId')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                Cashier ID
+                {sortConfig.key === 'cashierId' && (
+                  <span style={{ marginLeft: '6px' }}>
+                    {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
+                  </span>
+                )}
+              </th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {filteredPayments.flatMap(payment => (
+            {sortedAndFilteredPayments.flatMap(payment => (
                 <tr key={payment._id}>
                   <td>{new Date(payment.date).toLocaleDateString()}</td>
                   <td>{new Date(payment.date).toLocaleTimeString()}</td>

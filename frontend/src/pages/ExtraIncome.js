@@ -456,6 +456,7 @@ const ExtraIncome = ({ darkMode }) => {
               <th>Income Type</th>
               <th>Amount</th>
               <th>Description</th>
+              <th>Payment Method</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -467,6 +468,7 @@ const ExtraIncome = ({ darkMode }) => {
                 <td>{record.incomeType}</td>
                 <td>{record.amount.toFixed(2)}</td>
                 <td>{record.description || "N/A"}</td>
+                <td>{record.paymentMethod || "N/A"}</td>
                 <td>
                   <div className="action-container">
                     <button
@@ -595,6 +597,8 @@ const ExtraIncome = ({ darkMode }) => {
                   <option value="Cash">Cash</option>
                   <option value="Card">Card</option>
                   <option value="Bank-Transfer">Bank Transfer</option>
+                  <option value="Bank-Check">Bank Check</option>
+                  <option value="Credit">Credit</option>
                 </select>
               {/* === END NEW FIELD === */}
               <div className="button-group">
@@ -698,6 +702,8 @@ const ExtraIncome = ({ darkMode }) => {
                   <option value="Cash">Cash</option>
                   <option value="Card">Card</option>
                   <option value="Bank-Transfer">Bank Transfer</option>
+                  <option value="Bank-Check">Bank Check</option>
+                  <option value="Credit">Credit</option>
                 </select>
               {/* === END NEW FIELD === */}
               <div className="button-group">
