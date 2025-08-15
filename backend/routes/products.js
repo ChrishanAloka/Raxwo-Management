@@ -182,10 +182,19 @@ router.get('/', async (req, res) => {
 
     } else {
       // Old behavior: return all
-    const products = await Product.find({ 
-      deleted: { $ne: true },
-      visible: { $ne: false }
-      }).lean();
+    const products = await Product.find({
+      deleted: { $ne: true },        // not deleted (includes false or missing)
+      visible: { $ne: false },      // is visible (includes true or missing)
+
+      $or: [
+        // Case 1: grnNumber is "GRN-SYS01" → allow any stock
+        { grnNumber: "GRN-SYS01" },
+
+        // Case 2: grnNumber is NOT "GRN-SYS01" → must have stock > 0
+        { grnNumber: { $ne: "GRN-SYS01" }, stock: { $gt: 0 } }
+      ]
+    }).lean();
+      console.log("products", products);
       const uploadedRecords = await UploadedProduct.find().sort({ uploadedAt: 1 }).lean();
       const mappedUploads = uploadedRecords.map((rec) => {
         const d = rec.data || {};
@@ -523,12 +532,97 @@ router.get('/hidden', async (req, res) => {
 router.get('/deleted', async (req, res) => {
   try {
     console.log('Fetching deleted products...');
-    const deletedProducts = await DeletedProduct.find().sort({ deletedAt: -1 });
+
+    const deletedProducts = await Product.find({
+      deleted: true,
+      visible: false
+    }).sort({ updatedAt: -1 }).lean();
+
     console.log(`Found ${deletedProducts.length} deleted products`);
     res.json(deletedProducts);
   } catch (err) {
     console.error('Error fetching deleted products:', err);
     res.status(500).json({ message: err.message });
+  }
+});
+
+// Restores a single soft-deleted product
+router.patch('/:id/restoreProduct', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Optional: log who restored it
+    const { restoredBy } = req.body;
+
+    const product = await Product.findByIdAndUpdate(
+      id,
+      {
+        deleted: false,
+        visible: true,
+        restoredAt: new Date(),
+        restoredBy: restoredBy || 'system'
+      },
+      { new: true, runValidators: true } // return updated doc
+    );
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    res.json({
+      message: 'Product restored successfully',
+      product
+    });
+  } catch (err) {
+    console.error('Error restoring product:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+router.patch('/restore-all', async (req, res) => {
+  try {
+    await Product.updateMany(
+      { deleted: true },
+      { 
+        deleted: false, 
+        visible: true,
+        restoredAt: new Date()
+      }
+    );
+    res.json({ message: 'All products restored' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PATCH /api/products/:id/delete
+router.patch('/:id/deleteProduct', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { deletedBy } = req.body;
+
+    const product = await Product.findByIdAndUpdate(
+      id,
+      {
+        deleted: true,
+        visible: false,
+        deletedAt: new Date(),
+        deletedBy: deletedBy || 'system'
+      },
+      { new: true } // return updated doc
+    );
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    res.json({
+      message: 'Product deleted successfully',
+      product
+    });
+  } catch (err) {
+    console.error('Error deleting product:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

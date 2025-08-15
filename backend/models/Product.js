@@ -65,6 +65,9 @@ const productSchema = new mongoose.Schema({
   deleted: { type: Boolean, default: false },
   deletedAt: { type: Date },
   deletedBy: { type: String },
+
+  restoredAt: { type: Date },
+  restoredBy: { type: String },
   // Add visible flag to track product visibility
   visible: { type: Boolean, default: true },
   hiddenAt: { type: Date },

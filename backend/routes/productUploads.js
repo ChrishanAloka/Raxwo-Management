@@ -147,8 +147,18 @@ router.get('/', async (req, res) => {
     const skip = (page - 1) * limit;
 
     const total = await UploadedProduct.countDocuments();
-    const records = await UploadedProduct.find()
-      .sort({ uploadedAt: -1 })
+    const records = await UploadedProduct.find({
+      deleted: { $ne: true },        // not deleted (includes false or missing)
+      visible: { $ne: false },      // is visible (includes true or missing)
+
+      $or: [
+        // Case 1: grnNumber is "GRN-SYS01" → allow any stock
+        { grnNumber: "GRN-SYS01" },
+
+        // Case 2: grnNumber is NOT "GRN-SYS01" → must have stock > 0
+        { grnNumber: { $ne: "GRN-SYS01" }, stock: { $gt: 0 } }
+      ]
+    }).sort({ uploadedAt: -1 })
       .lean();
 
     res.json({
