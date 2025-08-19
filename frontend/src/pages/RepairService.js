@@ -127,8 +127,8 @@ const CartForm = ({ supplier, closeModal, darkMode, refreshProducts }) => {
   return (
     <div className="modal-overlay">
       <div className={`pro-edit-modal-container ${darkMode ? 'dark' : ''}`}>
-        <h2 className="modal-title">Add Past Payment</h2>
-        {loading && <p className="loading">Adding Past Payment...</p>}
+        <h2 className="modal-title">Add Repair Service</h2>
+        {loading && <p className="loading">Adding Repair Service...</p>}
         {error && <p className="error-message">{error}</p>}
         <form className="edit-product-form" onSubmit={handleSubmit}>          
             <div className="form-row">
