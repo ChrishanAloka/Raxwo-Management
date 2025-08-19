@@ -608,6 +608,17 @@ async function recordChanges(repair, updates, changedBy, changeType) {
   }
 }
 
+// Example: GET /api/repairs/job/:jobNumber
+router.get('/job/:jobNumber', async (req, res) => {
+  try {
+    const repair = await ProductRepair.findOne({ repairInvoice: req.params.jobNumber });
+    if (!repair) return res.status(404).json({ message: 'Job not found' });
+    res.json(repair);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // PATCH: Partial update for repair details
 router.patch("/:id", getRepair, async (req, res) => {
   try {

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import '../styles/Products.css';
 import { useNavigate, Link } from 'react-router-dom';
 
+
+// ✅ Change this to your actual Repair API base URL
+const REPAIR_API_URL = 'https://raxwo-management.onrender.com/api/productsRepair'; // ← Confirm this endpoint
 const API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
 
 const CartForm = ({ supplier, closeModal, darkMode, refreshProducts }) => {
@@ -17,6 +20,7 @@ const CartForm = ({ supplier, closeModal, darkMode, refreshProducts }) => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [fetchingRepair, setFetchingRepair] = useState(false);
   const navigate = useNavigate();
 
 
@@ -33,6 +37,49 @@ const CartForm = ({ supplier, closeModal, darkMode, refreshProducts }) => {
     setError('');
     setIsSubmitted(false);
   }, []);
+
+  // 🔍 Auto-fetch repair data when jobNumber is entered
+  useEffect(() => {
+    const fetchRepairByJobNumber = async () => {
+      if (!items.jobNumber?.trim()) return;
+
+      setFetchingRepair(true);
+      setError('');
+      try {
+        const response = await fetch(`${REPAIR_API_URL}/job/${items.jobNumber}`);
+        if (response.ok) {
+          const repair = await response.json();
+
+          // ✅ Auto-fill fields from repair data
+          setItems((prev) => ({
+            ...prev,
+            repairDevice: repair.deviceType || repair.device || '', // adjust field name
+            serialNo: repair.serialNumber || repair.serial_number || '',
+            deviceIssue: repair.issueDescription || repair.deviceIssue || '',
+          }));
+        } else if (response.status === 404) {
+          // Clear fields if job number not found
+          setItems((prev) => ({
+            ...prev,
+            repairDevice: '',
+            serialNo: '',
+            deviceIssue: '',
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch repair:', err);
+        // Don't block form — just continue with manual input
+      } finally {
+        setFetchingRepair(false);
+      }
+    };
+
+    const delayDebounce = setTimeout(() => {
+      fetchRepairByJobNumber();
+    }, 500); // Debounce: wait 500ms after typing stops
+
+    return () => clearTimeout(delayDebounce);
+  }, [items.jobNumber]);
 
   const handleItemChange = (e) => {
     const { name, value } = e.target;
