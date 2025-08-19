@@ -84,12 +84,22 @@ router.get("/summary/:startDate/:endDate", async (req, res) => {
       },
     });
     const totalCost = salaries.reduce((sum, salary) => sum + salary.advance, 0);
+
     const groupedByDate = salaries.reduce((acc, salary) => {
       const date = new Date(salary.date).toISOString().split('T')[0];
       acc[date] = (acc[date] || 0) + salary.advance;
       return acc;
     }, {});
-    res.json({ totalCost, groupedByDate });
+
+    // Group by employeeId
+    const groupedByEmployee = salaries.reduce((acc, salary) => {
+      const { employeeName, advance } = salary;
+      acc[employeeName] = (acc[employeeName] || 0) + advance;
+      return acc;
+    }, {});
+
+
+    res.json({ totalCost, groupedByDate, groupedByEmployee });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

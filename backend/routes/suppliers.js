@@ -212,7 +212,6 @@ router.post('/:id/items', getSupplier, async (req, res) => {
   }
 });
 
-// POST: Add an item to a supplier's cart
 router.post('/:id/pastpayments', getSupplier, async (req, res) => {
   
   const item = {
@@ -228,6 +227,32 @@ router.post('/:id/pastpayments', getSupplier, async (req, res) => {
     // ✅ Send back the itemCode in response
     res.status(201).json({
       message: 'Past Payment added successfully',
+      supplier: updatedSupplier   
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/:id/repairService', getSupplier, async (req, res) => {
+  
+  const item = {
+    jobNumber: req.body.jobNumber || "-",
+    repairDevice: req.body.repairDevice,
+    serielNo: req.body.serielNo || "-",
+    deviceIssue: req.body.deviceIssue,
+    paymentdescription: req.body.paymentdescription || "Empty",
+    paymentCharge: req.body.paymentCharge || 0
+  };
+
+  res.supplier.repairService.push(item);
+
+  try {
+    const updatedSupplier = await res.supplier.save();
+    
+    // ✅ Send back the itemCode in response
+    res.status(201).json({
+      message: 'Repair Service added successfully',
       supplier: updatedSupplier   
     });
   } catch (err) {
@@ -338,8 +363,12 @@ router.post('/:id/payments', getSupplier, async (req, res) => {
     (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
     0
   );
+  const repairServicecharges = res.supplier.repairService.reduce(
+    (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+    0
+  );
 
-  const totalCost = totalitemCost + pastcharges;
+  const totalCost = totalitemCost + pastcharges + repairServicecharges;
   const currentPayments = res.supplier.totalPayments || 0;
   const amountDue = totalCost - currentPayments;
 
