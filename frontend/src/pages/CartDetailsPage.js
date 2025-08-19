@@ -1,6 +1,8 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import CartDetailsTable from './CartDetailsTable';
+import RepairServiceTable from './RepairServiceTable';
+import PastPaymentTable from './PastPaymentTable';
 import '../styles/Supplier.css';
 
 const CartDetailsPage = ({ darkMode }) => {
@@ -17,7 +19,20 @@ const CartDetailsPage = ({ darkMode }) => {
         <h2 className={`product-list-title ${darkMode ? 'dark' : ''}`}>Supplier Cart Details</h2>
         
       </div>
+      <div></div>
       <CartDetailsTable
+        supplierId={supplierId}
+        darkMode={darkMode}
+        refreshSuppliers={refreshSuppliers}
+      />
+      <br/>
+      <RepairServiceTable
+        supplierId={supplierId}
+        darkMode={darkMode}
+        refreshSuppliers={refreshSuppliers}
+      />
+      <br/>
+      <PastPaymentTable
         supplierId={supplierId}
         darkMode={darkMode}
         refreshSuppliers={refreshSuppliers}

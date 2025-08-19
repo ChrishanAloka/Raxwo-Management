@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../styles/Products.css';
 import { useNavigate, Link } from 'react-router-dom';
 import Select from 'react-select';
+import axios from 'axios';
 import CreatableSelect from 'react-select/creatable';
 
 const API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
@@ -28,13 +29,23 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_URL}/${supplier._id}`, {
+      // const response = await fetch(`${API_URL}/${supplier._id}`, {
+      // });
+
+      const response = await fetch(`https://raxwo-management.onrender.com/api/product-uploads`, {
       });
+
+      // const response = await axios.get('https://raxwo-management.onrender.com/api/products', {
+      //   headers: {
+      //     Authorization: `Bearer ${token}`,
+      //   },
+      // });
+            
       if (!response.ok) {
         throw new Error(`Failed to fetch supplier items: ${response.statusText}`);
       }
       const data = await response.json();
-      setItemNames(data.items || []);
+      setItemNames(data.records || []);
       setLoading(false);
     } catch (err) {
       setError(err.message || 'An error occurred while fetching items');

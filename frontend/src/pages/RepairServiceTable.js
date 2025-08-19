@@ -31,7 +31,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
         throw new Error(`Failed to fetch supplier items: ${response.statusText}`);
       }
       const data = await response.json();
-      setItems(data.items || []);
+      setItems(data.repairService || []);
       setSupplierName(data.supplierName || '');
       setLoading(false);
     } catch (err) {
@@ -95,7 +95,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
 
   return (
     <div className={`cart-details-container ${darkMode ? 'dark' : ''}`}>
-      <h3 className={`cart-details-title ${darkMode ? 'dark' : ''}`}>{supplierName ? `${supplierName} Cart Details` : 'Cart Details'}</h3>
+      <h3 className={`cart-details-title ${darkMode ? 'dark' : ''}`}>{supplierName ? `${supplierName} Repair Services` : 'Repair Services'}</h3>
       {loading && <p className="loading">Loading items...</p>}
       {error && (
         <>
@@ -106,30 +106,31 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
         </>
       )}
       {!loading && items.length === 0 ? (
-        <p className="no-products">No items in cart.</p>
+        <p className="no-products">No Repair Services.</p>
       ) : (
         <table className={`product-table ${darkMode ? 'dark' : ''}`}>
           <thead>
             <tr>
-              <th>GRN</th>
-              <th>Item Name</th>
-              <th>Category</th>
-              <th>Stock</th>
-              <th>Buying Price</th>
-              {/* <th>Selling Price</th> */}
-              <th>Action</th>
+              <th>Job Number</th>
+              <th>Device Type</th>
+              <th>Seriel No</th>
+              <th>Issue</th>
+              <th>Description</th>
+              <th>Charge</th>
+              {/* <th>Action</th> */}
             </tr>
           </thead>
           <tbody>
             {items.map((item, index) => (
               <tr key={index}>
-                <td>{item.grnNumber || 'N/A'}</td>
-                <td>{item.itemName || 'N/A'}</td>
-                <td>{item.category || 'N/A'}</td>
-                <td>{item.quantity || '0'}</td>
-                <td>Rs. {item.buyingPrice || '0'}</td>
-                {/* <td>Rs. {item.sellingPrice || '0'}</td> */}
-                <td>
+                <td>{item.jobNumber || 'N/A'}</td>
+                <td>{item.repairDevice || 'N/A'}</td>
+                <td>{item.serielNo || 'N/A'}</td>
+                <td>{item.deviceIssue || 'N/A'}</td>
+                <td>{item.paymentdescription || 'N/A'}</td>
+                
+                <td>Rs. {item.paymentCharge || '0'}</td>
+                {/* <td>
                   <div className="action-container">
                     <button
                       onClick={(e) => {
@@ -160,7 +161,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                       </>
                     )}
                   </div>
-                </td>
+                </td> */}
               </tr>
             ))}
           </tbody>

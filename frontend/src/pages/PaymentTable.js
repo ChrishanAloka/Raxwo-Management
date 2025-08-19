@@ -27,10 +27,21 @@ const PaymentTable = ({ darkMode }) => {
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
+  const [showPaymentFilter, setShowPaymentFilter] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(null); // Track which header shows filter
 
   useEffect(() => {
     fetchPayments();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (showPaymentFilter) setShowPaymentFilter(false);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showPaymentFilter]);
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -778,6 +789,8 @@ const PaymentTable = ({ darkMode }) => {
 
   const normalize = str => (str || '').toLowerCase().replace(/\s+/g, '');
 
+  const paymentMethods = [...new Set(payments.map(p => p.paymentMethod).filter(Boolean))];
+
   const sortedAndFilteredPayments = useMemo(() => {
     // Start with filtered list
     // let result = payments.filter(payment =>
@@ -813,6 +826,11 @@ const PaymentTable = ({ darkMode }) => {
           }
         });
       });
+    }
+
+    // Apply payment method filter
+    if (paymentMethodFilter) {
+      result = result.filter(payment => payment.paymentMethod === paymentMethodFilter);
     }
 
     // Apply sorting if a column is selected
@@ -1001,12 +1019,95 @@ const PaymentTable = ({ darkMode }) => {
                 )}
               </th>
               {/* <th>Quantity</th> */}
-              <th onClick={() => handleSort('paymentMethod')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+              {/* <th onClick={() => handleSort('paymentMethod')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                 Payment Method
                 {sortConfig.key === 'paymentMethod' && (
                   <span style={{ marginLeft: '6px' }}>
                     {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
                   </span>
+                )}
+              </th> */}
+              <th style={{ position: 'relative', padding: '12px', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span
+                    onClick={() => handleSort('paymentMethod')}
+                    style={{ cursor: 'pointer', userSelect: 'none', flex: 1 }}
+                  >
+                    Payment Method {paymentMethodFilter === "" ? '' : '*'}
+                    {sortConfig.key === 'paymentMethod' && (
+                      <span style={{ marginLeft: '6px' }}>
+                        {sortConfig.direction === 'asc' ? '🔽' : '🔼'}
+                      </span>
+                    )}
+                  </span>
+
+                  {/* Filter Button */}
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowPaymentFilter(prev => !prev);
+                    }}
+                    
+                    title="Filter by Payment Method"
+                  >
+                    {paymentMethodFilter === "" ? '☰' : '☰*'}
+                  </span>
+                </div>
+
+                {/* Filter Dropdown */}
+                {showPaymentFilter && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      width: '200px',
+                      backgroundColor: darkMode ? '#2d3748' : '#ffffff',
+                      border: `1px solid ${darkMode ? '#4a5568' : '#ddd'}`,
+                      borderRadius: '6px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      zIndex: 10,
+                      maxHeight: '300px',
+                      overflowY: 'auto',
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        fontWeight: paymentMethodFilter === '' ? 'bold' : 'normal',
+                        backgroundColor: paymentMethodFilter === '' ? (darkMode ? '#4a5568' : '#e6f7ff') : 'transparent',
+                        color: darkMode ? '#e2e8f0' : '#333',
+                      }}
+                      onClick={() => {
+                        setPaymentMethodFilter('');
+                        setShowPaymentFilter(false);
+                        handleSort('date');
+                      }}
+                    >
+                      All Methods
+                    </div>
+                    {paymentMethods.map((method) => (
+                      <div
+                        key={method}
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          fontWeight: paymentMethodFilter === method ? 'bold' : 'normal',
+                          backgroundColor: paymentMethodFilter === method ? (darkMode ? '#4a5568' : '#e6f7ff') : 'transparent',
+                          color: darkMode ? '#e2e8f0' : '#333',
+                        }}
+                        onClick={() => {
+                          setPaymentMethodFilter(method);
+                          setShowPaymentFilter(false);
+                          handleSort('date');
+                        }}
+                      >
+                        {method}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </th>
               <th onClick={() => handleSort('cashierName')} style={{ cursor: 'pointer', userSelect: 'none' }}>

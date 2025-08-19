@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AddSupplier from './AddSupplier';
 import CartForm from './CartForm';
 import PastPayment from './PastPayment';
+import RepairService from './RepairService';
 import SummaryForm from '../components/SummaryForm';
 import PaymentForm from '../components/PaymentForm';
 import suppliericon from '../icon/add (1).png';
@@ -14,7 +15,7 @@ import viewicon from '../icon/clipboard.png';
 import jobBillIcon from "../icon/bill.png";
 import payicon from '../icon/payment.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faFile, faFilePdf, faFileExcel, faSearch, faTimes, faChartBar } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faFile, faFilePdf, faFileExcel, faSearch, faTimes, faChartBar, faWrench } from '@fortawesome/free-solid-svg-icons';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -27,6 +28,7 @@ const SupplierList = ({ darkMode }) => {
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false);
   const [showPastPaymentModal, setshowPastPaymentModal] = useState(false);
+  const [showRepairServiceModal, setshowRepairServiceModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showItemDetailsModal, setShowItemDetailsModal] = useState(false);
@@ -127,6 +129,12 @@ const SupplierList = ({ darkMode }) => {
   const handlePastpayment = (supplier) => {
     setSelectedSupplier(supplier);
     setshowPastPaymentModal(true);
+    setShowActionMenu(null);
+  };
+
+  const handleRepairService = (supplier) => {
+    setSelectedSupplier(supplier);
+    setshowRepairServiceModal(true);
     setShowActionMenu(null);
   };
 
@@ -447,6 +455,13 @@ const filteredSuppliers = suppliers.filter(supplier => {
                               <span>Add Past Payment</span>
                             </div>
                           </button>
+                          <button onClick={() => handleRepairService(supplier)} className="p-edit-btn">
+                            <div className="action-btn-content">
+                              <FontAwesomeIcon icon={faWrench} width="30" height="30" className="p-edit-btn-icon" />
+                              <span>Add Repair Service</span>
+                            </div>
+                          </button>
+                          
                           <button onClick={() => handleEdit(supplier)} className="p-edit-btn">
                             <div className="action-btn-content">
                               <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
@@ -533,6 +548,21 @@ const filteredSuppliers = suppliers.filter(supplier => {
           refreshProducts={refreshProducts}
         />
       )}
+
+      {showRepairServiceModal && selectedSupplier && (
+        <RepairService
+          supplier={selectedSupplier}
+          closeModal={() => {
+            setshowRepairServiceModal(false);
+            setSelectedSupplier(null);
+            fetchSuppliers();
+            refreshProducts();
+          }}
+          darkMode={darkMode}
+          refreshProducts={refreshProducts}
+        />
+      )}
+
 
       {notification && (
         <div className={`notification ${darkMode ? 'dark' : ''}`}>

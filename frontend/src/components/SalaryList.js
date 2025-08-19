@@ -28,13 +28,41 @@ const SalaryList = ({ darkMode }) => {
   const [showSummary, setShowSummary] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [summaryData, setSummaryData] = useState({ totalCost: 0, groupedByDate: {} });
+  const [summaryData, setSummaryData] = useState({ totalCost: 0, groupedByDate: {}, groupedByEmployee: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [groupBy, setGroupBy] = useState('employee'); // 'date' or 'employee'
 
   useEffect(() => {
     fetchSalaries();
   }, []);
+
+  useEffect(() => {
+    if ( !startDate && !endDate) {
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      const formatDate = (date) => date.toISOString().split('T')[0];
+
+      setStartDate(formatDate(firstDay));
+      setEndDate(formatDate(lastDay));
+    }
+
+    // Fetch summary when both dates are set (after auto-fill)
+    if ( startDate && endDate && Object.keys(summaryData.groupedByEmployee).length === 0) {
+      fetchSummary();
+    }
+  }, [showSummary, startDate, endDate]);
+
+  // useEffect(() => {
+  //   if (!showSummary) {
+  //     // Reset data when modal closes
+  //     setSummaryData({ totalCost: 0, groupedByDate: {}, groupedByEmployee: {} });
+  //     setStartDate('');
+  //     setEndDate('');
+  //   }
+  // }, [showSummary]);
 
   const fetchSalaries = async () => {
     setLoading(true);
@@ -134,11 +162,16 @@ const SalaryList = ({ darkMode }) => {
   };
 
   const chartData = {
-    labels: Object.keys(summaryData.groupedByDate),
+    labels: groupBy === 'employee'
+      ? Object.keys(summaryData.groupedByEmployee)
+      : Object.keys(summaryData.groupedByDate).sort(), // Sort dates chronologically
     datasets: [
       {
         label: 'Advance Amount',
-        data: Object.values(summaryData.groupedByDate),
+        data:
+        groupBy === 'employee'
+          ? Object.values(summaryData.groupedByEmployee)
+          : Object.values(summaryData.groupedByDate),
         backgroundColor: darkMode ? 'rgba(54, 162, 235, 0.6)' : 'rgba(75, 192, 192, 0.6)',
         borderColor: darkMode ? 'rgba(54, 162, 235, 1)' : 'rgba(75, 192, 192, 1)',
         borderWidth: 1,
@@ -151,7 +184,11 @@ const SalaryList = ({ darkMode }) => {
     maintainAspectRatio: false,
     plugins: {
       legend: { position: 'top' },
-      title: { display: true, text: 'Salary Advance by Date', font: { size: 18, family: 'Inter' } },
+      title: { display: true, text: 
+        groupBy === 'employee' 
+          ? 'Salary Advance by Employee' 
+          : 'Salary Advance by Date',
+      font: { size: 18, family: 'Inter' } },
     },
     scales: {
       y: { 
@@ -160,7 +197,7 @@ const SalaryList = ({ darkMode }) => {
         grid: { color: darkMode ? '#4a5568' : '#e0e0e0' },
       },
       x: { 
-        title: { display: true, text: 'Date', font: { size: 14, family: 'Inter' } },
+        title: { display: true, text: groupBy === 'employee' ? 'Employee ID' : 'Date' , font: { size: 14, family: 'Inter' } },
         grid: { display: false },
       },
     },
@@ -194,9 +231,9 @@ const SalaryList = ({ darkMode }) => {
         </div>
         <div className='filter-action-row'>
 
-        <button onClick={() => setShowSummary(true)} className="btn-summary">
+        {/* <button onClick={() => setShowSummary(true)} className="btn-summary">
           <FontAwesomeIcon icon={faChartSimple} /> Summary
-        </button>
+        </button> */}
         <button onClick={() => setAddModalOpen(true)} className="btn-primary">
           <FontAwesomeIcon icon={faPlus} /> Add Salary
         </button>
@@ -236,7 +273,7 @@ const SalaryList = ({ darkMode }) => {
           </div>
         </div>
       )}
-      {showSummary && (
+      {/* {showSummary && (
         <div className="salary-summary-modal-overlay" onClick={() => setShowSummary(false)}>
           <div className={`salary-summary-modal-content ${darkMode ? 'dark' : ''}`} onClick={(e) => e.stopPropagation()}>
             <div className="salary-summary-modal-header">
@@ -281,13 +318,57 @@ const SalaryList = ({ darkMode }) => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
       {error && <p className="error-message">{error}</p>}
       {loading ? (
         <p className="loading">Loading salaries...</p>
       ) : filteredSalaries.length === 0 ? (
         <p className="no-salaries">No salaries available.</p>
       ) : (
+      <div>
+        <div className="salary-summary-content">
+          <div className="date-range-selector">
+            <label className={`date-range-label ${darkMode ? 'dark' : ''}`}>Start Date:</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={`date-range-input ${darkMode ? 'dark' : ''}`}
+            />
+            <label className={`date-range-label ${darkMode ? 'dark' : ''}`}>End Date:</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className={`date-range-input ${darkMode ? 'dark' : ''}`}
+            />            
+            <label className={`date-range-label ${darkMode ? 'dark' : ''}`}>
+              Group By:
+            </label>
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value)}
+              className={`date-range-input-select ${darkMode ? 'dark' : ''}`}
+            >
+              <option value="employee">Employee</option>
+              <option value="date">Date</option>
+            </select>
+            <button onClick={fetchSummary} className="fetch-summary-btn">
+              Fetch Summary
+            </button>
+          </div>
+          {summaryData.totalCost > 0 && (
+            <>
+              <p className={`total-cost ${darkMode ? 'dark' : ''}`}>
+                Total Salary Cost: LKR {summaryData.totalCost.toLocaleString()}
+              </p>
+              <div className="salary-summary-chart-container">
+                <Bar data={chartData} options={chartOptions} height={300} width={500}/>
+              </div>
+            </>
+          )}
+        </div>
+        <br/>
         <table className={`salary-table ${darkMode ? 'dark' : ''}`}>
           <thead>
             <tr>
@@ -343,6 +424,7 @@ const SalaryList = ({ darkMode }) => {
             ))}
           </tbody>
         </table>
+      </div>
       )}
       {isAddModalOpen && (
         <SalaryAdd

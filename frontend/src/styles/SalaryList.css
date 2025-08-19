@@ -555,6 +555,7 @@
   font-size: 16px;
   color: #333;
   font-family: 'Inter', sans-serif;
+  padding-bottom: 10px;
 }
 
 .dark .date-range-label {
@@ -576,11 +577,22 @@
   color: #e2e8f0;
 }
 
+.date-range-input-select {
+  padding: 8px;
+  font-size: 15px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  width: 150px;
+  margin-bottom: 20px;
+  font-family: 'Inter', sans-serif;
+}
+
 .fetch-summary-btn {
   background-color: #28a745;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 10px 20px  ;
+  margin-bottom: 10px;
   border-radius: 5px;
   cursor: pointer;
   font-size: 15px;
@@ -615,7 +627,19 @@
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  height: 350px;
+  height: 450px;
+  width: 1000px;
+
+  /* Center horizontally */
+  margin-left: auto;
+  margin-right: auto;
+
+  /* Optional: Add some top margin for spacing */
+  margin-top: 20px;
+
+  /* Ensure it doesn't overflow on smaller screens */
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .dark.salary-summary-chart-container {
