@@ -957,9 +957,14 @@ router.patch('/restore/:id', async (req, res) => {
 });
 
 // PATCH: Update stock and price of an existing product or create new
-router.patch('/update-stock/:itemCode', async (req, res) => {
+router.patch('/update-stock/*', async (req, res) => {
   try {
-    const itemCode = decodeURIComponent(req.params.itemCode);
+    const itemCode = req.params[0];
+    if (!itemCode) {
+      return res.status(400).json({ message: 'Item code is required' });
+    }
+    const decodedItemCode = decodeURIComponent(itemCode);
+
     const { newStock, newBuyingPrice, newSellingPrice, itemName, grnNumber, category, supplierName } = req.body;
 
     // Validate required fields
@@ -981,18 +986,18 @@ router.patch('/update-stock/:itemCode', async (req, res) => {
     // Supplier name is now optional - use empty string if not provided
     const finalSupplier = supplierName || 'Unknown';
 
-    let product = await Product.findOne({ itemCode });
+    let product = await Product.findOne({ decodedItemCode });
 
     if (!product) {
       // Check if itemCode is already used by another product (double-check)
-      const duplicateCheck = await Product.findOne({ itemCode });
+      const duplicateCheck = await Product.findOne({ decodedItemCode });
       if (duplicateCheck) {
         return res.status(400).json({ message: "Item Code already exists. Please use a unique Item Code." });
       }
 
               // Create new product if it doesn't exist
         product = new Product({
-          itemCode,
+          itemCode: decodedItemCode,
           itemName,
           category,
           grnNumber,
@@ -1005,7 +1010,7 @@ router.patch('/update-stock/:itemCode', async (req, res) => {
           changeHistory: [{
             field: 'creation',
             oldValue: null,
-            newValue: { itemCode, itemName, category, buyingPrice: Number(newBuyingPrice), sellingPrice: Number(newSellingPrice), stock: Number(newStock), Supplier: finalSupplier },
+            newValue: { decodedItemCode, itemName, category, buyingPrice: Number(newBuyingPrice), sellingPrice: Number(newSellingPrice), stock: Number(newStock), Supplier: finalSupplier },
             changedBy: req.body.changedBy || 'system',
             changedAt: new Date(),
             changeType: 'create'
@@ -1058,7 +1063,7 @@ router.patch('/update-stock/:itemCode', async (req, res) => {
     res.json({ message: "Stock updated successfully", updatedProduct });
   } catch (err) {
     // Check for MongoDB duplicate key error (code 11000)
-    if (err.code === 11000 && err.keyPattern && err.keyPattern.itemCode) {
+    if (err.code === 11000 && err.keyPattern && err.keyPattern.decodedItemCode) {
       return res.status(400).json({ message: "Item Code already exists. Please use a unique Item Code." });
     }
     res.status(400).json({ message: err.message });
