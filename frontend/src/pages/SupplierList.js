@@ -51,7 +51,6 @@ const SupplierList = ({ darkMode }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
       const response = await fetch('https://raxwo-management.onrender.com/api/suppliers', {
-        signal: controller.signal,
       });
       clearTimeout(timeoutId);
       if (!response.ok) {

@@ -181,6 +181,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
           body: JSON.stringify(itemData),
         });
 
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || `Failed to ${item ? 'update' : 'add'} item ${i + 1}`);
