@@ -191,8 +191,9 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
 
         // ✅ Get the itemCode from the response
         const generatedItemCode = result.itemCode;
+        const encodedItemCode = encodeURIComponent(generatedItemCode);
 
-        const productResponse = await fetch(`${PRODUCTS_API_URL}/update-stock/${generatedItemCode}`, {
+        const productResponse = await fetch(`${PRODUCTS_API_URL}/update-stock/${encodedItemCode}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
