@@ -44,54 +44,6 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     fetchItems();
   }, [supplierId]);
 
-  const handleEdit = (item, index) => {
-    setEditItem({ ...item, index });
-    setShowEditModal(true);
-    setShowActionMenu(null);
-  };
-
-  const handleDelete = async (index) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
-      try {
-        const response = await fetch(`${API_URL}/${supplierId}/items/${index}`, {
-          method: 'DELETE',
-        });
-        if (!response.ok) {
-          throw new Error('Failed to delete item');
-        }
-        setItems(items.filter((_, i) => i !== index));
-        refreshSuppliers();
-        setShowActionMenu(null);
-      } catch (err) {
-        setError(err.message);
-      }
-    }
-  };
-
-  const handleSave = async (item) => {
-    try {
-      const response = await fetch(`${PRODUCT_API_URL}/update-stock/${item.itemCode}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          newStock: item.quantity,
-          newBuyingPrice: item.buyingPrice,
-          newSellingPrice: item.sellingPrice,
-          itemName: item.itemName,
-          category: item.category,
-          supplierName: item.supplierName,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to save item to product stock');
-      }
-      setItems(items.filter((_, i) => i !== item.index));
-      refreshSuppliers();
-      setShowActionMenu(null);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
 
   return (
     <div className={`cart-details-container ${darkMode ? 'dark' : ''}`}>

@@ -193,8 +193,11 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
         const generatedItemCode = result.itemCode;
         const encodedItemCode = encodeURIComponent(generatedItemCode);
 
-        const productResponse = await fetch(`${PRODUCTS_API_URL}/update-stock/${encodedItemCode}`, {
-          method: 'PATCH',
+        const url2 = item ? `${PRODUCTS_API_URL}/update-stockitem/${encodedItemCode}` : `${PRODUCTS_API_URL}/update-stock/${encodedItemCode}`;
+        const method2 = item ? 'PATCH' : 'POST';
+
+        const productResponse = await fetch(url2, {
+          method: method2,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             newStock: itemData.quantity,

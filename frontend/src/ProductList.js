@@ -284,7 +284,7 @@ const ProductList = ({ darkMode }) => {
   const filteredProductsForModal = searchQuery.trim() === ""
     ? products
     : products.filter(product => {
-        const searchableText = (product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
+        const searchableText = (product.grnNumber + ' ' + product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
 
         // Split query into words and test each as a whole word or number
         const words = normalize(searchQuery).trim().split(/\s+/);
@@ -304,7 +304,7 @@ const ProductList = ({ darkMode }) => {
     // Apply search filter only if query exists
     if (searchQuery.trim() !== '') {
       result = products.filter(product => {
-        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+        const searchableText = normalize(product.grnNumber + ' ' + product.itemName + ' ' + product.category + ' ' + product.itemCode);
         const words = normalize(searchQuery).trim().split(/\s+/);
 
         return words.every(word => {

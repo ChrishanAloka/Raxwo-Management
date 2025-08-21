@@ -122,7 +122,7 @@ const CategoryProductList = ({ darkMode }) => {
     // Apply search filter only if query exists
     if (searchQuery.trim() !== '') {
       result = products.filter(product => {
-        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+        const searchableText = normalize(product.grnNumber + ' ' + product.itemName + ' ' + product.category + ' ' + product.itemCode);
         const words = normalize(searchQuery).trim().split(/\s+/);
 
         return words.every(word => {
