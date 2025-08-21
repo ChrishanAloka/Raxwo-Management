@@ -55,8 +55,8 @@ const productSchema = new mongoose.Schema({
   // Change history to track modifications
   changeHistory: [{
     field: { type: String },
-    oldValue: { type: mongoose.Schema.Types.Mixed },
-    newValue: { type: mongoose.Schema.Types.Mixed },
+    oldValue: { type: String },
+    newValue: { type: String },
     changedBy: { type: String },
     changedAt: { type: Date, default: Date.now },
     changeType: { type: String, enum: ['create', 'update', 'delete', 'stock'] }

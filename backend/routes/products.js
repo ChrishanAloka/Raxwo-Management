@@ -957,7 +957,7 @@ router.patch('/restore/:id', async (req, res) => {
 });
 
 // PATCH: Update stock and price of an existing product or create new
-router.patch('/update-stock/*', async (req, res) => {
+router.post('/update-stock/*', async (req, res) => {
   try {
     const itemCode = req.params[0];
     if (!itemCode) {
@@ -986,14 +986,15 @@ router.patch('/update-stock/*', async (req, res) => {
     // Supplier name is now optional - use empty string if not provided
     const finalSupplier = supplierName || 'Unknown';
 
-    let product = await Product.findOne({ decodedItemCode });
+    // let product = await Product.findOne({ decodedItemCode });
 
-    if (!product) {
+    
       // Check if itemCode is already used by another product (double-check)
-      const duplicateCheck = await Product.findOne({ decodedItemCode });
-      if (duplicateCheck) {
-        return res.status(400).json({ message: "Item Code already exists. Please use a unique Item Code." });
-      }
+      // const duplicateCheck = await Product.findOne({ decodedItemCode });
+      // if (duplicateCheck) {
+      //   return res.status(400).json({ message: "Item Code already exists. Please use a unique Item Code." });
+      // }
+      let product ;
 
               // Create new product if it doesn't exist
         product = new Product({
@@ -1016,7 +1017,49 @@ router.patch('/update-stock/*', async (req, res) => {
             changeType: 'create'
           }]
         });
-    } else {
+    
+    const updatedProduct = await product.save();
+    res.json({ message: "Stock updated successfully", updatedProduct });
+  } catch (err) {
+    // Check for MongoDB duplicate key error (code 11000)
+    if (err.code === 11000 && err.keyPattern && err.keyPattern.decodedItemCode) {
+      return res.status(400).json({ message: "Item Code already exists. Please use a unique Item Code." });
+    }
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// PATCH: Update stock and price of an existing product or create new
+router.patch('/update-stockitem/*', async (req, res) => {
+  try {
+    const itemCode = req.params[0];
+    if (!itemCode) {
+      return res.status(400).json({ message: 'Item code is required' });
+    }
+    const decodedItemCode = decodeURIComponent(itemCode);
+
+    const { newStock, newBuyingPrice, newSellingPrice, itemName, category, supplierName } = req.body;
+
+    // Validate required fields
+    if (!itemName || typeof itemName !== 'string' || itemName.trim() === '') {
+      return res.status(400).json({ message: 'Item name is required and must be a non-empty string' });
+    }
+    if (!category || typeof category !== 'string' || category.trim() === '') {
+      return res.status(400).json({ message: 'Category is required and must be a non-empty string' });
+    }
+    if (newStock === undefined || newStock === null || newStock === '' || isNaN(Number(newStock)) || Number(newStock) < 0) {
+      return res.status(400).json({ message: 'New stock is required and must be a non-negative number' });
+    }
+    if (newBuyingPrice === undefined || newBuyingPrice === null || newBuyingPrice === '' || isNaN(Number(newBuyingPrice)) || Number(newBuyingPrice) < 0) {
+      return res.status(400).json({ message: 'New buying price is required and must be a non-negative number' });
+    }
+    if (newSellingPrice === undefined || newSellingPrice === null || newSellingPrice === '' || isNaN(Number(newSellingPrice)) || Number(newSellingPrice) < 0) {
+      return res.status(400).json({ message: 'New selling price is required and must be a non-negative number' });
+    }
+    // Supplier name is now optional - use empty string if not provided
+    const finalSupplier = supplierName || 'Unknown';
+
+    let product = await Product.findOne({ itemCode: decodedItemCode });
       // Log stock change
       const changes = [];
       if (product.stock !== newStock) {
@@ -1057,7 +1100,6 @@ router.patch('/update-stock/*', async (req, res) => {
       product.buyingPrice = Number(newBuyingPrice);
       product.sellingPrice = Number(newSellingPrice);
       product.Supplier = finalSupplier;
-    }
 
     const updatedProduct = await product.save();
     res.json({ message: "Stock updated successfully", updatedProduct });

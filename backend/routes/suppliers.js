@@ -147,15 +147,15 @@ router.post('/:id/items', getSupplier, async (req, res) => {
     const itemNameNoSpaces = resitem.itemName.replace(/\s+/g, ''); // remove spaces
     const itemNameCode = itemNameNoSpaces.slice(0, 4).toUpperCase(); // first 4 letters
 
-    let baseCode = `Ite${categoryCode}${itemNameCode}`;
+    const baseCode = `Ite${categoryCode}${itemNameCode}${Date.now().toString().slice(-3)}`;
     let counter = 1;
     let candidate = baseCode + String(counter).padStart(2, '0');
 
     // Check DB and current batch
-    while (await Product.exists({ itemCode: candidate })) {
-      counter++;
-      candidate = baseCode + String(counter).padStart(2, '0');
-    }
+    // while (await Product.exists({ itemCode: candidate })) {
+    //   counter++;
+    //   candidate = baseCode + String(counter).padStart(2, '0');
+    // }
   
 
   const item = {
@@ -287,24 +287,24 @@ router.patch('/:id/items/:itemIndex', getSupplier, async (req, res) => {
     changeType: 'cart'
   }];
 
-  // Also log to Product's changeHistory if product exists
-  try {
-    const product = await Product.findOne({ itemCode: item.itemCode });
-    if (product) {
-      product.changeHistory = [...(product.changeHistory || []), {
-        field: 'cart',
-        oldValue: oldItem,
-        newValue: item,
-        changedBy: req.body.changedBy || 'system',
-        changedAt: new Date(),
-        changeType: 'cart'
-      }];
-      await product.save();
-    }
-  } catch (err) {
-    // Log but do not block supplier save
-    console.error('Error updating product changeHistory for cart update:', err);
-  }
+  // // Also log to Product's changeHistory if product exists
+  // try {
+  //   const product = await Product.findOne({ itemCode: item.itemCode });
+  //   if (product) {
+  //     product.changeHistory = [...(product.changeHistory || []), {
+  //       field: 'cart',
+  //       oldValue: oldItem,
+  //       newValue: item,
+  //       changedBy: req.body.changedBy || 'system',
+  //       changedAt: new Date(),
+  //       changeType: 'cart'
+  //     }];
+  //     await product.save();
+  //   }
+  // } catch (err) {
+  //   // Log but do not block supplier save
+  //   console.error('Error updating product changeHistory for cart update:', err);
+  // }
 
   try {
     const updatedSupplier = await res.supplier.save();
