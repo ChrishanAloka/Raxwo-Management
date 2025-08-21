@@ -1008,14 +1008,14 @@ router.post('/update-stock/*', async (req, res) => {
           Supplier: finalSupplier,
           deleted: false, // Explicitly set as not deleted
           visible: true, // Explicitly set as visible
-          changeHistory: [{
-            field: 'creation',
-            oldValue: null,
-            newValue: { decodedItemCode, itemName, category, buyingPrice: Number(newBuyingPrice), sellingPrice: Number(newSellingPrice), stock: Number(newStock), Supplier: finalSupplier },
-            changedBy: req.body.changedBy || 'system',
-            changedAt: new Date(),
-            changeType: 'create'
-          }]
+          // changeHistory: [{
+          //   field: 'creation',
+          //   oldValue: null,
+          //   newValue: { decodedItemCode, itemName, category, buyingPrice: Number(newBuyingPrice), sellingPrice: Number(newSellingPrice), stock: Number(newStock), Supplier: finalSupplier },
+          //   changedBy: req.body.changedBy || 'system',
+          //   changedAt: new Date(),
+          //   changeType: 'create'
+          // }]
         });
     
     const updatedProduct = await product.save();
@@ -1092,9 +1092,9 @@ router.patch('/update-stockitem/*', async (req, res) => {
           changeType: 'update'
         });
       }
-      if (changes.length > 0) {
-        product.changeHistory = [...(product.changeHistory || []), ...changes];
-      }
+      // if (changes.length > 0) {
+      //   product.changeHistory = [...(product.changeHistory || []), ...changes];
+      // }
       // Update the stock and prices
       product.stock = Number(newStock);
       product.buyingPrice = Number(newBuyingPrice);

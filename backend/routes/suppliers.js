@@ -170,33 +170,33 @@ router.post('/:id/items', getSupplier, async (req, res) => {
 
   res.supplier.items.push(item);
   // Log cart add
-  res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
-    field: 'cart-add',
-    oldValue: null,
-    newValue: item,
-    changedBy: req.body.changedBy || 'system',
-    changedAt: new Date(),
-    changeType: 'cart'
-  }];
+  // res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
+  //   field: 'cart-add',
+  //   oldValue: null,
+  //   newValue: item,
+  //   changedBy: req.body.changedBy || 'system',
+  //   changedAt: new Date(),
+  //   changeType: 'cart'
+  // }];
 
   // Also log to Product's changeHistory if product exists
-  try {
-    const product = await Product.findOne({ itemCode: item.itemCode });
-    if (product) {
-      product.changeHistory = [...(product.changeHistory || []), {
-        field: 'cart',
-        oldValue: null,
-        newValue: item,
-        changedBy: req.body.changedBy || 'system',
-        changedAt: new Date(),
-        changeType: 'cart'
-      }];
-      await product.save();
-    }
-  } catch (err) {
-    // Log but do not block supplier save
-    console.error('Error updating product changeHistory for cart add:', err);
-  }
+  // try {
+  //   const product = await Product.findOne({ itemCode: item.itemCode });
+  //   if (product) {
+  //     product.changeHistory = [...(product.changeHistory || []), {
+  //       field: 'cart',
+  //       oldValue: null,
+  //       newValue: item,
+  //       changedBy: req.body.changedBy || 'system',
+  //       changedAt: new Date(),
+  //       changeType: 'cart'
+  //     }];
+  //     await product.save();
+  //   }
+  // } catch (err) {
+  //   // Log but do not block supplier save
+  //   console.error('Error updating product changeHistory for cart add:', err);
+  // }
 
   try {
     const updatedSupplier = await res.supplier.save();
@@ -278,14 +278,14 @@ router.patch('/:id/items/:itemIndex', getSupplier, async (req, res) => {
   item.grnNumber = req.body.grnNumber;
  
   // Log cart update
-  res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
-    field: 'cart-update',
-    oldValue: oldItem,
-    newValue: item,
-    changedBy: req.body.changedBy || 'system',
-    changedAt: new Date(),
-    changeType: 'cart'
-  }];
+  // res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
+  //   field: 'cart-update',
+  //   oldValue: oldItem,
+  //   newValue: item,
+  //   changedBy: req.body.changedBy || 'system',
+  //   changedAt: new Date(),
+  //   changeType: 'cart'
+  // }];
 
   // // Also log to Product's changeHistory if product exists
   // try {
