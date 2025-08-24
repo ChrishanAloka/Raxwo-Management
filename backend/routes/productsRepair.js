@@ -148,7 +148,7 @@ router.patch("/update-cart/:id", getRepair, async (req, res) => {
     const updatedCartMap = new Map(existingCart.map(item => [item.itemCode, item]));
 
     for (const selectedProduct of selectedProducts) {
-      const { itemCode, quantity, supplierName } = selectedProduct;
+      const { itemCode, quantity, supplierName, buyingPrice } = selectedProduct;
       console.log(`Processing product: ${itemCode}, quantity: ${quantity}, supplierName: ${supplierName}`);
 
       const product = allProducts.find((p) => p.itemCode === itemCode);
@@ -247,6 +247,7 @@ router.patch("/update-cart/:id", getRepair, async (req, res) => {
         existingItem.quantity += quantity;
         existingItem.cost = finalSellingPrice * existingItem.quantity;
         existingItem.sellingPrice = finalSellingPrice; // Keep track
+        existingItem.buyingPrice = buyingPrice;
       } else {
         updatedCartMap.set(itemCode, {
           itemCode,
@@ -255,6 +256,7 @@ router.patch("/update-cart/:id", getRepair, async (req, res) => {
           quantity,
           sellingPrice: finalSellingPrice, // Store price used
           cost: finalSellingPrice * quantity,
+          buyingPrice: product.buyingPrice,
           supplierName: supplierName || "Default Supplier"
         });
       }

@@ -8,21 +8,30 @@ const itemSchema = new mongoose.Schema({
   buyingPrice: { type: Number, required: true, min: 0 },
   sellingPrice: { type: Number, required: true, min: 0 },
   grnNumber:{ type: String, required: false }
-});
+}, { timestamps: true });
 
 const pastpaymentSchema = new mongoose.Schema({
+  date: {type: Date, default: Date.now},
   paymentdescription: { type: String, required: true },
   paymentCharge: { type: Number, required: true, min: 0 }
-});
+}, { timestamps: true });
+
+const paymentSchema = new mongoose.Schema({
+  date: {type: Date, default: Date.now},
+  uptodateCost: { type: String, required: true },
+  currentPayment: { type: String, required: true },
+  amountDue: { type: String, required: true }
+}, { timestamps: true });
 
 const repairServiceSchema = new mongoose.Schema({
+  date: {type: Date, default: Date.now},
   jobNumber: { type: String, required: false },
   repairDevice: { type: String, required: true },
   serielNo: { type: String, required: false },
   deviceIssue: { type: String, required: true },
   paymentdescription: { type: String, required: false },
   paymentCharge: { type: Number, required: true, min: 0 }
-});
+}, { timestamps: true });
 
 const supplierSchema = new mongoose.Schema({
   date: { type: String, required: true },
@@ -32,6 +41,7 @@ const supplierSchema = new mongoose.Schema({
   phoneNumber: { type: String, required: false },
   address: { type: String, required: false },
   receiptNumber: { type: String, required: false },
+  paymentHistory: [paymentSchema],
   totalPayments: { type: Number, required: false, default: 0, min: 0 },
   pastPayments: [pastpaymentSchema],
   repairService: [repairServiceSchema],

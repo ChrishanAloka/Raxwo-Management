@@ -376,6 +376,15 @@ router.post('/:id/payments', getSupplier, async (req, res) => {
     return res.status(400).json({ message: 'Payment amount cannot exceed amount due' });
   }
 
+  const paymenthistory = {
+    uptodateCost: amountDue || 0,
+    currentPayment: paymentAmount || 0,
+    amountDue: amountDue - paymentAmount
+
+  };
+
+  res.supplier.paymentHistory.push(paymenthistory);
+
   res.supplier.totalPayments = currentPayments + paymentAmount;
 
   try {
