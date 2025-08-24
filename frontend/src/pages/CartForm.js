@@ -392,11 +392,10 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
                 <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Stock</label>
                 <input
                   className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
-                  type="number"
+                  type="text"
                   value={itemData.stock}
                   onChange={(e) => handleItemChange(index, 'stock', e.target.value)}
                   required
-                  min="0"
                 />
               </div>
               <div className="right-column">
