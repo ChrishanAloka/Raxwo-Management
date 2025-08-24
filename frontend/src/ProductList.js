@@ -900,13 +900,37 @@ const ProductList = ({ darkMode }) => {
               {paginatedProductsForModal.map((product, idx) => (
                   <tr key={product._id || product.itemCode || idx} style={product.source === 'uploaded' ? { background: '#f7f7f7' } : {}}>
                     {/* <td>{product.itemCode || 'N/A'}</td> */}
-                    <td>{product.itemName}</td>
-                    <td>{product.category}</td>
-                    <td>Rs. {Number(product.buyingPrice).toFixed(2)}</td>
-                    <td>Rs. {Number(product.sellingPrice).toFixed(2)}</td>
-                    <td>{product.stock}</td>
+                    <td>
+                      <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                        {product.itemName} 
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                        {product.category} 
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                        Rs. {Number(product.buyingPrice).toFixed(2)} 
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                        Rs. {Number(product.sellingPrice).toFixed(2)} 
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                        {product.stock}
+                      </span>
+                    </td>
                     {/* <td>{product.supplierName || 'N/A'}</td> */}
-                    <td>{product.stock > 0 ? 'In Stock' : 'Out of Stock'}</td>
+                    <td>
+                      <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                        {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
+                      </span>
+                    </td>
                     {/* <td>{product.createdAt ? new Date(product.createdAt).toLocaleString() : 'N/A'}</td>
                     <td>{product.addedBackAt ? (
                       <div>

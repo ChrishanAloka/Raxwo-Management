@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import "./AddProductRepair.css";
+import Select from 'react-select';
 
 const API_URL = "https://raxwo-management.onrender.com/api/productsRepair";
 
@@ -35,14 +36,67 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
   const [showNewIssueInput, setShowNewIssueInput] = useState(false);
   const [showNewDeviceTypeInput, setShowNewDeviceTypeInput] = useState(false);
 
+  const [customerOptions, setCustomerOptions] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+
+  const [deviceTypeOptions, setDeviceTypeOptions] = useState([]);
+  const [issueOptions, setIssueOptions] = useState([]);
+
+  const [selectedDeviceType, setSelectedDeviceType] = useState(null);
+  const [selectedIssue, setSelectedIssue] = useState(null);
+
+  const [loadingIssues, setLoadingIssues] = useState(false);
+  const [loadingDeviceType, setLoadingDeviceType] = useState(false);
+  
+
   // Fetch device issues and device types when component mounts
   useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        setLoadingCustomers(true);
+        const response = await fetch("https://raxwo-management.onrender.com/api/productsRepair");
+        if (response.ok) {
+          const data = await response.json();
+          const options = data
+            .filter(c => c.customerType === "New Customer") // match your DB schema
+            .map(c => ({
+              value: c._id,
+              label: c.customerName,
+              phone: c.customerPhone,
+              email: c.customerEmail,
+              nic: c.customerNIC,
+              address: c.customerAddress,
+            }));
+          setCustomerOptions(options);
+        } else {
+          console.error("Failed to fetch customers:", response.status);
+        }
+      } catch (err) {
+        console.error("Error fetching customers:", err);
+      } finally {
+        setLoadingCustomers(false);
+      }
+    };
+
     const fetchDeviceIssues = async () => {
       try {
+        setLoadingIssues(true);
         const response = await fetch("https://raxwo-management.onrender.com/api/deviceIssues");
         if (response.ok) {
           const data = await response.json();
           setDeviceIssues(data);
+
+          // ✅ Build options AFTER data is fetched
+          const options = data.map(issue => ({
+            value: issue._id,
+            label: issue.issue
+          }));
+          setIssueOptions([
+            { value: "add_new", label: "+ Add New Issue", __isNew__: true },
+            ...options
+          ]);
+
         } else {
           console.error("Failed to fetch device issues:", response.status);
           setError("Failed to load device issues");
@@ -50,15 +104,29 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
       } catch (err) {
         console.error("Error fetching device issues:", err);
         setError("Error fetching device issues");
+      } finally {
+        setLoadingIssues(false);
       }
     };
 
     const fetchDeviceTypes = async () => {
       try {
+        setLoadingDeviceType(true);
         const response = await fetch("https://raxwo-management.onrender.com/api/deviceTypes");
         if (response.ok) {
           const data = await response.json();
           setDeviceTypes(data);
+
+          // ✅ Build options AFTER data is fetched
+          const options = data.map(type => ({
+            value: type._id,
+            label: type.type
+          }));
+          setDeviceTypeOptions([
+            { value: "add_new", label: "+ Add New Device Type", __isNew__: true },
+            ...options
+          ]);
+
         } else {
           console.error("Failed to fetch device types:", response.status);
           setError("Failed to load device types");
@@ -67,8 +135,12 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
         console.error("Error fetching device types:", err);
         setError("Error fetching device types");
       }
+      finally {
+        setLoadingDeviceType(false)
+      }
     };
 
+    fetchCustomers();
     fetchDeviceIssues();
     fetchDeviceTypes();
   }, []);
@@ -87,7 +159,16 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
 
       if (response.ok) {
         const addedIssue = await response.json();
-        setDeviceIssues([...deviceIssues, addedIssue]);
+        setDeviceIssues(prev => [...prev, addedIssue]);
+
+        const newOption = { value: addedIssue._id, label: addedIssue.issue };
+        setIssueOptions(prev => [
+          ...prev.filter(opt => opt.value !== "add_new"),
+          newOption,
+          { value: "add_new", label: "+ Add New Issue", __isNew__: true }
+        ]);
+
+        setSelectedIssue(newOption);
         setFormData({ ...formData, issueDescription: addedIssue.issue });
         setNewIssue("");
         setShowNewIssueInput(false);
@@ -115,8 +196,22 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
 
       if (response.ok) {
         const addedType = await response.json();
-        setDeviceTypes([...deviceTypes, addedType]);
+
+        // ✅ Update state
+        setDeviceTypes(prev => [...prev, addedType]);
+
+        // ✅ Update options
+        const newOption = { value: addedType._id, label: addedType.type };
+        setDeviceTypeOptions(prev => [
+          ...prev.filter(opt => opt.value !== "add_new"), // remove old "add new"
+          newOption,
+          { value: "add_new", label: "+ Add New Device Type", __isNew__: true } // re-add at end
+        ]);
+
+        // ✅ Select the new option
+        setSelectedDeviceType(newOption);
         setFormData({ ...formData, deviceType: addedType.type });
+
         setNewDeviceType("");
         setShowNewDeviceTypeInput(false);
       } else {
@@ -131,7 +226,50 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    // Handle customer type change
+    if (name === "customerType") {
+      if (value === "New Customer") {
+        // Reset to manual input
+        setSelectedCustomer(null);
+        setFormData(prev => ({
+          ...prev,
+          customerType: value,
+          customerName: "",
+          customerPhone: "",
+          customerEmail: "",
+          customerNIC: "",
+          customerAddress: "",
+        }));
+      } else {
+        // Existing Customer selected — clear manual fields
+        setFormData(prev => ({
+          ...prev,
+          customerType: value,
+          customerName: "",
+          customerPhone: "",
+          customerEmail: "",
+          customerNIC: "",
+          customerAddress: "",
+        }));
+      }
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+  };
+
+  const handleCustomerSelect = (selectedOption) => {
+    setSelectedCustomer(selectedOption);
+    setLoadingCustomers(false);
+    if (selectedOption) {
+      setFormData({
+        ...formData,
+        customerName: selectedOption.label,
+        customerPhone: selectedOption.phone || "",
+        customerEmail: selectedOption.email || "",
+        customerNIC: selectedOption.nic || "",
+        customerAddress: selectedOption.address || "",
+      });
+    }
   };
 
   const generateJobBill = (invoice) => {
@@ -263,20 +401,33 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
               >
                 <option value="New Customer">New Customer</option>
                 <option value="Existing Customer">Existing Customer</option>
-                <option value="Corporate">Corporate</option>
-                <option value="VIP">VIP</option>
+                {/* <option value="Corporate">Corporate</option>
+                <option value="VIP">VIP</option> */}
               </select>
 
+              {/* Customer Name */}
               <label className="repair-label">Customer Name</label>
-              <input
-                className="repair-input"
-                type="text"
-                name="customerName"
-                value={formData.customerName}
-                onChange={handleChange}
-                required
-                placeholder="Enter customer name"
-              />
+              {formData.customerType === "Existing Customer" ? (
+                <Select
+                  options={customerOptions}
+                  value={selectedCustomer}
+                  onChange={handleCustomerSelect}
+                  placeholder="Search customer..."
+                  isLoading={loadingCustomers}
+                  isClearable
+                  
+                />
+              ) : (
+                <input
+                  className="repair-input"
+                  type="text"
+                  name="customerName"
+                  value={formData.customerName}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter customer name"
+                />
+              )}
 
               <label className="repair-label">Mobile Number</label>
               <input
@@ -317,114 +468,107 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
                 </>
               )}
 
-              <label className="repair-label">Device</label>
-              <div style={{ position: "relative" }}>
-                <select
-                  className="repair-input"
-                  name="deviceType"
-                  value={formData.deviceType}
-                  onChange={(e) => {
-                    if (e.target.value === "add_new") {
-                      setShowNewDeviceTypeInput(true);
-                    } else {
-                      setFormData({ ...formData, deviceType: e.target.value });
-                    }
+              <label className="repair-label" style={{paddingBottom:"10px"}} >Device</label>
+              <Select
+                options={deviceTypeOptions}
+                value={selectedDeviceType}
+                onChange={(selected) => {
+                  if (selected?.value === "add_new") {
+                    setShowNewDeviceTypeInput(true);
+                    setSelectedDeviceType(null);
+                  } else {
+                    setSelectedDeviceType(selected);
+                    setFormData({ ...formData, deviceType: selected?.label || "" });
+                    setLoadingDeviceType(false);
+                  }
+                }}
+                placeholder="Select or add device type"
+                isClearable
+                isLoading={loadingDeviceType}
+              />
+
+              {showNewDeviceTypeInput && (
+                <div
+                  style={{
+                    marginTop: "10px",
+                    padding: "10px",
+                    backgroundColor: darkMode ? "#444" : "#f5f5f5",
+                    borderRadius: "4px",
                   }}
-                  required
                 >
-                  <option value="">Select A Device Type</option>
-                  {deviceTypes.map((deviceType) => (
-                    <option key={deviceType._id} value={deviceType.type}>
-                      {deviceType.type}
-                    </option>
-                  ))}
-                  <option value="add_new">+ Add New Device Type</option>
-                </select>
-
-                {showNewDeviceTypeInput && (
-                  <div
-                    style={{
-                      marginTop: "10px",
-                      padding: "10px",
-                      backgroundColor: darkMode ? "#444" : "#f5f5f5",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    <input
-                      className="repair-input"
-                      type="text"
-                      value={newDeviceType}
-                      onChange={(e) => setNewDeviceType(e.target.value)}
-                      placeholder="Enter new device type"
-                      style={{ marginBottom: "10px" }}
-                    />
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <button
-                        onClick={handleAddNewDeviceType}
-                        style={{
-                          padding: "8px 16px",
-                          backgroundColor: "#10b981",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                          fontWeight: "600",
-                          transition: "all 0.2s ease",
-                          boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
-                        }}
-                        type="button"
-                        onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = "#059669";
-                          e.target.style.transform = "translateY(-1px)";
-                          e.target.style.boxShadow = "0 4px 8px rgba(16, 185, 129, 0.3)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = "#10b981";
-                          e.target.style.transform = "translateY(0)";
-                          e.target.style.boxShadow = "0 2px 4px rgba(16, 185, 129, 0.2)";
-                        }}
-                      >
-                        Add
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowNewDeviceTypeInput(false);
-                          setNewDeviceType("");
-                        }}
-                        style={{
-                          padding: "8px 16px",
-                          backgroundColor: "#ef4444",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                          fontWeight: "600",
-                          transition: "all 0.2s ease",
-                          boxShadow: "0 2px 4px rgba(239, 68, 68, 0.2)",
-                        }}
-                        type="button"
-                        onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = "#dc2626";
-                          e.target.style.transform = "translateY(-1px)";
-                          e.target.style.boxShadow = "0 4px 8px rgba(239, 68, 68, 0.3)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = "#ef4444";
-                          e.target.style.transform = "translateY(0)";
-                          e.target.style.boxShadow = "0 2px 4px rgba(239, 68, 68, 0.2)";
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                  <input
+                    className="repair-input"
+                    type="text"
+                    value={newDeviceType}
+                    onChange={(e) => setNewDeviceType(e.target.value)}
+                    placeholder="Enter new device type"
+                    style={{ marginBottom: "10px" }}
+                  />
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button
+                      onClick={handleAddNewDeviceType}
+                      style={{
+                        padding: "8px 16px",
+                        backgroundColor: "#10b981",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        transition: "all 0.2s ease",
+                        boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
+                      }}
+                      type="button"
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = "#059669";
+                        e.target.style.transform = "translateY(-1px)";
+                        e.target.style.boxShadow = "0 4px 8px rgba(16, 185, 129, 0.3)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = "#10b981";
+                        e.target.style.transform = "translateY(0)";
+                        e.target.style.boxShadow = "0 2px 4px rgba(16, 185, 129, 0.2)";
+                      }}
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowNewDeviceTypeInput(false);
+                        setNewDeviceType("");
+                      }}
+                      style={{
+                        padding: "8px 16px",
+                        backgroundColor: "#ef4444",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        transition: "all 0.2s ease",
+                        boxShadow: "0 2px 4px rgba(239, 68, 68, 0.2)",
+                      }}
+                      type="button"
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = "#dc2626";
+                        e.target.style.transform = "translateY(-1px)";
+                        e.target.style.boxShadow = "0 4px 8px rgba(239, 68, 68, 0.3)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = "#ef4444";
+                        e.target.style.transform = "translateY(0)";
+                        e.target.style.boxShadow = "0 2px 4px rgba(239, 68, 68, 0.2)";
+                      }}
+                    >
+                      Cancel
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-            
-              <label className="repair-label">Serial Number</label>
+              <label className="repair-label" style={{paddingTop:"15px"}}>Serial Number</label>
               <input
                 className="repair-input"
                 type="text"
@@ -434,29 +578,25 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
                 placeholder="Enter serial number (optional)"
               />
 
-              <label className="repair-label">Device Issue</label>
-              <div style={{ position: "relative" }}>
-                <select
-                  className="repair-input"
-                  name="issueDescription"
-                  value={formData.issueDescription}
-                  onChange={(e) => {
-                    if (e.target.value === "add_new") {
+              
+              <label className="repair-label" style={{paddingBottom:"10px"}}>Device Issue</label>
+                <Select
+                  options={issueOptions}
+                  value={selectedIssue}
+                  onChange={(selected) => {
+                    if (selected?.value === "add_new") {
                       setShowNewIssueInput(true);
+                      setSelectedIssue(null);
                     } else {
-                      setFormData({ ...formData, issueDescription: e.target.value });
+                      setSelectedIssue(selected);
+                      setFormData({ ...formData, issueDescription: selected?.label || "" });
+                      setLoadingIssues(false);
                     }
                   }}
-                  required
-                >
-                  <option value="">Select An Issue</option>
-                  {deviceIssues.map((issue) => (
-                    <option key={issue._id} value={issue.issue}>
-                      {issue.issue}
-                    </option>
-                  ))}
-                  <option value="add_new">+ Add New Issue</option>
-                </select>
+                  placeholder="Select or add issue"
+                  isClearable
+                  isLoading={loadingIssues}
+                />
 
                 {showNewIssueInput && (
                   <div
@@ -538,7 +678,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
                     </div>
                   </div>
                 )}
-              </div>
+              
             </div>
 
             {/* Column 3: Repair Details */}

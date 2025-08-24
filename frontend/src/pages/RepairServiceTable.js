@@ -16,6 +16,9 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   const [editItem, setEditItem] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const productsPerPage = 8;
+  
 
   const fetchItems = async () => {
     setLoading(true);
@@ -93,6 +96,9 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     }
   };
 
+  const totalProductPages = Math.ceil(items.length / productsPerPage);
+  const ProductsForModal = items.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
+
   return (
     <div className={`cart-details-container ${darkMode ? 'dark' : ''}`}>
       <h3 className={`cart-details-title ${darkMode ? 'dark' : ''}`}>{supplierName ? `${supplierName} Repair Services` : 'Repair Services'}</h3>
@@ -121,7 +127,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
             </tr>
           </thead>
           <tbody>
-            {items.map((item, index) => (
+            {ProductsForModal.map((item, index) => (
               <tr key={index}>
                 <td>{item.jobNumber || 'N/A'}</td>
                 <td>{item.repairDevice || 'N/A'}</td>
@@ -166,6 +172,13 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
             ))}
           </tbody>
         </table>
+      )}
+      {totalProductPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '16px 0', gap: 10 }}>
+          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
+          <span>Page {currentPage} of {totalProductPages}</span>
+          <button onClick={() => setCurrentPage(p => Math.min(totalProductPages, p + 1))} disabled={currentPage === totalProductPages}>Next</button>
+        </div>
       )}
       {showEditModal && editItem && (
         <CartForm

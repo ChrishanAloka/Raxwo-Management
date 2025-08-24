@@ -614,17 +614,19 @@ const AllSummary = ({ darkMode }) => {
 
   const calculateCartTotal = (cart) => {
     if (!cart || !Array.isArray(cart)) return 0;
-    return cart.reduce((total, item) => total + Math.max(0, parseFloat(item.cost || 0)), 0);
+    return cart.reduce((total, item) => total + ((Math.max(0, parseFloat(item.buyingPrice || 0))) * item.quantity), 0);
   };
 
   // Calculate totals
-  const totalProductExpenses = filteredProducts.reduce((sum, product) => {
-    if (product.grnNumber === "GRN-SYS01")
-      {return 0;}
-    else {
-      return sum + (product.buyingPrice && product.stock ? product.buyingPrice * product.stock : 0);
-    }
-    
+  const totalProductExpenses = filteredProducts
+  .filter(product => 
+    // product.grnNumber?.toLowerCase() !== "grn-sys01"  // Exclude GRN-SYS01
+    product.buyingPrice > 0
+  )
+  .reduce((sum, product) => {
+    const cost = product.buyingPrice || 0;
+    const qty = product.stock || 0;
+    return sum + (cost * qty);
   }, 0);
 
   const totalSalaryExpenses = filteredSalaries.reduce((sum, salary) => {
@@ -635,7 +637,9 @@ const AllSummary = ({ darkMode }) => {
     return sum + (maint.price || 0);
   }, 0);
 
-  const totalExtraIncome = filteredExtraIncome.reduce((sum, ei) => sum + (ei.amount || 0), 0);
+  const totalExtraIncome = filteredExtraIncome.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').reduce((sum, ei) => sum + (ei.amount || 0), 0);
+
+  const totalExtraCreditIncome = filteredExtraIncome.filter(p => p.paymentMethod?.toLowerCase() === 'credit').reduce((sum, ei) => sum + (ei.amount || 0), 0);
 
   const totalCash = filteredPayments
     .filter(p => p.paymentMethod?.toLowerCase() === 'cash')
@@ -661,28 +665,30 @@ const AllSummary = ({ darkMode }) => {
     .filter(p => p.paymentMethod?.toLowerCase() === 'credit')
     .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
 
-  const totalPayments = filteredPayments.reduce((sum, ei) => sum + (ei.totalAmount || 0), 0) - totalCredit;
+  const totalPayments = filteredPayments.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').reduce((sum, ei) => sum + (ei.totalAmount || 0), 0);
 
-  const totalExpenses = totalProductExpenses + totalSalaryExpenses + totalMaintenanceExpenses;
+  const totalExpenses = totalProductExpenses + totalSalaryExpenses + totalMaintenanceExpenses ;
 
-  const totalIncome = filteredRepairs.reduce((sum, repair) => {
-    return sum + (repair.totalAdditionalServicesAmount + repair.totalRepairCost - repair.totalDiscountAmount || 0);
-  }, 0) + totalExtraIncome + totalPayments;
-
-  const totalRepairIncome = filteredRepairs.reduce((sum, repair) => {
-    return sum + (repair.totalAdditionalServicesAmount + repair.totalRepairCost - repair.totalDiscountAmount || 0);
+  const totalRepairIncome = filteredRepairs.filter(repair => repair.paymentMethod?.toLowerCase() !== 'credit').reduce((sum, repair) => {
+    return sum + (repair.totalAdditionalServicesAmount + repair.checkingCharge + repair.totalRepairCost - repair.totalDiscountAmount || 0);
   }, 0);
 
-  const totalCheckingCharges = filteredRepairs.reduce((sum, repair) => {
-    return sum + (repair.checkingCharge || 0);
-  }, 0);
+  const creditRepairs = filteredRepairs
+    .filter(repair => repair.paymentMethod?.toLowerCase() === 'credit')
+    .reduce((sum, repair) => sum + (repair.totalAdditionalServicesAmount + repair.checkingCharge + repair.totalRepairCost - repair.totalDiscountAmount || 0), 0);
 
   const totalCartCosts = filteredRepairs.reduce((sum, repair) => {
     return sum + calculateCartTotal(repair.repairCart);
   }, 0);
 
-  const netProfit = totalIncome - totalCartCosts;
-  const netCashFlow = totalIncome - totalExpenses;
+  const totalIncome = totalRepairIncome + creditRepairs - totalCartCosts + totalCredit + totalPayments - totalRefund + totalExtraIncome + totalExtraCreditIncome ;
+  
+    const totalCheckingCharges = filteredRepairs.reduce((sum, repair) => {
+    return sum + (repair.checkingCharge || 0);
+  }, 0);
+
+  const netProfit = totalIncome - totalExpenses;
+  const netCashFlow = totalIncome - totalExtraCreditIncome - totalCredit - creditRepairs - totalExpenses;
 
   const handleExportExcel = () => {
     const workbook = XLSX.utils.book_new();
@@ -1150,7 +1156,7 @@ const AllSummary = ({ darkMode }) => {
         >
           Overview
         </button>
-        <button 
+        {/* <button 
           onClick={() => setActiveTab('expenses')}
           style={{
             padding: '10px 20px',
@@ -1180,6 +1186,23 @@ const AllSummary = ({ darkMode }) => {
         >
           Income
         </button>
+
+        <button 
+          onClick={() => setActiveTab('credit-income')}
+          style={{
+            padding: '10px 20px',
+            marginRight: '10px',
+            backgroundColor: activeTab === 'credit-income' ? '#28a745' : (darkMode ? '#374151' : '#f8f9fa'),
+            color: activeTab === 'credit-income' ? 'white' : (darkMode ? '#e2e8f0' : '#333'),
+            border: darkMode ? '1px solid #4a5568' : '1px solid #ddd',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          Credit-Income
+        </button>
+        
         <button 
           onClick={() => setActiveTab('extraIncome')}
           style={{
@@ -1193,7 +1216,7 @@ const AllSummary = ({ darkMode }) => {
           }}
         >
           Extra Income
-        </button>
+        </button> */}
       </div>
 
       {loading ? (
@@ -1202,169 +1225,234 @@ const AllSummary = ({ darkMode }) => {
         <p className="error-message" style={{ color: 'red' }}>{error}</p>
       ) : (
         <>
+          {/* Summary Cards */}
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
+            <div style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Total Income</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalIncome.toFixed(2)}
+              </p>
+            </div>
+            <div 
+            onClick={() => setActiveTab('income')}
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Repair Income</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalRepairIncome.toFixed(2)}
+              </p>
+            </div>
+
+            <div 
+            onClick={() => setActiveTab('credit-income')}
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Repair Credit Income</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {creditRepairs.toFixed(2)}
+              </p>
+            </div>
+
+            <div style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Parts Cost</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalCartCosts.toFixed(2)}
+              </p>
+            </div>
+            
+            <div 
+            onClick={() => setActiveTab('purchase')}
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Item Purchase</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalPayments.toFixed(2)}
+              </p>
+            </div>
+            <div
+            onClick={() => setActiveTab('purchase-credit')} 
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Item Purchase for Credit</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalCredit.toFixed(2)}
+              </p>
+            </div>
+
+            <div
+            onClick={() => setActiveTab('purchase-refunded')} 
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Refunded Items</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalRefund.toFixed(2)}
+              </p>
+            </div>
+            
+            <div 
+            onClick={() => setActiveTab('extraIncome')} 
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Extra Income</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalExtraIncome.toFixed(2)}
+              </p>
+            </div>
+            <div 
+            onClick={() => setActiveTab('extraCreditIncome')} 
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Extra Income - Credit</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalExtraCreditIncome.toFixed(2)}
+              </p>
+            </div>
+            
+            <div 
+            onClick={() => setActiveTab('expenses')} 
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Total Expenses</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalExpenses.toFixed(2)}
+              </p>
+            </div>
+            <div 
+            onClick={() => setActiveTab('product')} 
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Product Expenses</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalProductExpenses.toFixed(2)}
+              </p>
+            </div>
+            <div 
+            onClick={() => setActiveTab('salary')} 
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Salary Expenses</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalSalaryExpenses.toFixed(2)}
+              </p>
+            </div>
+            <div 
+            onClick={() => setActiveTab('maintenance')} 
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Maintenance Expenses</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalMaintenanceExpenses.toFixed(2)}
+              </p>
+            </div>
+            {/* <div style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Checking Charges</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalCheckingCharges.toFixed(2)}
+              </p>
+            </div> */}
+            
+            <div style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Net Profit</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {netProfit.toFixed(2)}
+              </p>
+            </div>
+            <div style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Net Cash Flow</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {netCashFlow.toFixed(2)}
+              </p>
+            </div>
+          </div>
+
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div>
-              {/* Summary Cards */}
-              <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Total Income</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalIncome.toFixed(2)}
-                  </p>
-                </div>
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Repair Income</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalRepairIncome.toFixed(2)}
-                  </p>
-                </div>
-                
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Item Purchase</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalPayments.toFixed(2)}
-                  </p>
-                </div>
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Item Purchase for Credit</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalCredit.toFixed(2)}
-                  </p>
-                </div>
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Extra Income</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalExtraIncome.toFixed(2)}
-                  </p>
-                </div>
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Total Expenses</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalExpenses.toFixed(2)}
-                  </p>
-                </div>
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Product Expenses</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalProductExpenses.toFixed(2)}
-                  </p>
-                </div>
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Salary Expenses</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalSalaryExpenses.toFixed(2)}
-                  </p>
-                </div>
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Maintenance Expenses</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalMaintenanceExpenses.toFixed(2)}
-                  </p>
-                </div>
-                {/* <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Checking Charges</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalCheckingCharges.toFixed(2)}
-                  </p>
-                </div> */}
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Parts Cost</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {totalCartCosts.toFixed(2)}
-                  </p>
-                </div>
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Net Profit</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {netProfit.toFixed(2)}
-                  </p>
-                </div>
-                <div style={{ 
-                  background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  minWidth: '200px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Net Cash Flow</h4>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                    Rs. {netCashFlow.toFixed(2)}
-                  </p>
-                </div>
-              </div>
 
               {/* Summary Table */}
               <table className={`product-table ${darkMode ? 'dark' : ''}`}>
@@ -1497,12 +1585,31 @@ const AllSummary = ({ darkMode }) => {
                       <tr key={`product-${p._id || idx}`}>
                         <td>Product</td>
                         <td>{p.itemCode || '-'}</td>
+                        
                         <td style={{ color: '#000' }}>Rs. {p.buyingPrice && p.stock ? (p.buyingPrice * p.stock).toFixed(2) : '-'}</td>
                         <td>{p.itemName || '-'}</td>
                         <td>{p.category || '-'}</td>
                         <td>{getLocalDateKey(p.createdAt)}</td>
                       </tr>
                     ))}
+                    {/* Total Row */}
+                    <tr style={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', borderTop: '2px solid #000' }}>
+                      <td colSpan="3" style={{ textAlign: 'right' }}>
+                        Total Product Expense:
+                      </td>
+                      <td style={{ color: '#000' }}>
+                        Rs.{' '}
+                        {filteredProducts
+                          .reduce((sum, p) => {
+                            const cost = (p.buyingPrice || 0) * (p.stock || 0);
+                            return sum + cost;
+                          }, 0)
+                          .toFixed(2)}
+                      </td>
+                      <td colSpan="3" style={{ textAlign: 'left', fontStyle: 'italic', color: '#555' }}>
+                        &nbsp; (Include SYS GRNS)
+                      </td>
+                    </tr>
                     {/* Salary Expenses */}
                     {filteredSalaries.map((s, idx) => (
                       <tr key={`salary-${s._id || idx}`}>
@@ -1514,6 +1621,139 @@ const AllSummary = ({ darkMode }) => {
                         <td>{getLocalDateKey(s.date)}</td>
                       </tr>
                     ))}
+                    {/* Maintenance Expenses */}
+                    {filteredMaintenance.map((m, idx) => (
+                      <tr key={`maintenance-${m._id || idx}`}>
+                        <td>Maintenance</td>
+                        <td>{m.no || '-'}</td>
+                        <td style={{ color: '#000' }}>Rs. {(m.price || 0).toFixed(2)}</td>
+                        <td>{m.remarks || '-'}</td>
+                        <td>{m.serviceType || '-'}</td>
+                        <td>{getLocalDateKey(m.date)}</td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {/* Product Tab */}
+          {activeTab === 'product' && (
+            <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+              <thead>
+                <tr>
+                  <th>GRN</th>
+                  <th>Reference</th>
+                  <th>Buying Price * Qty</th>
+                  <th>Amount (Expense)</th>
+                  <th>Description</th>
+                  <th>Category/Service</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.length === 0 && filteredSalaries.length === 0 && filteredMaintenance.length === 0 ? (
+                  <tr><td colSpan={6} className="no-products">No expenses found.</td></tr>
+                ) : (
+                  <>
+                    {/* Product Expenses */}
+                    {filteredProducts.filter(p => p.buyingPrice > 0 ).map((p, idx) => (
+                      <>
+                      <tr key={`product-${p._id || idx}`}>
+                        <td>{p.grnNumber || '-'}</td>
+                        <td>{p.itemCode || '-'}</td>
+                        <td style={{ color: '#000' }}>Rs. {p.buyingPrice ? (p.buyingPrice).toFixed(2) : '0.00'} * {p.stock ? (p.stock) : '-'}</td>
+                        <td style={{ color: '#000' }}>Rs. {p.buyingPrice && p.stock ? (p.buyingPrice * p.stock).toFixed(2) : '0.00'}</td>
+                        <td>{p.itemName || '-'}</td>
+                        <td>{p.category || '-'}</td>
+                        <td>{getLocalDateKey(p.createdAt)}</td>
+                      </tr>
+                      <tr>
+
+                      </tr>
+                      </>
+                    ))}
+                    {/* Total Row */}
+                    <tr style={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', borderTop: '2px solid #000' }}>
+                      <td colSpan="3" style={{ textAlign: 'right' }}>
+                        Total Product Expense:
+                      </td>
+                      <td style={{ color: '#000' }}>
+                        Rs.{' '}
+                        {filteredProducts
+                          // .filter(p => p.grnNumber?.toLowerCase() !== 'grn-sys01')
+                          .filter(p => p.buyingPrice > 0 )
+                          .reduce((sum, p) => {
+                            const cost = (p.buyingPrice || 0) * (p.stock || 0);
+                            return sum + cost;
+                          }, 0)
+                          .toFixed(2)}
+                      </td>
+                      <td colSpan="3" style={{ textAlign: 'left', fontStyle: 'italic', color: '#555' }}>
+                        &nbsp; (Excludes SYS GRNS)
+                      </td>
+                    </tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {/* Salary Tab */}
+          {activeTab === 'salary' && (
+            <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Reference</th>
+                  <th>Amount (Expense)</th>
+                  <th>Description</th>
+                  <th>Category/Service</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.length === 0 && filteredSalaries.length === 0 && filteredMaintenance.length === 0 ? (
+                  <tr><td colSpan={6} className="no-products">No expenses found.</td></tr>
+                ) : (
+                  <>
+                    {/* Salary Expenses */}
+                    {filteredSalaries.map((s, idx) => (
+                      <tr key={`salary-${s._id || idx}`}>
+                        <td>Salary</td>
+                        <td>{s.employeeId || '-'}</td>
+                        <td style={{ color: '#000' }}>Rs. {(s.advance || 0).toFixed(2)}</td>
+                        <td>{s.employeeName || '-'}</td>
+                        <td>Salary Advance</td>
+                        <td>{getLocalDateKey(s.date)}</td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {/* Maintenance Tab */}
+          {activeTab === 'maintenance' && (
+            <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Reference</th>
+                  <th>Amount (Expense)</th>
+                  <th>Description</th>
+                  <th>Category/Service</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.length === 0 && filteredSalaries.length === 0 && filteredMaintenance.length === 0 ? (
+                  <tr><td colSpan={6} className="no-products">No expenses found.</td></tr>
+                ) : (
+                  <>
+                    
                     {/* Maintenance Expenses */}
                     {filteredMaintenance.map((m, idx) => (
                       <tr key={`maintenance-${m._id || idx}`}>
@@ -1543,35 +1783,220 @@ const AllSummary = ({ darkMode }) => {
                   <th>Checking Charge</th>
                   <th>Cart Total</th>
                   <th>Total Repair Cost</th>
+                  <th>Additional Service</th>
+                  <th>Discount</th>
                   <th>Final Amount</th>
                   <th>Status</th>
-                  <th>Created Date</th>
-                  <th>Last Updated</th>
+                  {/* <th>Created Date</th>
+                  <th>Last Updated</th> */}
                 </tr>
               </thead>
               <tbody>
-                {filteredRepairs.length === 0 ? (
+                {filteredRepairs.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').length === 0 ? (
                   <tr><td colSpan={11} className="no-products">No income found.</td></tr>
                 ) : (
-                  filteredRepairs.map((r, idx) => (
+                  filteredRepairs.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').map((r, idx) => (
                     <tr key={r._id || idx}>
                       <td>{r.repairInvoice || r.repairCode || '-'}</td>
                       <td>{r.customerName || '-'}</td>
                       <td>{r.deviceType || r.itemName || '-'}</td>
                       <td>{r.issueDescription || '-'}</td>
                       <td style={{ color: '#000' }}>Rs. {(r.checkingCharge || 0).toFixed(2)}</td>
-                      <td style={{ color: '#000' }}>Rs. {calculateCartTotal(r.repairCart).toFixed(2)}</td>
                       <td style={{ color: '#000' }}>Rs. {(r.totalRepairCost || 0).toFixed(2)}</td>
+                      <td style={{ color: '#000' }}>Rs. {calculateCartTotal(r.repairCart).toFixed(2)}</td>
+                      <td style={{ color: '#000' }}>Rs. {(r.totalAdditionalServicesAmount || 0).toFixed(2)}</td>
+                      <td style={{ color: '#000' }}>Rs. {(r.totalDiscountAmount || 0).toFixed(2)}</td>
                       <td style={{ color: '#000' }}>Rs. {(r.finalAmount || r.totalRepairCost || 0).toFixed(2)}</td>
                       <td>{r.repairStatus || '-'}</td>
-                      <td>{getLocalDateKey(r.createdAt)}</td>
-                      <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td>
+                      {/* <td>{getLocalDateKey(r.createdAt)}</td>
+                      <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td> */}
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           )}
+
+          {/* Income Credit Tab */}
+          {activeTab === 'credit-income' && (
+            <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+              <thead>
+                <tr>
+                  <th>Job Number</th>
+                  <th>Customer Name</th>
+                  <th>Device Type</th>
+                  <th>Issue Description</th>
+                  <th>Checking Charge</th>
+                  <th>Cart Total</th>
+                  <th>Total Repair Cost</th>
+                  <th>Additional Service</th>
+                  <th>Discount</th>
+                  <th>Final Amount</th>
+                  <th>Status</th>
+                  {/* <th>Created Date</th>
+                  <th>Last Updated</th> */}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRepairs.filter(p => p.paymentMethod?.toLowerCase() === 'credit').length === 0 ? (
+                  <tr><td colSpan={11} className="no-products">No income found.</td></tr>
+                ) : (
+                  filteredRepairs.filter(p => p.paymentMethod?.toLowerCase() === 'credit').map((r, idx) => (
+                    <tr key={r._id || idx}>
+                      <td>{r.repairInvoice || r.repairCode || '-'}</td>
+                      <td>{r.customerName || '-'}</td>
+                      <td>{r.deviceType || r.itemName || '-'}</td>
+                      <td>{r.issueDescription || '-'}</td>
+                      <td style={{ color: '#000' }}>Rs. {(r.checkingCharge || 0).toFixed(2)}</td>
+                      <td style={{ color: '#000' }}>Rs. {(r.totalRepairCost || 0).toFixed(2)}</td>
+                      <td style={{ color: '#000' }}>Rs. {calculateCartTotal(r.repairCart).toFixed(2)}</td>
+                      <td style={{ color: '#000' }}>Rs. {(r.totalAdditionalServicesAmount || 0).toFixed(2)}</td>
+                      <td style={{ color: '#000' }}>Rs. {(r.totalDiscountAmount || 0).toFixed(2)}</td>
+                      <td style={{ color: '#000' }}>Rs. {(r.finalAmount || r.totalRepairCost || 0).toFixed(2)}</td>
+                      <td>{r.repairStatus || '-'}</td>
+                      {/* <td>{getLocalDateKey(r.createdAt)}</td>
+                      <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td> */}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {/* Purchase Tab */}
+          {activeTab === 'purchase' && (
+            <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Time </th>
+                  <th>INV No </th>
+                  <th>Items </th>
+                  <th>Discount</th>
+                  <th>Total Amount</th>
+                  <th>Payment Method</th>
+                  {/* <th>Created Date</th>
+                  <th>Last Updated</th> */}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPayments.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').length === 0 ? (
+                  <tr><td colSpan={11} className="no-products">No income found.</td></tr>
+                ) : (
+                  filteredPayments.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').map((payment, idx) => (
+                    <tr key={payment._id || idx}>
+                      <td>{new Date(payment.date).toLocaleDateString()}</td>
+                      <td>{new Date(payment.date).toLocaleTimeString()}</td>
+                      <td>{payment.invoiceNumber}</td>
+                      <td>{/* Combine all item names */}
+                        {payment.items.map(item => item.itemName).join(', ')}
+                      </td>
+                      {/* <td> */}
+                        {/* Combine quantities */}
+                        {/* {payment.items.map(item => item.quantity).join(', ')} */}
+                      {/* </td> */}
+                      {/* <td>{payment.cashierName}</td> */}
+                      <td>Rs. {(payment.discountApplied || 0).toFixed(2)}</td>
+                      <td>Rs. {payment.totalAmount.toFixed(2)}</td>
+                      <td>{payment.paymentMethod}</td>
+                      {/* <td>{getLocalDateKey(r.createdAt)}</td>
+                      <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td> */}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {/* Purchase Credit Tab */}
+          {activeTab === 'purchase-credit' && (
+            <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Time </th>
+                  <th>INV No </th>
+                  <th>Items </th>
+                  <th>Discount</th>
+                  <th>Total Amount</th>
+                  <th>Payment Method</th>
+                  {/* <th>Created Date</th>
+                  <th>Last Updated</th> */}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPayments.filter(p => p.paymentMethod?.toLowerCase() === 'credit').length === 0 ? (
+                  <tr><td colSpan={11} className="no-products">No income found.</td></tr>
+                ) : (
+                  filteredPayments.filter(p => p.paymentMethod?.toLowerCase() === 'credit').map((payment, idx) => (
+                    <tr key={payment._id || idx}>
+                      <td>{new Date(payment.date).toLocaleDateString()}</td>
+                      <td>{new Date(payment.date).toLocaleTimeString()}</td>
+                      <td>{payment.invoiceNumber}</td>
+                      <td>{/* Combine all item names */}
+                        {payment.items.map(item => item.itemName).join(', ')}
+                      </td>
+                      {/* <td> */}
+                        {/* Combine quantities */}
+                        {/* {payment.items.map(item => item.quantity).join(', ')} */}
+                      {/* </td> */}
+                      {/* <td>{payment.cashierName}</td> */}
+                      <td>Rs. {(payment.discountApplied || 0).toFixed(2)}</td>
+                      <td>Rs. {payment.totalAmount.toFixed(2)}</td>
+                      <td>{payment.paymentMethod}</td>
+                      {/* <td>{getLocalDateKey(r.createdAt)}</td>
+                      <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td> */}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {/* Purchase Credit Tab */}
+          {activeTab === 'purchase-refunded' && (
+            <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Time </th>
+                  <th>INV No </th>
+                  <th>Items </th>
+                  <th>Discount</th>
+                  <th>Total Amount</th>
+                  <th>Payment Method</th>
+                  {/* <th>Created Date</th>
+                  <th>Last Updated</th> */}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPayments.filter(p => p.paymentMethod?.toLowerCase() === 'refund').length === 0 ? (
+                  <tr><td colSpan={11} className="no-products">No income found.</td></tr>
+                ) : (
+                  filteredPayments.filter(p => p.paymentMethod?.toLowerCase() === 'refund').map((payment, idx) => (
+                    <tr key={payment._id || idx}>
+                      <td>{new Date(payment.date).toLocaleDateString()}</td>
+                      <td>{new Date(payment.date).toLocaleTimeString()}</td>
+                      <td>{payment.invoiceNumber}</td>
+                      <td>{/* Combine all item names */}
+                        {payment.items.map(item => item.itemName).join(', ')}
+                      </td>
+                      {/* <td> */}
+                        {/* Combine quantities */}
+                        {/* {payment.items.map(item => item.quantity).join(', ')} */}
+                      {/* </td> */}
+                      {/* <td>{payment.cashierName}</td> */}
+                      <td>Rs. {(payment.discountApplied || 0).toFixed(2)}</td>
+                      <td>Rs. {payment.totalAmount.toFixed(2)}</td>
+                      <td>{payment.paymentMethod}</td>
+                      {/* <td>{getLocalDateKey(r.createdAt)}</td>
+                      <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td> */}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}         
 
           {/* Extra Income Tab */}
           {activeTab === 'extraIncome' && (
@@ -1585,10 +2010,38 @@ const AllSummary = ({ darkMode }) => {
                 </tr>
               </thead>
               <tbody>
-                {filteredExtraIncome.length === 0 ? (
+                {filteredExtraIncome.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').length === 0 ? (
                   <tr><td colSpan={4} className="no-products">No extra income found.</td></tr>
                 ) : (
-                  filteredExtraIncome.map((ei, idx) => (
+                  filteredExtraIncome.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').map((ei, idx) => (
+                    <tr key={ei._id || idx}>
+                      <td>{ei.date ? new Date(ei.date).toLocaleDateString() : '-'}</td>
+                      <td style={{ color: '#000' }}>Rs. {(ei.amount || 0).toFixed(2)}</td>
+                      <td>{ei.incomeType || '-'}</td>
+                      <td>{ei.description || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {/* Extra Credit Income Tab */}
+          {activeTab === 'extraCreditIncome' && (
+            <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Income Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredExtraIncome.filter(p => p.paymentMethod?.toLowerCase() === 'credit').length === 0 ? (
+                  <tr><td colSpan={4} className="no-products">No extra income found.</td></tr>
+                ) : (
+                  filteredExtraIncome.filter(p => p.paymentMethod?.toLowerCase() === 'credit').map((ei, idx) => (
                     <tr key={ei._id || idx}>
                       <td>{ei.date ? new Date(ei.date).toLocaleDateString() : '-'}</td>
                       <td style={{ color: '#000' }}>Rs. {(ei.amount || 0).toFixed(2)}</td>

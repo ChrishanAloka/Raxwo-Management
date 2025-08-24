@@ -33,7 +33,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
         throw new Error(`Failed to fetch supplier items: ${response.statusText}`);
       }
       const data = await response.json();
-      setItems(data.items || []);
+      setItems(data.paymentHistory || []);
       setSupplierName(data.supplierName || '');
       setLoading(false);
     } catch (err) {
@@ -46,61 +46,13 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     fetchItems();
   }, [supplierId]);
 
-  const handleEdit = (item, index) => {
-    setEditItem({ ...item, index });
-    setShowEditModal(true);
-    setShowActionMenu(null);
-  };
-
-  const handleDelete = async (index) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
-      try {
-        const response = await fetch(`${API_URL}/${supplierId}/items/${index}`, {
-          method: 'DELETE',
-        });
-        if (!response.ok) {
-          throw new Error('Failed to delete item');
-        }
-        setItems(items.filter((_, i) => i !== index));
-        refreshSuppliers();
-        setShowActionMenu(null);
-      } catch (err) {
-        setError(err.message);
-      }
-    }
-  };
-
-  const handleSave = async (item) => {
-    try {
-      const response = await fetch(`${PRODUCT_API_URL}/update-stock/${item.itemCode}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          newStock: item.quantity,
-          newBuyingPrice: item.buyingPrice,
-          newSellingPrice: item.sellingPrice,
-          itemName: item.itemName,
-          category: item.category,
-          supplierName: item.supplierName,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to save item to product stock');
-      }
-      setItems(items.filter((_, i) => i !== item.index));
-      refreshSuppliers();
-      setShowActionMenu(null);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   const totalProductPages = Math.ceil(items.length / productsPerPage);
   const ProductsForModal = items.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
 
+
   return (
     <div className={`cart-details-container ${darkMode ? 'dark' : ''}`}>
-      <h3 className={`cart-details-title ${darkMode ? 'dark' : ''}`}>{supplierName ? `${supplierName} Cart Details` : 'Cart Details'}</h3>
+      <h3 className={`cart-details-title ${darkMode ? 'dark' : ''}`}>{supplierName ? `${supplierName} Payments History` : 'Payments History'}</h3>
       {loading && <p className="loading">Loading items...</p>}
       {error && (
         <>
@@ -111,30 +63,26 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
         </>
       )}
       {!loading && items.length === 0 ? (
-        <p className="no-products">No items in cart.</p>
+        <p className="no-products">No Payments Done.</p>
       ) : (
         <table className={`product-table ${darkMode ? 'dark' : ''}`}>
           <thead>
             <tr>
-              <th>GRN</th>
-              <th>Item Name</th>
-              <th>Category</th>
-              <th>Stock</th>
-              <th>Buying Price</th>
-              {/* <th>Selling Price</th> */}
-              <th>Action</th>
+              <th>Date</th>
+              <th>Up to date Cost</th>
+              <th>Payed Amount</th>
+              <th>Amount Due</th>
+              {/* <th>Action</th> */}
             </tr>
           </thead>
           <tbody>
             {ProductsForModal.map((item, index) => (
               <tr key={index}>
-                <td>{item.grnNumber || 'N/A'}</td>
-                <td>{item.itemName || 'N/A'}</td>
-                <td>{item.category || 'N/A'}</td>
-                <td>{item.quantity || '0'}</td>
-                <td>Rs. {item.buyingPrice || '0'}</td>
-                {/* <td>Rs. {item.sellingPrice || '0'}</td> */}
-                <td>
+                <td>{new Date(item.date).toISOString().split("T")[0] || '-'}</td>
+                <td>Rs. {item.uptodateCost || '0'}</td>
+                <td>Rs. {item.currentPayment || '0'}</td>
+                <td>Rs. {item.amountDue || '0'}</td>
+                {/* <td>
                   <div className="action-container">
                     <button
                       onClick={(e) => {
@@ -165,7 +113,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                       </>
                     )}
                   </div>
-                </td>
+                </td> */}
               </tr>
             ))}
           </tbody>

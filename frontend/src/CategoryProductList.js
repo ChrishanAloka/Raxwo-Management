@@ -458,11 +458,31 @@ const CategoryProductList = ({ darkMode }) => {
                   <tbody>
                     {groupedByCategory[category].map((product, idx) => (
                       <tr key={product._id || product.itemCode || idx}>
-                        <td>{product.grnNumber}</td>
-                        <td>{product.itemName}</td>
-                        <td>{product.buyingPrice}</td>
-                        <td>{product.sellingPrice}</td>
-                        <td>{product.stock}</td>
+                        <td>
+                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                            {product.grnNumber} 
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                            {product.itemName} 
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                            {product.buyingPrice}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                            {product.sellingPrice}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                            {product.stock}
+                          </span>
+                        </td>
                         {/* <td>{product.createdAt ? new Date(product.createdAt).toLocaleString() : ""}</td> */}
                         <td>
                           <div className="action-container">

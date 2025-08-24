@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/Products.css';
+// import '../styles/Products.css';
 import { useNavigate, Link } from 'react-router-dom';
 import Select from 'react-select';
 import axios from 'axios';
@@ -340,8 +340,8 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
   
 
   return (
-    <div className="modal-overlay">
-      <div className={`pro-edit-modal-container ${darkMode ? 'dark' : ''}`}>
+    <div className="view-modal-select">
+      <div className="modal-content-select">
         <h2 className="modal-title">{item ? '✏️ Edit Item' : '🛒 Add Items To Cart'}</h2>
         {loading && <p className="loading">{item ? 'Updating' : 'Adding'} items...</p>}
         {error && <p className="error-message">{error}</p>}
@@ -404,22 +404,18 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
                 <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Buying Price</label>
                 <input
                   className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
-                  type="number"
+                  type="text"
                   value={itemData.buyingPrice}
                   onChange={(e) => handleItemChange(index, 'buyingPrice', e.target.value)}
                   required
-                  min="0"
-                  step="0.01"
                 />
                 <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Selling Price</label>
                 <input
                   className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
-                  type="number"
+                  type="text"
                   value={itemData.sellingPrice}
                   onChange={(e) => handleItemChange(index, 'sellingPrice', e.target.value)}
                   required
-                  min="0"
-                  step="0.01"
                 />
                 <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Supplier</label>
                 <input

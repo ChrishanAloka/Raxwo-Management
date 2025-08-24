@@ -446,6 +446,7 @@ const ProductRepairList = ({ darkMode }) => {
             supplierName: supplierName,
             itemName: itemName,
             cost: (p.sellingPrice || sellingPrice) * (p.quantity + 1),
+            buyingPrice: product.buyingPrice,
           } : p
         )
       );
@@ -458,6 +459,7 @@ const ProductRepairList = ({ darkMode }) => {
         supplierName: supplierName,
         sellingPrice, // 👈 Initialize with product's selling price
         cost: sellingPrice,
+        buyingPrice: product.buyingPrice
       }]);
     }
   };
@@ -483,10 +485,13 @@ const ProductRepairList = ({ darkMode }) => {
     // Update the state with the new array
     const sellingPrice = product.sellingPrice || 0;
 
+    const buyingPrice = product.buyingPrice || 0;
+
     updatedProducts[index] = {
     ...product,
     quantity: newQuantity,
     cost: sellingPrice * newQuantity,
+    buyingPrice: buyingPrice * newQuantity,
   };
 
     setSelectedProducts(updatedProducts);
@@ -1915,6 +1920,63 @@ const ProductRepairList = ({ darkMode }) => {
     }
   };
 
+  const handleAssignItem = async (itemCode, technicianName) => {
+    try {
+      setError("");
+      setLoading(true);
+
+      // Find the current repair
+      const repair = selectedRepair;
+
+      // Update repairCart with new assignment
+      const updatedCart = repair.repairCart.map(item =>
+        item.itemCode === itemCode
+          ? { ...item, assignedTo: technicianName }
+          : item
+      );
+
+      // Create change history entry
+      const username = localStorage.getItem('username') || 'System';
+      const changeEntry = {
+        changedAt: new Date().toISOString(),
+        changedBy: username,
+        field: `assignItem_${itemCode}`,
+        oldValue: repair.repairCart.find(i => i.itemCode === itemCode)?.assignedTo || "Unassigned",
+        newValue: technicianName || "Unassigned",
+        changeType: "UPDATE"
+      };
+
+      // Send PATCH request
+      const response = await fetch(`${API_URL}/${repair._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          repairCart: updatedCart,
+          changeHistory: [...(repair.changeHistory || []), changeEntry]
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update assignment");
+      }
+
+      const updatedRepair = await response.json();
+
+      // Update local state
+      setSelectedRepair(updatedRepair);
+      setRepairs(repairs.map(r => (r._id === updatedRepair._id ? updatedRepair : r)));
+
+      setMessage(`Assigned item ${itemCode} to ${technicianName || "Unassigned"}`);
+    } catch (err) {
+      console.error("Error assigning item:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSaveSellingPrice = async (itemCode, newPrice) => {
     if (isNaN(newPrice) || newPrice < 0) {
@@ -2498,8 +2560,8 @@ const ProductRepairList = ({ darkMode }) => {
       )}
 
       {showViewModal && selectedRepair && (
-        <div className="view-modal">
-          <div className="modal-content">
+        <div className="view-modal-select">
+          <div className="modal-content-select">
             <div style={{
               textAlign: "center",
               marginBottom: "20px",
@@ -2784,6 +2846,7 @@ const ProductRepairList = ({ darkMode }) => {
                       color: darkMode ? "#fff" : "#333"
                     }}>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Item Name</th>
+                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Assigned To</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Qty</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Selling Price</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Action</th>
@@ -2793,6 +2856,27 @@ const ProductRepairList = ({ darkMode }) => {
                     {selectedRepair.repairCart.map((item, index) => (
                       <tr key={index} style={{ backgroundColor: index % 2 === 0 ? (darkMode ? "#4a4a4a" : "#fafafa") : (darkMode ? "#444" : "#fff") }}>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.itemName} - {item.category}</td>
+                        <td style={{ border: "1px solid #ddd", padding: "10px" }}>
+                          <select
+                            value={item.assignedTo || ""}
+                            onChange={async (e) => await handleAssignItem(item.itemCode, e.target.value)}
+                            style={{
+                              width: "100%",
+                              padding: "6px",
+                              borderRadius: "4px",
+                              border: "1px solid #ccc",
+                              backgroundColor: darkMode ? "#555" : "white",
+                              color: darkMode ? "white" : "black"
+                            }}
+                          >
+                            <option value="" disabled>Select Person/Team</option>
+                            <option value="Prabath">Prabath</option>
+                            <option value="Nadeesh">Nadeesh</option>
+                            <option value="Accessories">Accessories</option>
+                            <option value="Genex-EX">Genex EX</option>
+                            <option value="I-Device">I Device</option>
+                          </select>
+                        </td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.quantity}</td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
                           {selectedRepair.repairStatus !== "Completed" ? (
@@ -3035,7 +3119,7 @@ const ProductRepairList = ({ darkMode }) => {
                         placeholder="e.g., Screen Repair"
                       />
                     </div>
-                    <div style={{ flex: "1 1 150px" }}>
+                    <div style={{ flex: "1 1 200px" }}>
                       <label style={{
                         display: "block",
                         marginBottom: "5px",
@@ -3060,7 +3144,7 @@ const ProductRepairList = ({ darkMode }) => {
                         }}
                       />
                     </div>
-                    <div style={{ flex: "1 1 200px" }}>
+                    <div style={{ flex: "1 1 500px" }}>
                       <label style={{
                         display: "block",
                         marginBottom: "5px",
@@ -3100,6 +3184,7 @@ const ProductRepairList = ({ darkMode }) => {
                         Add Discount
                       </button>
                     </div>
+                    
                   </div>
                 </div>
 
@@ -3299,7 +3384,7 @@ const ProductRepairList = ({ darkMode }) => {
                       }}
                     />
                   </div>
-                  <div style={{ flex: "1 1 200px" }}>
+                  <div style={{ flex: "1 1 500px" }}>
                     <label style={{
                       display: "block",
                       marginBottom: "5px",
