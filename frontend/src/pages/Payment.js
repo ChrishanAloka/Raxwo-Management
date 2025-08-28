@@ -9,7 +9,7 @@ import CustomerForm from './CustomerForm';
 import ReturnPayment from './ReturnPayment';
 import ShopSettings from './ShopSettings';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faCartPlus } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faCartPlus, faTimes } from '@fortawesome/free-solid-svg-icons';
 
 const Payment = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -512,9 +512,9 @@ function fuzzyIncludes(haystack, needle) {
                   <td>
                     <button
                       onClick={() => removeFromCart(index)}
-                      className={`removebtn ${darkMode ? 'dark' : ''}`}
+                      
                     >
-                      <img src={remicon} alt="remove" width="30" height="30" />
+                      <FontAwesomeIcon icon={faTimes} />
                     </button>
                   </td>
                 </tr>
@@ -864,16 +864,22 @@ function fuzzyIncludes(haystack, needle) {
                 {filteredProducts.map((product) => (
                   <tr key={product._id} className={darkMode ? 'dark-row' : ''}>
                     <td>
-                      {product.itemName}
+                      <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight:  'bold'  }}>
+                        {product.itemName} 
+                      </span>
                     </td>
                     <td>
-                      {product.category}
+                      <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: 'bold'  }}>
+                        {product.category} 
+                      </span>
                     </td>
                     {/* <td>
                       Rs.{product.sellingPrice.toFixed(2)}
                     </td> */}
                     <td>
-                      {product.stock}
+                      <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: 'bold'  }}>
+                        {product.stock}
+                      </span>
                     </td>
                     <td>
                       <button

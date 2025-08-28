@@ -23,6 +23,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
   const [error, setError] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const navigate = useNavigate();
+  const [showCartView, setShowCartView] = useState(false); 
   const [itemNames, setItemNames] = useState([]);
 
   const fetchNames = async () => {
@@ -172,8 +173,9 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
           sellingPrice: Number(items[i].sellingPrice) || 0,
           changedBy // Add changedBy to the request body
         };
+        
 
-        const url = item ? `${API_URL}/${supplier._id}/items/${item.index}` : `${API_URL}/${supplier._id}/items`;
+        const url = item ? `${API_URL}/${supplier._id}/items/${item._id}` : `${API_URL}/${supplier._id}/items`;
         const method = item ? 'PATCH' : 'POST';
         const response = await fetch(url, {
           method,
@@ -337,6 +339,14 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
     }
   })
 });
+
+  // Calculate totals for cart view
+  const totalQuantity = items.reduce((sum, item) => sum + (parseInt(item.stock) || 0), 0);
+  const totalCost = items.reduce((sum, item) => {
+    const qty = parseInt(item.stock) || 0;
+    const price = parseFloat(item.buyingPrice) || 0;
+    return sum + qty * price;
+  }, 0);
   
 
   return (
@@ -443,11 +453,82 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
             <button type="button" className="add-item-btn" onClick={addItem}>
               ➕ Add Another Item
             </button>
+            {/* View Cart Button */}
+            <button
+              type="button"
+              className="view-cart-btn"
+              onClick={() => setShowCartView((prev) => !prev)}
+            >
+              {showCartView ? 'Hide Cart' : 'View Cart'}
+            </button>
             <button type="submit" className="pro-edit-submit-btn" disabled={loading}>
               {loading ? 'Saving...' : item ? 'Update Item' : `Add ${items.length} Item${items.length > 1 ? 's' : ''}`}
             </button>
             <button type="button" className="A-l-cancel-btn" onClick={handleCancel}>Cancel</button>
           </div>
+          {/* Cart Preview Section */}
+          {showCartView && (
+            <div
+              className={`cart-preview-section ${darkMode ? 'dark' : ''}`}
+              style={{
+                marginTop: '20px',
+                padding: '16px',
+                backgroundColor: darkMode ? '#1F2A44' : '#f9f9f9',
+                border: darkMode ? '1px solid #374151' : '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '14px',
+              }}
+            >
+              <h3 style={{ marginBottom: '12px', color: darkMode ? '#fff' : '#000' }}>🛒 Current Cart Summary</h3>
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  fontSize: '14px',
+                }}
+              >
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #1abc9c' }}>
+                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Item</th>
+                    <th style={{ textAlign: 'center', paddingBottom: '8px' }}>Qty</th>
+                    <th style={{ textAlign: 'right', paddingBottom: '8px' }}>Unit Price</th>
+                    <th style={{ textAlign: 'right', paddingBottom: '8px' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, idx) => {
+                    const qty = parseInt(item.stock) || 0;
+                    const price = parseFloat(item.buyingPrice) || 0;
+                    const total = qty * price;
+                    return (
+                      <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '8px 0' }}>{item.itemName || 'Unnamed Item'}</td>
+                        <td style={{ textAlign: 'center', padding: '8px 0' }}>{qty}</td>
+                        <td style={{ textAlign: 'right', padding: '8px 0' }}>Rs. {price.toFixed(2)}</td>
+                        <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: 'bold' }}>
+                          Rs. {total.toFixed(2)}
+                        </td> 
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan="2"></td>
+                    <td style={{ textAlign: 'right', paddingTop: '12px', fontWeight: 'bold' }}>Total:</td>
+                    <td style={{ textAlign: 'right', paddingTop: '12px', fontWeight: 'bold', color: '#1abc9c' }}>
+                     Rs. {totalCost.toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan="2"></td>
+                    <td style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>Total Items:</td>
+                    <td style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>{totalQuantity}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </form>
       </div>
     </div>

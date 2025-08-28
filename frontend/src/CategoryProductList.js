@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -28,6 +28,20 @@ const CategoryProductList = ({ darkMode }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [show0StockOnly, setShow0StockOnly] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState(new Set());
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);  
+
+  // Get all unique categories from products
+  const allCategories = [...new Set(products.map(p => p.category).filter(Boolean))];
+
+  const [categorySearch, setCategorySearch] = useState('');
+  const categoryFilterRef = useRef(null);
+  
+    const filteredCategoriesForSearch = categorySearch.trim() === ''
+    ? allCategories
+    : allCategories.filter(cat =>
+        cat.toLowerCase().includes(categorySearch.toLowerCase().trim())
+      );
   
 
   // Paginated fetch for display
@@ -100,7 +114,47 @@ const CategoryProductList = ({ darkMode }) => {
     // eslint-disable-next-line
   }, []);
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (categoryFilterRef.current && !categoryFilterRef.current.contains(event.target)) {
+        setShowCategoryFilter(false);
+        setCategorySearch(''); // Optional: reset search when closing
+      }
+    }
+
+    // Only attach listener if the filter is open
+    if (showCategoryFilter) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCategoryFilter]);
+
   const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
+
+  function fuzzyIncludes(haystack, needle) {
+    // Remove non-alphanumeric and split needle into chars
+    const cleanHaystack = Array.from(haystack.replace(/[^a-z0-9]/g, ''));
+    const cleanNeedle = Array.from(needle.replace(/[^a-z0-9]/g, ''));
+
+    let j = 0; // pointer in haystack
+    for (let i = 0; i < cleanNeedle.length; i++) {
+      const char = cleanNeedle[i];
+      let found = false;
+      while (j < cleanHaystack.length) {
+        if (cleanHaystack[j] === char) {
+          found = true;
+          j++;
+          break;
+        }
+        j++;
+      }
+      if (!found) return false;
+    }
+    return true;
+  }
 
   const filteredProductsForModal = searchQuery.trim() === ""
     ? products
@@ -123,32 +177,61 @@ const CategoryProductList = ({ darkMode }) => {
 
     // Apply search filter only if query exists
     if (searchQuery.trim() !== '') {
-      result = products.filter(product => {
-        const searchableText = normalize(product.grnNumber + ' ' + product.itemName + ' ' + product.category + ' ' + product.itemCode);
-        const words = normalize(searchQuery).trim().split(/\s+/);
+      // result = products.filter(product => {
+      //   const searchableText = normalize(product.grnNumber + ' ' + product.itemName + ' ' + product.category + ' ' + product.itemCode);
+      //   const words = normalize(searchQuery).trim().split(/\s+/);
 
-        return words.every(word => {
-          const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          if (/^\d+$/.test(word)) {
-            // Numeric: require word boundaries (exact number match)
-            const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
-            return regex.test(searchableText);
-          } else {
-            // Text: allow partial substring match
-            const regex = new RegExp(escapedWord, 'i');
-            return regex.test(searchableText);
-          }
-        });
+      //   return words.every(word => {
+      //     const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      //     if (/^\d+$/.test(word)) {
+      //       // Numeric: require word boundaries (exact number match)
+      //       const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+      //       return regex.test(searchableText);
+      //     } else {
+      //       // Text: allow partial substring match
+      //       const regex = new RegExp(escapedWord, 'i');
+      //       return regex.test(searchableText);
+      //     }
+      //   });
+      // });
+      result = products.filter(product => {
+        const name = product.itemName.toLowerCase();
+
+      // Split query into meaningful words, remove empty
+      const queryWords = searchQuery
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
+        .split(/\s+/)
+        .filter(Boolean);
+
+      // If no valid words, show all
+      if (queryWords.length === 0) return true;
+
+      return queryWords.every(word =>
+          /^\d+$/.test(word)
+            ? name.includes(word)
+            : fuzzyIncludes(name, word)
+        );
       });
+    }
+
+    if (selectedCategories.size > 0) {
+      result = result.filter(product =>
+        selectedCategories.has(product.category)
+      );
     }
 
     // Apply low stock filter if checkbox is checked
     if (showLowStockOnly) {
-      result = result.filter(product => (product.stock || 0) <= 2);
+      result = result.filter(product => (product.stock || 0) <= 2 && (product.stock || 0) > 0);
     }
 
     if (show0StockOnly) {
       result = result.filter(product => (product.stock || 0) == 0);
+    }
+    else{
+      result = result.filter(product => (product.stock || 0) !== 0);
     }
 
     // Apply sorting
@@ -197,7 +280,7 @@ const CategoryProductList = ({ darkMode }) => {
     }
 
     return result;
-  }, [products, searchQuery, sortConfig, showLowStockOnly, show0StockOnly]);
+  }, [products, searchQuery, sortConfig, showLowStockOnly, show0StockOnly, selectedCategories]);
 
   const totalProductPages = Math.ceil(sortedAndFilteredProducts.length / productsPerPage);
   const paginatedProductsForModal = sortedAndFilteredProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
@@ -384,6 +467,168 @@ const CategoryProductList = ({ darkMode }) => {
           >
             <FontAwesomeIcon icon={faFile} /> Report
           </button>
+        </div>
+      </div>
+      <div className="search-action-container">
+        <div className="category-filter-container" style={{ marginTop: '12px' }} ref={categoryFilterRef} >
+          {/* Filter Button to Expand/Collapse */}
+          <button
+            type="button"
+            onClick={() => setShowCategoryFilter(!showCategoryFilter)}
+            style={{
+              background: darkMode ? '#334155' : '#e2e8f0',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              color: darkMode ? '#e2e8f0' : '#1e293b',
+              width: 'fit-content',
+            }}
+          >
+            <span>{showCategoryFilter ? '🔽' : '▶️'}</span>
+            <span>
+              Filter by Category {selectedCategories.size > 0 && `(${selectedCategories.size})`}
+            </span>
+          </button>
+
+          {/* Category Filter Panel (Visible when toggled) */}
+          {showCategoryFilter && (
+            <div
+              style={{
+                marginTop: '10px',
+                padding: '16px',
+                borderRadius: '8px',
+                backgroundColor: darkMode ? '#1a1a1a' : '#f8fafc',
+                border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`,
+                boxShadow: darkMode ? '0 2px 4px rgba(0, 0, 0, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+              }}
+            >
+              {/* Search Inside Categories */}
+              <input
+                type="text"
+                placeholder="Search categories..."
+                value={categorySearch}
+                onChange={(e) => setCategorySearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  marginBottom: '12px',
+                  border: `1px solid ${darkMode ? '#475569' : '#cbd5e1'}`,
+                  borderRadius: '6px',
+                  backgroundColor: darkMode ? '#2d3748' : '#fff',
+                  color: darkMode ? '#e2e8f0' : '#1e293b',
+                  fontSize: '14px',
+                }}
+              />
+
+              {/* Select All / Clear Buttons */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const filtered = filteredCategoriesForSearch;
+                    setSelectedCategories(new Set([...selectedCategories, ...filtered]));
+                  }}
+                  style={{
+                    fontSize: '12px',
+                    padding: '6px 10px',
+                    background: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Select All Shown
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategories(new Set())}
+                  style={{
+                    fontSize: '12px',
+                    padding: '6px 10px',
+                    background: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Clear All
+                </button>
+              </div>
+
+              {/* Category Checkboxes Grid */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(6, 1fr)',
+                  gap: '10px',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  paddingRight: '4px',
+                }}
+              >
+                {filteredCategoriesForSearch.length === 0 ? (
+                  <span
+                    style={{
+                      gridColumn: '1 / -1',
+                      textAlign: 'center',
+                      color: darkMode ? '#94a3b8' : '#64748b',
+                      fontStyle: 'italic',
+                      fontSize: '13px',
+                      padding: '8px 0',
+                    }}
+                  >
+                    No matching categories
+                  </span>
+                ) : (
+                  filteredCategoriesForSearch.map((category) => (
+                    <label
+                      key={category}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        color: darkMode ? '#e2e8f0' : '#1e293b',
+                        padding: '6px',
+                        borderRadius: '4px',
+                        border: selectedCategories.has(category)
+                          ? '2px solid #1abc9c'
+                          : `1px solid ${darkMode ? '#475569' : '#cbd5e1'}`,
+                        backgroundColor: selectedCategories.has(category)
+                          ? darkMode ? '#0f302a' : '#e7faf3'
+                          : 'transparent',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.has(category)}
+                        onChange={(e) => {
+                          const newSet = new Set(selectedCategories);
+                          if (e.target.checked) {
+                            newSet.add(category);
+                          } else {
+                            newSet.delete(category);
+                          }
+                          setSelectedCategories(newSet);
+                        }}
+                        style={{ accentColor: '#1abc9c' }}
+                      />
+                      {category}
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {showReportOptions && (
