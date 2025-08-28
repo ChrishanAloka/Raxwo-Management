@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const itemSchema = new mongoose.Schema({
+  date: {type: Date, default: Date.now},
   itemCode: { type: String, required: true },
   itemName: { type: String, required: true },
   category: { type: String, required: true },
