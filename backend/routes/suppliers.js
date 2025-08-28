@@ -260,61 +260,70 @@ router.post('/:id/repairService', getSupplier, async (req, res) => {
   }
 });
 
-// PATCH: Update an item in a supplier's cart
-router.patch('/:id/items/:itemIndex', getSupplier, async (req, res) => {
-  const itemIndex = parseInt(req.params.itemIndex);
-  if (isNaN(itemIndex) || itemIndex < 0 || itemIndex >= res.supplier.items.length) {
-    return res.status(400).json({ message: 'Invalid item index' });
-  }
-
-  const item = res.supplier.items[itemIndex];
-  const oldItem = { ...item };
-  if (req.body.itemCode != null) item.itemCode = req.body.itemCode;
-  if (req.body.itemName != null) item.itemName = req.body.itemName;
-  if (req.body.category != null) item.category = req.body.category;
-  if (req.body.quantity != null) item.quantity = req.body.quantity;
-  if (req.body.buyingPrice != null) item.buyingPrice = req.body.buyingPrice;
-  if (req.body.sellingPrice != null) item.sellingPrice = req.body.sellingPrice;
-  item.grnNumber = req.body.grnNumber;
- 
-  // Log cart update
-  // res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
-  //   field: 'cart-update',
-  //   oldValue: oldItem,
-  //   newValue: item,
-  //   changedBy: req.body.changedBy || 'system',
-  //   changedAt: new Date(),
-  //   changeType: 'cart'
-  // }];
-
-  // // Also log to Product's changeHistory if product exists
-  // try {
-  //   const product = await Product.findOne({ itemCode: item.itemCode });
-  //   if (product) {
-  //     product.changeHistory = [...(product.changeHistory || []), {
-  //       field: 'cart',
-  //       oldValue: oldItem,
-  //       newValue: item,
-  //       changedBy: req.body.changedBy || 'system',
-  //       changedAt: new Date(),
-  //       changeType: 'cart'
-  //     }];
-  //     await product.save();
-  //   }
-  // } catch (err) {
-  //   // Log but do not block supplier save
-  //   console.error('Error updating product changeHistory for cart update:', err);
-  // }
-
+// PATCH: Update an item in a supplier's cart by item ID
+router.patch('/:id/items/:itemid', getSupplier, async (req, res) => {
   try {
+    const itemId = req.params.itemid;
+
+    // Find the item in the supplier's items array by _id
+    const item = res.supplier.items.id(itemId); // Mongoose subdocument .id() method
+
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found in supplier cart' });
+    }
+
+    // Store old value for logging (optional)
+    const oldItem = { ...item.toObject() };
+
+    // Update fields if provided
+    if (req.body.itemCode != null) item.itemCode = req.body.itemCode;
+    if (req.body.itemName != null) item.itemName = req.body.itemName;
+    if (req.body.category != null) item.category = req.body.category;
+    if (req.body.quantity != null) item.quantity = req.body.quantity;
+    if (req.body.buyingPrice != null) item.buyingPrice = req.body.buyingPrice;
+    if (req.body.sellingPrice != null) item.sellingPrice = req.body.sellingPrice;
+    if (req.body.grnNumber != null) item.grnNumber = req.body.grnNumber; // only update if provided
+
+    // Optional: Log cart update in supplier history
+    // res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
+    //   field: 'cart-update',
+    //   oldValue: oldItem,
+    //   newValue: item,
+    //   changedBy: req.body.changedBy || 'system',
+    //   changedAt: new Date(),
+    //   changeType: 'cart'
+    // }];
+
+    // Optional: Update product's changeHistory if product exists
+    // try {
+    //   const product = await Product.findOne({ itemCode: item.itemCode });
+    //   if (product) {
+    //     product.changeHistory = [...(product.changeHistory || []), {
+    //       field: 'cart',
+    //       oldValue: oldItem,
+    //       newValue: item,
+    //       changedBy: req.body.changedBy || 'system',
+    //       changedAt: new Date(),
+    //       changeType: 'cart'
+    //     }];
+    //     await product.save();
+    //   }
+    // } catch (err) {
+    //   console.error('Error updating product changeHistory:', err);
+    // }
+
+    // Save updated supplier
     const updatedSupplier = await res.supplier.save();
-    res.status(201).json({
-      message: 'Item Updated successfully',
+
+    res.status(200).json({
+      message: 'Item updated successfully',
       itemCode: item.itemCode,
-      supplier: updatedSupplier   
+      itemId: item._id,
+      supplier: updatedSupplier
     });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    console.error('Error updating cart item:', err);
+    res.status(400).json({ message: 'Bad request', error: err.message });
   }
 });
 
