@@ -2091,7 +2091,7 @@ const ProductRepairList = ({ darkMode }) => {
         </h2>
       </div>
       
-        <div className="search-action-container">
+      <div className="search-action-container">
         <div className={`search-bar-container ${darkMode ? "dark" : ""}`}>
           <FontAwesomeIcon icon={faSearch} className="search-icon" />
           <input
@@ -2110,7 +2110,7 @@ const ProductRepairList = ({ darkMode }) => {
             </button>
           )}
         </div>
-          <div className="filter-action-row">
+      <div className="filter-action-row">
         <div className="status-filter-dropdown" style={{
           display: 'flex',
           justifyContent: 'center',
@@ -2146,13 +2146,15 @@ const ProductRepairList = ({ darkMode }) => {
           ))}
           </select>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary">
+      </div>
+      <div className="filter-action-row">
+        <button onClick={() => setShowAddModal(true)} className="-btn-primary">
           <FontAwesomeIcon icon={faPlus} /> Add Repair
         </button>
         <button onClick={() => setShowReportOptions(true)} className="btn-report">
           <FontAwesomeIcon icon={faFile} /> Reports
         </button>
-          </div>
+      
         {localStorage.getItem('role') === 'admin' && (
           <button
             onClick={handleViewCashierChanges}
@@ -2161,6 +2163,7 @@ const ProductRepairList = ({ darkMode }) => {
             <FontAwesomeIcon icon={faHistory} /> &nbsp; View Changes
           </button>
         )}
+        </div>
       </div>
       {showReportOptions && (
         <div className="report-modal-overlay" onClick={() => setShowReportOptions(false)}>
