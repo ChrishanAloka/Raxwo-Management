@@ -62,6 +62,7 @@ const ProductList = ({ darkMode }) => {
   const itemsPerPage = 20;
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [show0StockOnly, setShow0StockOnly] = useState(false);
 
   const handleClearAll = () => {
     setSearchQuery('');
@@ -281,20 +282,20 @@ const ProductList = ({ darkMode }) => {
 
   const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
 
-  const filteredProductsForModal = searchQuery.trim() === ""
-    ? products
-    : products.filter(product => {
-        const searchableText = (product.grnNumber + ' ' + product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
+  // const filteredProductsForModal = searchQuery.trim() === ""
+  //   ? products
+  //   : products.filter(product => {
+  //       const searchableText = (product.grnNumber + ' ' + product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
 
-        // Split query into words and test each as a whole word or number
-        const words = normalize(searchQuery).trim().split(/\s+/);
+  //       // Split query into words and test each as a whole word or number
+  //       const words = normalize(searchQuery).trim().split(/\s+/);
 
-        return words.every(word => {
-          // Create a regex with word boundaries for exact partial matching
-          const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-          return regex.test(searchableText);
-        });
-      });
+  //       return words.every(word => {
+  //         // Create a regex with word boundaries for exact partial matching
+  //         const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+  //         return regex.test(searchableText);
+  //       });
+  //     });
 
   const sortedAndFilteredProducts = useMemo(() => {
     // Start with filtered products
@@ -325,6 +326,10 @@ const ProductList = ({ darkMode }) => {
     // Apply low stock filter if checkbox is checked
     if (showLowStockOnly) {
       result = result.filter(product => (product.stock || 0) <= 2);
+    }
+
+    if (show0StockOnly) {
+      result = result.filter(product => (product.stock || 0) == 0);
     }
 
     // Apply sorting if a column is selected
@@ -378,7 +383,7 @@ const ProductList = ({ darkMode }) => {
     }
 
     return result;
-  }, [products, searchQuery, sortConfig, showLowStockOnly,]);
+  }, [products, searchQuery, sortConfig, showLowStockOnly, show0StockOnly]);
 
   const totalProductPages = Math.ceil(sortedAndFilteredProducts.length / productsPerPage);
   const paginatedProductsForModal = sortedAndFilteredProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
@@ -707,7 +712,7 @@ const ProductList = ({ darkMode }) => {
       </div>
       <div className="search-action-container">
         <div className={`search-bar-container ${darkMode ? 'dark' : ''}`}>
-          <FontAwesomeIcon icon={faSearch} className="search-icon" />
+          {(!searchQuery) ? <FontAwesomeIcon icon={faSearch} className="search-icon" /> : <></> }
           <input
             type="text"
             placeholder="       Search..."
@@ -738,6 +743,20 @@ const ProductList = ({ darkMode }) => {
                 type="checkbox"
                 checked={showLowStockOnly}
                 onChange={(e) => setShowLowStockOnly(e.target.checked)}
+              />
+            </span>
+          
+          </span>
+
+          {/* Low Stock Filter Checkbox */}
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: 14, color: '#666', marginRight: 13 }}>
+            Show 0 Stock 
+          
+            <span style={{ fontSize: 14, color: '#666', marginLeft: 8, marginTop: 8 }}>
+              <input
+                type="checkbox"
+                checked={show0StockOnly}
+                onChange={(e) => setShow0StockOnly(e.target.checked)}
               />
             </span>
           

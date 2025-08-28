@@ -2846,7 +2846,7 @@ const ProductRepairList = ({ darkMode }) => {
                       color: darkMode ? "#fff" : "#333"
                     }}>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Item Name</th>
-                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Assigned To</th>
+                      {/* <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Assigned To</th> */}
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Qty</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Selling Price</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Action</th>
@@ -2856,7 +2856,7 @@ const ProductRepairList = ({ darkMode }) => {
                     {selectedRepair.repairCart.map((item, index) => (
                       <tr key={index} style={{ backgroundColor: index % 2 === 0 ? (darkMode ? "#4a4a4a" : "#fafafa") : (darkMode ? "#444" : "#fff") }}>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.itemName} - {item.category}</td>
-                        <td style={{ border: "1px solid #ddd", padding: "10px" }}>
+                        {/* <td style={{ border: "1px solid #ddd", padding: "10px" }}>
                           <select
                             value={item.assignedTo || ""}
                             onChange={async (e) => await handleAssignItem(item.itemCode, e.target.value)}
@@ -2876,7 +2876,7 @@ const ProductRepairList = ({ darkMode }) => {
                             <option value="Genex-EX">Genex EX</option>
                             <option value="I-Device">I Device</option>
                           </select>
-                        </td>
+                        </td> */}
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.quantity}</td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
                           {selectedRepair.repairStatus !== "Completed" ? (

@@ -142,35 +142,175 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
 // GET /api/product-uploads (paginated)
 router.get('/', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const pipeline = [
+      // Step 1: Apply your filters
+      {
+        $match: {
+          deleted: { $ne: true },
+          visible: { $ne: false },
+          $or: [
+            { stock: { $gt: 0 } }
+          ]
+        }
+      },
 
-    const total = await UploadedProduct.countDocuments();
-    const records = await UploadedProduct.find({
-      deleted: { $ne: true },        // not deleted (includes false or missing)
-      visible: { $ne: false },      // is visible (includes true or missing)
+      // Step 2: Sort by uploadedAt descending → newest first
+      { $sort: { uploadedAt: -1 } },
 
-      $or: [
-        // Case 1: grnNumber is "GRN-SYS01" → allow any stock
-        { grnNumber: "GRN-SYS01" },
+      // Step 3: Group by the 3 fields to deduplicate
+      {
+        $group: {
+          _id: {
+            itemName: "$itemName",
+            category: "$category",
+            buyingPrice: "$buyingPrice"
+          },
+          doc: { $first: "$$ROOT" } // Keep the most recent (due to sort)
+        }
+      },
 
-        // Case 2: grnNumber is NOT "GRN-SYS01" → must have stock > 0
-        { grnNumber: { $ne: "GRN-SYS01" }, stock: { $gt: 0 } }
-      ]
-    }).sort({ uploadedAt: -1 })
-      .lean();
+      // Step 4: Promote the full document back
+      { $replaceRoot: { newRoot: "$doc" } }
+
+      // No pagination: just return all unique docs
+    ];
+
+    const pipeline2 = [
+      // Step 1: Apply your filters
+      {
+        $match: {
+          deleted: { $ne: true },
+          visible: { $ne: false },
+          stock: { $eq: 0 } 
+        }
+      },
+
+      // Step 2: Sort by uploadedAt descending → newest first
+      { $sort: { uploadedAt: -1 } },
+
+      // Step 3: Group by the 3 fields to deduplicate
+      {
+        $group: {
+          _id: {
+            itemName: "$itemName",
+            category: "$category",
+            buyingPrice: "$buyingPrice"
+          },
+          doc: { $first: "$$ROOT" } // Keep the most recent (due to sort)
+        }
+      },
+
+      // Step 4: Promote the full document back
+      { $replaceRoot: { newRoot: "$doc" } }
+
+      // No pagination: just return all unique docs
+    ];
+
+    const pipeline3 = [
+      // Step 1: Apply your filters
+      {
+        $match: {
+          deleted: { $ne: true },
+          visible: { $ne: false },
+          stock: { $eq: 0 } 
+        }
+      },
+
+      // Step 2: Sort by uploadedAt descending → newest first
+      { $sort: { uploadedAt: -1 } },
+
+      // Step 3: Group by the 3 fields to deduplicate
+      {
+        $group: {
+          _id: {
+            itemCode: "$itemCode"
+          },
+          doc: { $first: "$$ROOT" } // Keep the most recent (due to sort)
+        }
+      },
+
+      // Step 4: Promote the full document back
+      { $replaceRoot: { newRoot: "$doc" } }
+
+      // No pagination: just return all unique docs
+    ];
+
+    const pipeline4 = [
+      // Step 1: Apply your filters
+      {
+        $match: {
+          deleted: { $ne: true },
+          visible: { $ne: false },
+          stock: { $gt: 0 } 
+        }
+      },
+
+      // Step 2: Sort by uploadedAt descending → newest first
+      { $sort: { uploadedAt: -1 } },
+
+      // Step 3: Group by the 3 fields to deduplicate
+      {
+        $group: {
+          _id: {
+            itemCode: "$itemCode"
+          },
+          doc: { $first: "$$ROOT" } // Keep the most recent (due to sort)
+        }
+      },
+
+      // Step 4: Promote the full document back
+      { $replaceRoot: { newRoot: "$doc" } }
+
+      // No pagination: just return all unique docs
+    ];
+
+    // Add timeout to avoid hanging
+    const uniqueRecords = await UploadedProduct.aggregate(pipeline)
+      // .maxTimeMS(20000) // 20 seconds max
+      .exec();
+
+    const uniqueRecords2 = await UploadedProduct.aggregate(pipeline2)
+      // .maxTimeMS(20000) // 20 seconds max
+      .exec();
+
+    const uniqueRecords3 = await UploadedProduct.aggregate(pipeline3)
+      // .maxTimeMS(20000) // 20 seconds max
+      .exec();
+
+    const uniqueRecords4 = await UploadedProduct.aggregate(pipeline4)
+      // .maxTimeMS(20000) // 20 seconds max
+      .exec();
+
+    // Optionally add total count
+    const total = uniqueRecords.length + uniqueRecords2.length;
+    
+
+    const records = [...uniqueRecords, ...uniqueRecords2 ];
 
     res.json({
-      page,
-      limit,
+      success: true,
       total,
-      totalPages: Math.ceil(total / limit),
-      records
+      records,
+      records4: uniqueRecords4,
+      records3: uniqueRecords3
+      
     });
+
   } catch (err) {
-    console.error('Pagination error:', err);
-    res.status(500).json({ message: 'Pagination failed', error: err.message });
+    console.error('Fetch all unique records error:', err);
+
+    if (err.name === 'MongoTimeoutError' || err.message.includes('timed out')) {
+      return res.status(504).json({
+        success: false,
+        message: 'Query timed out. Too much data? Try filtering or use pagination.'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch records',
+      error: err.message
+    });
   }
 });
 

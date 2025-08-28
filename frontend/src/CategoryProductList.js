@@ -27,6 +27,7 @@ const CategoryProductList = ({ darkMode }) => {
   const productsPerPage = 20;
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [show0StockOnly, setShow0StockOnly] = useState(false);
   
 
   // Paginated fetch for display
@@ -117,6 +118,7 @@ const CategoryProductList = ({ darkMode }) => {
       });
 
   const sortedAndFilteredProducts = useMemo(() => {
+    
     let result = products;
 
     // Apply search filter only if query exists
@@ -143,6 +145,10 @@ const CategoryProductList = ({ darkMode }) => {
     // Apply low stock filter if checkbox is checked
     if (showLowStockOnly) {
       result = result.filter(product => (product.stock || 0) <= 2);
+    }
+
+    if (show0StockOnly) {
+      result = result.filter(product => (product.stock || 0) == 0);
     }
 
     // Apply sorting
@@ -191,7 +197,7 @@ const CategoryProductList = ({ darkMode }) => {
     }
 
     return result;
-  }, [products, searchQuery, sortConfig, showLowStockOnly]);
+  }, [products, searchQuery, sortConfig, showLowStockOnly, show0StockOnly]);
 
   const totalProductPages = Math.ceil(sortedAndFilteredProducts.length / productsPerPage);
   const paginatedProductsForModal = sortedAndFilteredProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
@@ -203,7 +209,7 @@ const CategoryProductList = ({ darkMode }) => {
     acc[category].push(product);
     return acc;
   }, {});
-  const sortedCategories = Object.keys(groupedByCategory).sort();
+  const sortedCategories = Object.keys(groupedByCategory).sort(products.category);
 
   // Fetch all products for report
   // const fetchAllProductsForReport = async (search = "") => {
@@ -325,7 +331,7 @@ const CategoryProductList = ({ darkMode }) => {
       </div>
       <div className="search-action-container">
         <div className={`search-bar-container ${darkMode ? "dark" : ""}`}>
-          <FontAwesomeIcon icon={faSearch} className="search-icon" />
+          {(!searchQuery) ? <FontAwesomeIcon icon={faSearch} className="search-icon" /> : <></> }
           <input
             type="text"
             placeholder="       Search Item Name"
@@ -355,6 +361,19 @@ const CategoryProductList = ({ darkMode }) => {
                 type="checkbox"
                 checked={showLowStockOnly}
                 onChange={(e) => setShowLowStockOnly(e.target.checked)}
+              />
+            </span>
+          
+          </span>
+          {/* Low Stock Filter Checkbox */}
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: 14, color: '#666', marginRight: 13 }}>
+            Show 0 Stock 
+          
+            <span style={{ fontSize: 14, color: '#666', marginLeft: 8, marginTop: 8 }}>
+              <input
+                type="checkbox"
+                checked={show0StockOnly}
+                onChange={(e) => setShow0StockOnly(e.target.checked)}
               />
             </span>
           

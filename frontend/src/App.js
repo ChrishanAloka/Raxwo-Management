@@ -24,8 +24,11 @@ import SupplierUpdate from './pages/SupplierUpdate';
 import './App.css';
 import ReturnProductModal from './pages/ReturnProductModal';
 import MaintenanceAdd from './pages/MaintenanceAdd';
+import BankPassbookAdd from './pages/BankPassbookAdd';
 import MaintenanceEdit from './pages/MaintenanceEdit';
+import BankPassbookEdit from './pages/BankPassbookEdit';
 import MaintenanceList from './pages/MaintenanceList';
+import BankPassbookList from './pages/BankPassbookList';
 import CashierList from './pages/CashierList';
 import CashierAdd from './pages/CashierAdd';
 import CashierEdit from './pages/CashierEdit';
@@ -284,6 +287,16 @@ const App = () => {
               </PrivateRoute>
             }
           />
+
+          <Route
+            path="/bankPassbook"
+            element={
+              <PrivateRoute>
+                <BankPassbookAdd darkMode={darkMode} />
+              </PrivateRoute>
+            }
+          />
+
           <Route
             path="/maintenance-list"
             element={
@@ -292,6 +305,16 @@ const App = () => {
               </PrivateRoute>
             }
           />
+
+          <Route
+            path="/bankPassbook-list"
+            element={
+              <PrivateRoute>
+                <BankPassbookList darkMode={darkMode} />
+              </PrivateRoute>
+            }
+          />
+
           <Route
             path="/edit-maintenance/:id"
             element={
@@ -300,6 +323,16 @@ const App = () => {
               </PrivateRoute>
             }
           />
+
+          <Route
+            path="/edit-bankPassbook/:id"
+            element={
+              <PrivateRoute>
+                <BankPassbookEdit darkMode={darkMode} />
+              </PrivateRoute>
+            }
+          />
+
           <Route
             path="/cashiers"
             element={

@@ -1,0 +1,247 @@
+/* ==================== */
+/* 1. Modal Overlay */
+/* ==================== */
+
+.bp-add-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* ==================== */
+/* 2. Modal Container */
+/* ==================== */
+
+.bp-add-container {
+  background: #fff;
+  padding: 32px;
+  width: 550px;
+  max-width: 90vw;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  color: #333;
+  animation: fadeIn 0.3s ease-in-out;
+  border: 1.5px solid #e5e7eb;
+  transition: box-shadow 0.2s, border 0.2s;
+}
+
+.dark.bp-add-container {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* ==================== */
+/* 3. Modal Title */
+/* ==================== */
+
+.bp-add-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #22223b;
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dark .bp-add-title {
+  color: #ffffff;
+}
+
+/* ==================== */
+/* 4. Label Styling */
+/* ==================== */
+
+.bp-add-label {
+  display: block;
+  font-size: 14px;
+  margin-top: 16px;
+  color: #333;
+  font-family: 'Inter', sans-serif;
+  text-align: left;
+  font-weight: 500;
+}
+
+.dark .bp-add-label {
+  color: #e2e8f0;
+}
+
+/* ==================== */
+/* 5. Input Fields */
+/* ==================== */
+
+.bp-add-input {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 15px;
+  background-color: #f8fafc;
+  color: #1e293b;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.dark .bp-add-input {
+  background-color: #22304a;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
+/* Placeholder */
+.bp-add-input::placeholder {
+  color: #a0aec0;
+}
+
+/* Focus Effect */
+.bp-add-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* ==================== */
+/* 6. Button Group */
+/* ==================== */
+
+.button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* ==================== */
+/* 7. Submit & Cancel Buttons */
+/* ==================== */
+
+.bp-add-submit-btn {
+  background: linear-gradient(90deg, #28a745 0%, #4ade80 100%);
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  min-width: 120px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(42, 173, 69, 0.2);
+}
+
+.bp-add-submit-btn:hover {
+  background: linear-gradient(90deg, #218838 0%, #22d3ee 100%);
+  box-shadow: 0 4px 12px rgba(42, 173, 69, 0.3);
+}
+
+.bp-add-cancel-btn {
+  background: #dc3545;
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  min-width: 120px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
+}
+
+.bp-add-cancel-btn:hover {
+  background: #c82333;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.dark .bp-add-cancel-btn {
+  background: #c82333;
+}
+
+.dark .bp-add-cancel-btn:hover {
+  background: #b21e2d;
+}
+
+/* ==================== */
+/* 8. Error Message */
+/* ==================== */
+
+.error-message {
+  color: #e74c3c;
+  text-align: center;
+  margin: 16px 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* ==================== */
+/* 9. Animation */
+/* ==================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==================== */
+/* 10. Responsive Design */
+/* ==================== */
+
+@media (max-width: 480px) {
+  .bp-add-container {
+    width: 90%;
+    padding: 20px;
+  }
+
+  .bp-add-title {
+    font-size: 1.4rem;
+  }
+
+  .button-group {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .bp-add-submit-btn,
+  .bp-add-cancel-btn {
+    width: 48%;
+    font-size: 15px;
+    padding: 10px 16px;
+  }
+}
+
+/* Mobile: Stack buttons on small screens */
+@media (max-width: 600px) {
+  .button-group {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .bp-add-submit-btn,
+  .bp-add-cancel-btn {
+    flex: 1;
+    min-width: 120px;
+  }
+}

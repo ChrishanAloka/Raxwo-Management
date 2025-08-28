@@ -499,12 +499,13 @@ const generateCustomBill = () => {
           "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
-          items: items.map(({ _id, itemName, quantity, sellingPrice, discount }) => ({
+          items: items.map(({ _id, itemName, quantity, sellingPrice, discount, assignedTo }) => ({
             productId: _id,
             itemName,
             quantity,
             price: sellingPrice,
             discount: discount || 0,
+            assignedTo,
           })),
           totalAmount,
           discountApplied: items.reduce((sum, item) => sum + (item.discount || 0), 0),

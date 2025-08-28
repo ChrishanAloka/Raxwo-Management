@@ -1,17 +1,23 @@
 /* Payment.css */
 
-/* General Container */
+/* ==================== */
+/* 1. Full-Width Container – Reduce Left/Right Waste */
+/* ==================== */
+
+/* Remove default padding and stretch to full width */
 .payment-container {
   display: flex;
-  width: 100%;
-  min-width: auto;
   min-height: 100vh;
-  justify-content: space-between;
-  padding: 20px;
+  gap: 24px; /* Clean space between panels */
   background-color: white;
   color: #000;
   font-family: Arial, sans-serif;
-  padding-left: 300px;
+  padding: 20px;
+  padding-left: 300px; /* Keep only if sidebar exists */
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  margin-right: -40px;
 }
 
 .payment-container.dark {
@@ -19,21 +25,129 @@
   color: white;
 }
 
-.product-list {
-  width: 48%;
+/* On large screens: reduce left/right container padding to zero */
+@media (min-width: 1200px) {
+  .payment-container {
+    padding-left: 300px; /* Only sidebar offset */
+    padding-right: 40px; /* Small breathing room */
+  }
+}
+
+/* ==================== */
+/* 2. Wider Product List & Cart */
+/* ==================== */
+
+.cart {
+  flex: 1;
+  min-width: 360px;
+  width: 100%;
   background: #fff;
   border-radius: 18px;
   box-shadow: 0 6px 24px rgba(0,0,0,0.10), 0 1.5px 6px rgba(0,0,0,0.08);
   border: 1.5px solid #e5e7eb;
-  padding: 32px 28px;
-  margin-bottom: 32px;
-  transition: box-shadow 0.2s, border 0.2s;
+  padding: 32px 24px;
+  margin-bottom: 0;
+  transition: all 0.2s ease;
+  margin-left: -65px;
 }
 
-.product-list.dark {
+.cart.dark {
   background: #1e293b;
   border: 1.5px solid #334155;
   box-shadow: 0 6px 24px rgba(0,0,0,0.32), 0 1.5px 6px rgba(0,0,0,0.18);
+}
+
+/* ==================== */
+/* 3. Product Table – Smart Column Widths + Wrap Text */
+/* ==================== */
+
+.product-table-payment {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Enables manual column width control */
+  margin-top: 16px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.product-table-payment th,
+.product-table-payment td {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 14px;
+  color: #333;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Column Widths */
+.product-table-payment th:nth-child(1),
+.product-table-payment td:nth-child(1) {
+  width: 50%; /* Item Name – widest */
+  max-width: 300px;
+  word-wrap: break-word; /* Wrap long names */
+  white-space: normal;
+}
+
+.product-table-payment th:nth-child(2),
+.product-table-payment td:nth-child(2) {
+  width: 30%; /* Category */
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-table-payment th:nth-child(3),
+.product-table-payment td:nth-child(3) {
+  width: 10%; /* Stock */
+  text-align: center;
+}
+
+.product-table-payment th:nth-child(4),
+.product-table-payment td:nth-child(4) {
+  width: 10%; /* Action */
+  text-align: center;
+  padding: 8px;
+}
+
+/* Header Styling */
+.product-table-payment th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: #2d3748;
+  font-family: 'Open Sans', sans-serif;
+}
+
+/* Dark Mode */
+.dark .product-table-payment {
+  color: #e2e8f0;
+  border-color: #4a5568;
+}
+
+.dark .product-table-payment th {
+  background-color: #2d3748;
+  border-bottom-color: #4a5568;
+  color: #e2e8f0;
+}
+
+.dark .product-table-payment td {
+  border-bottom-color: #4a5568;
+}
+
+.product-table-payment td {
+  white-space: normal;
+  vertical-align: top;
+}
+
+/* Hover effect */
+.product-table-payment tr:hover {
+  background-color: #f0f0f0;
+}
+
+.dark .product-table-payment tr:hover {
+  background-color: #2d3748;
 }
 
 .cart {
@@ -120,6 +234,7 @@ input[type="text"].dark, input[type="number"].dark, select.dark {
   padding: 32px 28px;
   margin-bottom: 32px;
   transition: box-shadow 0.2s, border 0.2s;
+  
 }
 
 .product-list.dark {

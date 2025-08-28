@@ -48,6 +48,7 @@ const deviceTypesRoutes = require("./routes/deviceTypes");
 const extraIncomeRoutes = require("./routes/extraIncome");
 const clickedProductRoutes = require("./routes/clickedProducts");
 const productUploadsRoutes = require('./routes/productUploads');
+const bankPassbookRoutes = require('./routes/bankPassbookRoutes');
 
 app.use("/api/extra-income", extraIncomeRoutes);
 app.use("/api/clicked-products", clickedProductRoutes);
@@ -61,6 +62,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
+app.use("/api/bank-passbook", bankPassbookRoutes);
 app.use("/api/cashiers", cashierRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api", customerRoutes);

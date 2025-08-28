@@ -102,29 +102,86 @@ router.get('/forsummery', async (req, res) => {
   }
 });
 
-// In your payment route
 router.patch('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    const allowedFields = ['invoiceNumber', 'paymentMethod', 'discountApplied', 'totalAmount', 'cashierName', 'cashierId', 'changedBy', 'changeSource', 'assignedTo'];
-    const filteredUpdates = Object.keys(updates)
-      .filter(key => allowedFields.includes(key))
-      .reduce((obj, key) => {
-        obj[key] = updates[key];
-        return obj;
-      }, {});
 
-    if (Object.keys(filteredUpdates).length === 0) {
-      return res.status(400).json({ message: "No valid fields to update" });
+    // Step 1: Find the payment
+    const payment = await Payment.findById(id);
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
     }
 
-    const payment = await Payment.findByIdAndUpdate(id, filteredUpdates, { new: true });
-    if (!payment) return res.status(404).json({ message: "Payment not found" });
+    // Step 2: Handle top-level updates (safe list)
+    const allowedTopLevelFields = [
+      'invoiceNumber',
+      'paymentMethod',
+      'discountApplied',
+      'totalAmount',
+      'cashierName',
+      'cashierId',
+      'customerName',
+      'contactNumber',
+      'address',
+      'description',
+      'assignedTo', // top-level assignment
+    ];
 
+    // Apply allowed top-level updates
+    Object.keys(updates)
+      .filter(key => allowedTopLevelFields.includes(key))
+      .forEach(key => {
+        payment[key] = updates[key];
+      });
+
+    // Step 3: Handle item-level assignedTo updates
+    let itemsUpdated = false;
+
+    if (Array.isArray(updates.items)) {
+      for (const update of updates.items) {
+        const itemId = update._id;
+        const assignedTo = update.assignedTo;
+
+        // Validate item ID
+        if (!itemId) {
+          return res.status(400).json({ message: 'Missing _id in item update' });
+        }
+
+        // Validate assignedTo
+        if (assignedTo !== undefined) {
+
+          // Find item in payment.items
+          const item = payment.items.id(itemId); // Mongoose subdocument findById
+          if (!item) {
+            return res.status(404).json({ message: `Item with _id ${itemId} not found in payment` });
+          }
+
+          // Update only if changed
+          if (item.assignedTo !== assignedTo) {
+            item.assignedTo = assignedTo;
+            itemsUpdated = true;
+          }
+        }
+      }
+    }
+
+    // Step 4: Only save if something changed
+    if (Object.keys(updates).some(key => allowedTopLevelFields.includes(key)) || itemsUpdated) {
+      // Optional: Add metadata
+      payment.changedBy = req.body.changedBy || 'Unknown';
+      payment.changeSource = req.body.changeSource || 'Payment';
+
+      await payment.save(); // Mongoose handles validation
+    } else {
+      return res.status(400).json({ message: 'No valid changes detected' });
+    }
+
+    // Step 5: Return updated payment
     res.json(payment);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error updating payment:', err.message);
+    res.status(500).json({ message: err.message || 'Internal server error' });
   }
 });
 

@@ -186,14 +186,82 @@ router.get('/', async (req, res) => {
       deleted: { $ne: true },        // not deleted (includes false or missing)
       visible: { $ne: false },      // is visible (includes true or missing)
 
-      $or: [
-        // Case 1: grnNumber is "GRN-SYS01" → allow any stock
-        { grnNumber: "GRN-SYS01" },
-
-        // Case 2: grnNumber is NOT "GRN-SYS01" → must have stock > 0
-        { grnNumber: { $ne: "GRN-SYS01" }, stock: { $gt: 0 } }
-      ]
     }).lean();
+
+    const pipeline = [
+          // Step 1: Apply your filters
+          {
+            $match: {
+              deleted: { $ne: true },
+              visible: { $ne: false },
+              $or: [
+                { stock: { $gt: 0 } }
+              ]
+            }
+          },
+    
+          // Step 2: Sort by uploadedAt descending → newest first
+          { $sort: { uploadedAt: -1 } },
+    
+          // Step 3: Group by the 3 fields to deduplicate
+          {
+            $group: {
+              _id: {
+                itemName: "$itemName",
+                category: "$category",
+                buyingPrice: "$buyingPrice"
+              },
+              doc: { $first: "$$ROOT" } // Keep the most recent (due to sort)
+            }
+          },
+    
+          // Step 4: Promote the full document back
+          { $replaceRoot: { newRoot: "$doc" } }
+    
+          // No pagination: just return all unique docs
+        ];
+    
+        const pipeline2 = [
+          // Step 1: Apply your filters
+          {
+            $match: {
+              deleted: { $ne: true },
+              visible: { $ne: false },
+              stock: { $eq: 0 } 
+            }
+          },
+    
+          // Step 2: Sort by uploadedAt descending → newest first
+          { $sort: { uploadedAt: -1 } },
+    
+          // Step 3: Group by the 3 fields to deduplicate
+          {
+            $group: {
+              _id: {
+                itemName: "$itemName",
+                category: "$category",
+                buyingPrice: "$buyingPrice"
+              },
+              doc: { $first: "$$ROOT" } // Keep the most recent (due to sort)
+            }
+          },
+    
+          // Step 4: Promote the full document back
+          { $replaceRoot: { newRoot: "$doc" } }
+    
+          // No pagination: just return all unique docs
+        ];
+    
+        // Add timeout to avoid hanging
+        const uniqueRecords = await Product.aggregate(pipeline)
+          // .maxTimeMS(20000) // 20 seconds max
+          .exec();
+    
+        const uniqueRecords2 = await Product.aggregate(pipeline2)
+          // .maxTimeMS(20000) // 20 seconds max
+          .exec();
+
+
       console.log("products", products);
       const uploadedRecords = await UploadedProduct.find().sort({ uploadedAt: 1 }).lean();
       const mappedUploads = uploadedRecords.map((rec) => {
@@ -215,7 +283,7 @@ router.get('/', async (req, res) => {
         };
       });
       const mainProducts = products.map(p => ({ ...p, source: 'main' }));
-      const all = [...mappedUploads, ...mainProducts ];
+      const all = [...uniqueRecords, ...uniqueRecords2 ];
       res.json(all);
 
       console.log("Main Products:");

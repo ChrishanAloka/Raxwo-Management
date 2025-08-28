@@ -37,6 +37,20 @@ const Payment = ({ darkMode }) => {
   const [cashierId, setCashierId] = useState(localStorage.getItem('userId') || 'N/A');
   const [cashierName, setCashierName] = useState(localStorage.getItem('username') || 'Unknown');
 
+  const [selectedCategories, setSelectedCategories] = useState(new Set());
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);  
+
+  // Get all unique categories from products
+  const allCategories = [...new Set(products.map(p => p.category).filter(Boolean))];
+
+  const [categorySearch, setCategorySearch] = useState('');
+
+  const filteredCategoriesForSearch = categorySearch.trim() === ''
+  ? allCategories
+  : allCategories.filter(cat =>
+      cat.toLowerCase().includes(categorySearch.toLowerCase().trim())
+    );
+
   // Reusable function to fetch available products
   const fetchAvailableProducts = async (setProducts, navigate) => {
     try {
@@ -110,10 +124,25 @@ const Payment = ({ darkMode }) => {
     }
 
   }, [navigate]);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      const categoryFilterSection = e.target.closest('.category-filter-section');
+      if (!categoryFilterSection && showCategoryFilter) {
+        setShowCategoryFilter(false);
+        setCategorySearch('');
+      }
+    }
+
+    if (showCategoryFilter) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showCategoryFilter]);
   
 
   const addToCart = (product) => {
-    setCart([...cart, { ...product, quantity: 1, discount: 0 }]);
+    setCart([...cart, { ...product, quantity: 1, discount: 0, assignedTo: "", }]);
     localStorage.setItem('paymentCart', JSON.stringify(cart));
   };
 
@@ -154,25 +183,79 @@ const Payment = ({ darkMode }) => {
 
   const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
 
-  const filteredProducts = searchQuery.trim() === ""
-    ? products
-    : products.filter(product => {
-        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
-        const words = normalize(searchQuery).trim().split(/\s+/);
+  // Fuzzy substring match: tolerate minor typos like "ipone" → "iphone"
+function fuzzyIncludes(haystack, needle) {
+  // Remove non-alphanumeric and split needle into chars
+  const cleanHaystack = Array.from(haystack.replace(/[^a-z0-9]/g, ''));
+  const cleanNeedle = Array.from(needle.replace(/[^a-z0-9]/g, ''));
 
-        return words.every(word => {
-          const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          if (/^\d+$/.test(word)) {
-            // Numeric: require word boundaries (exact number match)
-            const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
-            return regex.test(searchableText);
-          } else {
-            // Text: allow partial substring match
-            const regex = new RegExp(escapedWord, 'i');
-            return regex.test(searchableText);
-          }
-        });
+  let j = 0; // pointer in haystack
+  for (let i = 0; i < cleanNeedle.length; i++) {
+    const char = cleanNeedle[i];
+    let found = false;
+    while (j < cleanHaystack.length) {
+      if (cleanHaystack[j] === char) {
+        found = true;
+        j++;
+        break;
+      }
+      j++;
+    }
+    if (!found) return false;
+  }
+  return true;
+}
+
+  const filteredProducts = (() => {
+  let result = searchQuery.trim() === ""
+    ? products
+    // : products.filter(product => {
+    //     const searchableText = normalize(product.itemName);
+    //     const words = normalize(searchQuery).trim().split(/\s+/);
+
+    //     return words.every(word => {
+    //       const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    //       if (/^\d+$/.test(word)) {
+    //         // Numeric: require word boundaries (exact number match)
+    //         const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+    //         return regex.test(searchableText);
+    //       } else {
+    //         // Text: allow partial substring match
+    //         const regex = new RegExp(escapedWord, 'i');
+    //         return regex.test(searchableText);
+    //       }
+    //     });
+    //   });
+    : products.filter(product => {
+      const name = product.itemName.toLowerCase();
+
+      // Split query into meaningful words, remove empty
+      const queryWords = searchQuery
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
+        .split(/\s+/)
+        .filter(Boolean);
+
+      // If no valid words, show all
+      if (queryWords.length === 0) return true;
+
+      return queryWords.every(word =>
+          /^\d+$/.test(word)
+            ? name.includes(word)
+            : fuzzyIncludes(name, word)
+        );
       });
+
+      // Apply category filter if any categories are selected
+      if (selectedCategories.size > 0) {
+        result = result.filter(product =>
+          selectedCategories.has(product.category)
+        );
+      }
+
+      return result;
+    })();
 
   const filteredCart = cart.filter((item) =>
     item.itemName.toLowerCase().includes(cartSearchQuery.toLowerCase())
@@ -287,6 +370,8 @@ const Payment = ({ darkMode }) => {
   return (
     <div className={`payment-container ${darkMode ? 'dark' : ''}`}>
       {error && <p className="error-message">{error}</p>}
+      {/* Debug: Show current state */}
+    
       <br/><br/>
       <br/><br/>
 
@@ -361,6 +446,7 @@ const Payment = ({ darkMode }) => {
                 <th>Qty</th>
                 <th>Price</th>
                 <th>Discount</th>
+                <th>Assign To</th>
                 <th>Total</th>
                 <th>Action</th>
               </tr>
@@ -397,6 +483,30 @@ const Payment = ({ darkMode }) => {
                       onChange={(e) => applyDiscount(index, e.target.value)}
                       className={darkMode ? 'dark' : ''}
                     />
+                  </td>
+                  {/* 👇 Assign To Per Item */}
+                  <td>
+                    <select
+                      value={item.assignedTo || ""}
+                      onChange={(e) => {
+                        const updatedCart = [...cart];
+                        updatedCart[index] = {
+                          ...updatedCart[index],
+                          assignedTo: e.target.value,
+                        };
+                        setCart(updatedCart);
+                        localStorage.setItem('paymentCart', JSON.stringify(updatedCart));
+                      }}
+                      // className={`customer-input ${darkMode ? 'dark' : ''}`}
+                      style={{ fontSize: '13px', padding: '4px 6px' }}
+                    >
+                      <option value="" disabled>Select Technician</option>
+                      <option value="Prabath">Prabath</option>
+                      <option value="Nadeesh">Nadeesh</option>
+                      <option value="Accessories">Accessories</option>
+                      <option value="Genex-EX">Genex EX</option>
+                      <option value="I-Device">I Device</option>
+                    </select>
                   </td>
                   <td>Rs.{(item.sellingPrice * item.quantity - item.discount).toFixed(2)}</td>
                   <td>
@@ -444,7 +554,7 @@ const Payment = ({ darkMode }) => {
           </div>
           
           {/* Assigned To Dropdown - Added Here */}
-          <div className="summary-row">
+          {/* <div className="summary-row">
             <select
               value={assignedTo || ""}
               onChange={(e) => {
@@ -461,7 +571,7 @@ const Payment = ({ darkMode }) => {
               <option value="Genex-EX">Genex EX</option>
               <option value="I-Device">I Device</option>
             </select>
-          </div>
+          </div> */}
 
           <div className="summary-row">
           <button
@@ -550,22 +660,7 @@ const Payment = ({ darkMode }) => {
       )}
 
       <div className={`product-list ${darkMode ? 'dark' : ''}`}>
-      <h2 className={`salary-list-title ${darkMode ? 'dark' : ''}`}>Products</h2>
-      <div className="cashier-button-container">
-          {showCashierCard && (
-            <div className={`cashier-card ${darkMode ? 'dark' : ''}`}>
-              <h4>Cashier Details</h4>
-              <p><strong>Name:</strong> {cashierName}</p>
-              <p><strong>ID:</strong> {cashierId}</p>
-              <button
-                className={`close-card-btn ${darkMode ? 'dark' : ''}`}
-                onClick={toggleCashierCard}
-              >
-                Close
-              </button>
-            </div>
-          )}
-        </div>
+        <h2 className={`salary-list-title ${darkMode ? 'dark' : ''}`}>Products</h2>
 
         <div className="product-search-container">
           <input
@@ -584,31 +679,217 @@ const Payment = ({ darkMode }) => {
           </button>
         </div>
 
-        <div className={`product-grid ${darkMode ? 'dark' : ''}`}>
-          {filteredProducts.length === 0 ? (
-            <p className={`no-products ${darkMode ? 'dark' : ''}`}>No products found</p>
-          ) : (
-            filteredProducts.map(product => (
-              <div key={product._id} className={`product-card ${darkMode ? 'dark' : ''}`}>
-                <div className="product-info">
-                  {/* <span className={`product-code ${darkMode ? 'dark' : ''}`}>{product.itemCode}</span> */}
-                  <span className={`product-name ${darkMode ? 'dark' : ''}`}>{product.itemName} - </span>
-                  <span className={`product-name ${darkMode ? 'dark' : ''}`}>{product.category}</span>
-                  <span className={`product-price ${darkMode ? 'dark' : ''}`} style={{ color: 'black' }}>
-                    Sell: Rs.{product.sellingPrice.toFixed(2)} / Stock : {product.stock}
-                  </span>
-                </div>
+        {/* Category Filter Toggle & Search */}
+        <div className="category-filter-section" style={{ marginTop: '12px' }}>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation(); // 🔥 Prevents outside click detection
+              console.log("Toggling filter. Current:", showCategoryFilter);
+              setShowCategoryFilter(prev => !prev); // ✅ Toggle instead of hard-setting
+            }}
+            style={{
+              background: darkMode ? '#334155' : '#e2e8f0',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              color: darkMode ? '#e2e8f0' : '#1e293b',
+            }}
+          >
+            <span>🔽</span>
+            <span>
+              Filter by Category {selectedCategories.size > 0 && `(${selectedCategories.size})`}
+            </span>
+          </button>
+
+          {showCategoryFilter && (
+            <div
+              style={{
+                padding: '12px',
+                marginTop: '8px',
+                borderTop: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`,
+                backgroundColor: darkMode ? '#1a1a1a' : '#f8fafc',
+                borderRadius: '8px',
+              }}
+            >
+              {/* Search Input */}
+              <input
+                type="text"
+                placeholder="Search categories..."
+                value={categorySearch}
+                onChange={(e) => setCategorySearch(e.target.value)}
+                onClick={(e) => e.stopPropagation()} // Prevent dropdown close
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  marginBottom: '10px',
+                  border: `1px solid ${darkMode ? '#334155' : '#cbd5e1'}`,
+                  borderRadius: '6px',
+                  backgroundColor: darkMode ? '#2d3748' : '#fff',
+                  color: darkMode ? '#e2e8f0' : '#1e293b',
+                  fontSize: '14px',
+                }}
+              />
+
+              {/* Select All / Clear */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                marginBottom: '10px',
+                flexWrap: 'wrap'
+              }}>
                 <button
-                  onClick={() => addToCart(product)}
-                  className={`add-to-cart-btn ${darkMode ? 'dark' : ''}`}
-                  disabled={product.stock === 0}
+                  type="button"
+                  onClick={() => {
+                    const filtered = filteredCategoriesForSearch;
+                    const newSet = new Set([...selectedCategories, ...filtered]);
+                    setSelectedCategories(newSet);
+                  }}
+                  style={{
+                    fontSize: '12px',
+                    padding: '4px 8px',
+                    background: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
                 >
-                  <FontAwesomeIcon icon={faCartPlus} size="lg" />
+                  Select All Shown
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategories(new Set())}
+                  style={{
+                    fontSize: '12px',
+                    padding: '4px 8px',
+                    background: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Clear All
                 </button>
               </div>
-            ))
+
+              {/* Category Checkboxes */}
+              <div
+                style={{
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                  gap: '14px', // Generous space between items
+                  paddingRight: '4px',
+                  paddingLeft: '2px',
+                  marginTop: '4px'
+                }}
+              >
+                {allCategories.length === 0 ? (
+                  <span
+                    style={{
+                      gridColumn: '1 / -1',
+                      textAlign: 'center',
+                      color: darkMode ? '#94a3b8' : '#64748b',
+                      fontStyle: 'italic',
+                      fontSize: '13px',
+                      padding: '8px 0'
+                    }}
+                  >         
+                    No categories
+                  </span>
+                ) : (
+                  filteredCategoriesForSearch.map((cat) => (
+                    <label
+                      key={cat}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        color: darkMode ? '#e2e8f0' : '#1e293b',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`,
+                        backgroundColor: darkMode ? '#2d3748' : '#fff',
+                        transition: 'all 0.2s ease',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        boxShadow: `0 1px 3px ${darkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)'}`
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.has(cat)}
+                        onChange={(e) => {
+                          const newSet = new Set(selectedCategories);
+                          e.target.checked ? newSet.add(cat) : newSet.delete(cat);
+                          setSelectedCategories(newSet);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      {cat}
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
           )}
         </div>
+
+        {filteredProducts.length === 0 ? (
+          <p className={`no-products ${darkMode ? 'dark' : ''}`}>No products found</p>
+        ) : (
+          <div className={`product-table-container ${darkMode ? 'dark' : ''}`}>
+            <table className={`product-table-payment ${darkMode ? 'dark' : ''}`}>
+              <thead>
+                <tr>
+                  <th>Item Name</th>
+                  <th>
+                    Category
+                  </th>
+                  {/* <th>Selling Price</th> */}
+                  <th>Stock</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.map((product) => (
+                  <tr key={product._id} className={darkMode ? 'dark-row' : ''}>
+                    <td>
+                      {product.itemName}
+                    </td>
+                    <td>
+                      {product.category}
+                    </td>
+                    {/* <td>
+                      Rs.{product.sellingPrice.toFixed(2)}
+                    </td> */}
+                    <td>
+                      {product.stock}
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => addToCart(product)}
+                        className={`add-to-cart-btn ${darkMode ? 'dark' : ''}`}
+                        disabled={product.stock === 0}
+                      >
+                        <FontAwesomeIcon icon={faCartPlus} size="lg" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

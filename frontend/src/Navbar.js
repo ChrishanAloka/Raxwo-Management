@@ -21,6 +21,8 @@ import {
   FaHistory,
   FaTrashAlt,
   FaEyeSlash,
+  FaPassport,
+  FaSchool
 } from "react-icons/fa";
 import "./Navbar.css";
 import gelogo from './icon/Ge.logo.jpg';
@@ -77,6 +79,7 @@ const Navbar = ({ darkMode, onToggleSidebar }) => {
           <li><NavLink to="/payment" className={({ isActive }) => isActive ? "sidebar-link active-link" : "sidebar-link"} onClick={() => isMobileOpen && setIsMobileOpen(false)}><FaFileAlt className="icon" /><span>New Payment</span></NavLink></li>
           <li><NavLink to="/PaymentTable" className={({ isActive }) => isActive ? "sidebar-link active-link" : "sidebar-link"} onClick={() => isMobileOpen && setIsMobileOpen(false)}><FaDatabase className="icon" /><span>Payment Records</span></NavLink></li>
           <li><NavLink to="/extra-income" className={({ isActive }) => isActive ? "sidebar-link active-link" : "sidebar-link"} onClick={() => isMobileOpen && setIsMobileOpen(false)}><FaMoneyBillWaveAlt className="icon" /><span>Other Income</span></NavLink></li>
+          <li><NavLink to="/bankPassbook-list" className={({ isActive }) => isActive ? "sidebar-link active-link" : "sidebar-link"} onClick={() => isMobileOpen && setIsMobileOpen(false)}><FaPassport className="icon" /><span>Bank Passbook </span></NavLink></li>
           <li><NavLink to="/maintenance-list" className={({ isActive }) => isActive ? "sidebar-link active-link" : "sidebar-link"} onClick={() => isMobileOpen && setIsMobileOpen(false)}><FaCog className="icon" /><span>Maintenance</span></NavLink></li>
           {/* <li><NavLink to="/CashierAttendance" className={({ isActive }) => isActive ? "sidebar-link active-link" : "sidebar-link"} onClick={() => isMobileOpen && setIsMobileOpen(false)}><FaMarker className="icon" /><span>Attendance</span></NavLink></li> */}
           {/* <li><NavLink to="/CashierAttendanceTable" className={({ isActive }) => isActive ? "sidebar-link active-link" : "sidebar-link"} onClick={() => isMobileOpen && setIsMobileOpen(false)}><FaTable className="icon" /><span>Attendance Records</span></NavLink></li> */}

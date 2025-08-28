@@ -4,6 +4,9 @@ import '../Products.css';
 import editicon from '../icon/edit.png';
 import deleteicon from '../icon/delete.png';
 import saveicon from '../icon/sucess.png';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSearch, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { useMemo } from "react";
 
 const API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
 const PRODUCT_API_URL = 'https://raxwo-management.onrender.com/api/products';
@@ -18,6 +21,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 8;
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchItems = async () => {
     setLoading(true);
@@ -95,8 +99,44 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     }
   };
 
-  const totalProductPages = Math.ceil(items.length / productsPerPage);
-  const ProductsForModal = items.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
+  const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
+
+  const sortedAndFilteredProducts = useMemo(() => {
+      // Start with filtered products
+      // Start with all products or filtered list
+      let result = items;
+  
+      // Apply search filter only if query exists
+      if (searchQuery.trim() !== '') {
+        result = items.filter(product => {
+          const searchableText = normalize(product.grnNumber + ' ' + product.itemName + ' ' + product.category + ' ' + product.category);
+          const words = normalize(searchQuery).trim().split(/\s+/);
+  
+          return words.every(word => {
+            const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if (/^\d+$/.test(word)) {
+              // Numeric: require word boundaries (exact number match)
+              const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+              return regex.test(searchableText);
+            } else {
+              // Text: allow partial substring match
+              const regex = new RegExp(escapedWord, 'i');
+              return regex.test(searchableText);
+            }
+          });
+        });
+      }
+  
+      return result;
+    }, [items, searchQuery]);
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
+
+  const totalProductPages = Math.ceil(sortedAndFilteredProducts.length / productsPerPage);
+  const ProductsForModal = sortedAndFilteredProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
 
   return (
     <div className={`cart-details-container ${darkMode ? 'dark' : ''}`}>
@@ -110,12 +150,31 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
           </button>
         </>
       )}
+      <div className={`search-bar-container ${darkMode ? 'dark' : ''}`}>
+        {(!searchQuery) ? <FontAwesomeIcon icon={faSearch} className="search-icon" /> : <></> }
+        <input
+          type="text"
+          placeholder="       Search..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(1);
+          }}
+          className={`product-list-search-bar ${darkMode ? 'dark' : ''}`}
+        />
+        {searchQuery && (
+          <button onClick={handleClearSearch} className={`search-clear-btn ${darkMode ? 'dark' : ''}`}>
+            <FontAwesomeIcon icon={faTimes} />
+          </button>
+        )}
+      </div>
       {!loading && items.length === 0 ? (
         <p className="no-products">No items in cart.</p>
       ) : (
         <table className={`product-table ${darkMode ? 'dark' : ''}`}>
           <thead>
             <tr>
+              <th>Date</th>
               <th>GRN</th>
               <th>Item Name</th>
               <th>Category</th>
@@ -126,8 +185,9 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
             </tr>
           </thead>
           <tbody>
-            {ProductsForModal.map((item, index) => (
+            {ProductsForModal.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((item, index) => (
               <tr key={index}>
+                <td>{new Date(item.createdAt).toISOString().split("T")[0] || '-'}</td>
                 <td>{item.grnNumber || 'N/A'}</td>
                 <td>{item.itemName || 'N/A'}</td>
                 <td>{item.category || 'N/A'}</td>

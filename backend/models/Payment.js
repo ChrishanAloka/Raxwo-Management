@@ -11,7 +11,8 @@ const paymentSchema = new mongoose.Schema({
     itemName: { type: String, required: true },
     quantity: { type: Number, required: true },
     price: { type: Number, required: true },
-    discount: { type: Number, default: 0 }
+    discount: { type: Number, default: 0 },
+    assignedTo: { type: String }
   }],
   totalAmount: {
     type: Number,
