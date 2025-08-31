@@ -299,6 +299,33 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/items', async (req, res) => {
+  try {
+    const { itemCode } = req.query;
+
+    // Build the filter object
+    let filter = {};
+    if (itemCode) {
+      // Case-insensitive exact or partial match on itemCode
+      filter.itemCode = { $regex: itemCode, $options: 'i' };
+    }
+
+    // You can add more filters later (e.g., itemName, category)
+
+    const products = await Product.find(filter);
+
+    if (products.length === 0) {
+      return res.status(200).json([]); // Return empty array if no match
+    }
+
+    res.json(products);
+  } catch (err) {
+    console.error('Error in product search:', err.message);
+    res.status(500).json({ message: 'Server error while searching products' });
+  }
+});
+
+
 // GET: Get a specific deleted product by ID
 router.get('/deleted/:id', async (req, res) => {
   try {

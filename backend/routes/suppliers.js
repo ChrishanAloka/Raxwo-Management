@@ -234,6 +234,29 @@ router.post('/:id/pastpayments', getSupplier, async (req, res) => {
   }
 });
 
+router.post('/:id/discounts', getSupplier, async (req, res) => {
+  
+  const item = {
+    grnNumber: req.body.grnNumber || "-",
+    discountdescription: req.body.discountdescription || "Empty",
+    discountCharge: req.body.discountCharge || 0
+  };
+
+  res.supplier.discounts.push(item);
+
+  try {
+    const updatedSupplier = await res.supplier.save();
+    
+    // ✅ Send back the itemCode in response
+    res.status(201).json({
+      message: 'Discount added successfully',
+      supplier: updatedSupplier   
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 router.post('/:id/repairService', getSupplier, async (req, res) => {
   
   const item = {
@@ -372,12 +395,16 @@ router.post('/:id/payments', getSupplier, async (req, res) => {
     (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
     0
   );
+  const discounts= res.supplier.discounts.reduce(
+    (sum, ppayments) => sum + (ppayments.discountCharge || 0),
+    0
+  );
   const repairServicecharges = res.supplier.repairService.reduce(
     (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
     0
   );
 
-  const totalCost = totalitemCost + pastcharges + repairServicecharges;
+  const totalCost = totalitemCost + pastcharges + repairServicecharges - discounts;
   const currentPayments = res.supplier.totalPayments || 0;
   const amountDue = totalCost - currentPayments;
 
@@ -439,25 +466,43 @@ router.post('/:id/grns', getSupplier, async (req, res) => {
 });
 
 // GET: List all GRNs for a supplier
-router.get('/:id/grns', getSupplier, async (req, res) => {
-  try {
-    const grns = await GRN.find({ supplier: res.supplier._id });
-    res.json(grns);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+// router.get('/:id/grns', getSupplier, async (req, res) => {
+//   try {
+//     const grns = await GRN.find({ supplier: res.supplier._id });
+//     res.json(grns);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
 
 // GET: Get a single GRN by its ID for a supplier
-router.get('/:id/grns/:grnId', getSupplier, async (req, res) => {
+// router.get('/:id/grns/:grnId', getSupplier, async (req, res) => {
+//   try {
+//     const grn = await GRN.findOne({ _id: req.params.grnId, supplier: res.supplier._id });
+//     if (!grn) {
+//       return res.status(404).json({ message: 'GRN not found for this supplier' });
+//     }
+//     res.json(grn);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+router.get('/:id/items/grn/:grnNumber', async (req, res) => {
   try {
-    const grn = await GRN.findOne({ _id: req.params.grnId, supplier: res.supplier._id });
-    if (!grn) {
-      return res.status(404).json({ message: 'GRN not found for this supplier' });
+    const { id, grnNumber } = req.params;
+
+    const supplier = await Supplier.findById(id);
+    if (!supplier) {
+      return res.status(404).json({ message: 'Supplier not found' });
     }
-    res.json(grn);
+
+    const filteredItems = supplier.items.filter(item => item.grnNumber === grnNumber);
+
+    return res.json(filteredItems);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error fetching supplier items by GRN:', err.message);
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 

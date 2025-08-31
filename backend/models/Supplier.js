@@ -34,6 +34,13 @@ const repairServiceSchema = new mongoose.Schema({
   paymentCharge: { type: Number, required: true, min: 0 }
 }, { timestamps: true });
 
+const discountSchema = new mongoose.Schema({
+  date: {type: Date, default: Date.now},
+  grnNumber: { type: String, required: false },
+  discountdescription: { type: String, required: true },
+  discountCharge: { type: Number, required: true, min: 0 }
+}, { timestamps: true });
+
 const supplierSchema = new mongoose.Schema({
   date: { type: String, required: true },
   time: { type: String, required: true },
@@ -46,6 +53,7 @@ const supplierSchema = new mongoose.Schema({
   totalPayments: { type: Number, required: false, default: 0, min: 0 },
   pastPayments: [pastpaymentSchema],
   repairService: [repairServiceSchema],
+  discounts: [discountSchema],
   items: [itemSchema],
   changeHistory: [{
     field: { type: String, required: true },

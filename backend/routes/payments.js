@@ -102,6 +102,49 @@ router.get('/forsummery', async (req, res) => {
   }
 });
 
+router.get('/track', async (req, res) => {
+  try {
+    const { itemCode } = req.query;
+
+    if (!itemCode) {
+      return res.status(400).json({ message: 'itemCode is required' });
+    }
+
+    // Step 1: Find product by itemCode (case-insensitive)
+    const product = await Product.findOne({
+      itemCode: { $regex: new RegExp(`^${itemCode}$`, 'i') }
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    const productId = product._id;
+
+    // Step 2: Find payments that have this productId in items
+    const payments = await Payment.find({
+      'items.productId': productId
+    }).select('invoiceNumber customerName items createdAt');
+
+    // Step 3: Extract item usage details
+    const usageRecords = payments.flatMap(payment => {
+      const matchedItems = payment.items.filter(item => item.productId.equals(productId));
+      return matchedItems.map(item => ({
+        type: 'Payment',
+        invoiceNo: payment.invoiceNumber,
+        customerName: payment.customerName || 'Unknown',
+        quantity: item.quantity,
+        date: payment.createdAt
+      }));
+    }).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.json(usageRecords);
+  } catch (err) {
+    console.error('Error in payment tracking:', err.message);
+    res.status(500).json({ message: 'Server error while fetching payment usage' });
+  }
+});
+
 router.patch('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
