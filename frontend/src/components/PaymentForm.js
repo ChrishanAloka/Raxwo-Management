@@ -16,12 +16,16 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
     (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
     0
   );
+  const discounts = supplier.discounts.reduce(
+    (sum, ppayments) => sum + (ppayments.discountCharge || 0),
+    0
+  );
   const repairServicecharges = supplier.repairService.reduce(
     (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
     0
   );
 
-  const totalCost = totalitemCost + pastcharges + repairServicecharges;
+  const totalCost = totalitemCost + pastcharges + repairServicecharges - discounts;
   const totalPayments = supplier.totalPayments || 0;
   const totalAmountDue = totalCost - totalPayments;
   const remainingDue = totalAmountDue - (parseFloat(paymentAmount) || 0);

@@ -10,15 +10,36 @@ const SummaryForm = ({ suppliers, closeModal, darkMode }) => {
   const selectedSupplier = suppliers.find((supplier) => supplier._id === selectedSupplierId);
   let totalQuantity = 0;
   let totalCost = 0;
+  let totalitemPrice = 0;
+  let discounts = 0; 
   let totalPayments = 0;
   let amountDue = 0;
+  let pastcharges = 0;
+  let repairServicecharges = 0;
 
   if (selectedSupplier) {
     totalQuantity = selectedSupplier.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-    totalCost = selectedSupplier.items.reduce(
+    totalitemPrice = selectedSupplier.items.reduce(
       (sum, item) => sum + (item.buyingPrice || 0) * (item.quantity || 0),
       0
     );
+
+    discounts = selectedSupplier.discounts.reduce(
+      (sum, item) => sum + (item.discountCharge || 0),
+      0
+    );
+
+    repairServicecharges = selectedSupplier.repairService.reduce(
+      (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+      0
+      );
+
+    pastcharges = selectedSupplier.pastPayments.reduce(
+      (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+      0
+    );
+
+    totalCost = repairServicecharges + pastcharges + totalitemPrice - discounts;
     totalPayments = selectedSupplier.totalPayments || 0;
     amountDue = totalCost - totalPayments;
   }
@@ -66,12 +87,28 @@ const SummaryForm = ({ suppliers, closeModal, darkMode }) => {
                   <td>{totalQuantity}</td>
                 </tr>
                 <tr>
+                  <td>Total Item Cost</td>
+                  <td>Rs. {totalitemPrice.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Total Repair Cost</td>
+                  <td>Rs. {repairServicecharges.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Total Previous Charges</td>
+                  <td>Rs. {pastcharges.toFixed(2)}</td>
+                </tr>
+                <tr>
                   <td>Total Cost</td>
                   <td>Rs. {totalCost.toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td>Total Payments Made</td>
                   <td>Rs. {totalPayments.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Total Discounts</td>
+                  <td>Rs. {discounts.toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td>Amount Due</td>

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import CartDetailsTable from './CartDetailsTable';
 import RepairServiceTable from './RepairServiceTable';
 import PastPaymentTable from './PastPaymentTable';
+import DiscountsTable from './DiscountsTable';
 import PaymentHistoryTable from './PaymentHistoryTable';
 import '../styles/Supplier.css';
 
@@ -28,6 +29,12 @@ const CartDetailsPage = ({ darkMode }) => {
       />
       <br/>
       <RepairServiceTable
+        supplierId={supplierId}
+        darkMode={darkMode}
+        refreshSuppliers={refreshSuppliers}
+      />
+      <br/>
+      <DiscountsTable
         supplierId={supplierId}
         darkMode={darkMode}
         refreshSuppliers={refreshSuppliers}

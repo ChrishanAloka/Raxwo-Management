@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AddSupplier from './AddSupplier';
 import CartForm from './CartForm';
+import Discounts from './Discounts';
 import PastPayment from './PastPayment';
 import RepairService from './RepairService';
 import SummaryForm from '../components/SummaryForm';
@@ -15,12 +16,13 @@ import viewicon from '../icon/clipboard.png';
 import jobBillIcon from "../icon/bill.png";
 import payicon from '../icon/payment.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faFile, faFilePdf, faFileExcel, faSearch, faTimes, faChartBar, faWrench } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faFile, faFilePdf, faFileExcel, faSearch, faTimes, faChartBar, faWrench, faPercentage } from '@fortawesome/free-solid-svg-icons';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { TbBackground } from 'react-icons/tb';
 import SupplierUpdate from './SupplierUpdate';
+import Select from 'react-select';
 
 const SupplierList = ({ darkMode }) => {
   const [suppliers, setSuppliers] = useState([]);
@@ -28,6 +30,7 @@ const SupplierList = ({ darkMode }) => {
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false);
   const [showPastPaymentModal, setshowPastPaymentModal] = useState(false);
+  const [showDiscountModal, setshowDiscountModal] = useState(false);
   const [showRepairServiceModal, setshowRepairServiceModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -43,6 +46,7 @@ const SupplierList = ({ darkMode }) => {
   const [products, setProducts] = useState([]);
   const [notification, setNotification] = useState('');
   const [showEditSupplierModal, setShowEditSupplierModal] = useState(false);
+
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -131,6 +135,12 @@ const SupplierList = ({ darkMode }) => {
     setShowActionMenu(null);
   };
 
+  const handleDiscounts = (supplier) => {
+    setSelectedSupplier(supplier);
+    setshowDiscountModal(true);
+    setShowActionMenu(null);
+  };
+
   const handleRepairService = (supplier) => {
     setSelectedSupplier(supplier);
     setshowRepairServiceModal(true);
@@ -154,18 +164,21 @@ const SupplierList = ({ darkMode }) => {
 
   const fetchItemDetails = async () => {
     if (!selectedSupplier || !selectedItemCode) return;
+
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const response = await fetch(`https://raxwo-management.onrender.com/api/products/grnNumber/${selectedItemCode}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch item details');
-      }
-      const data = await response.json();
-      // Don't filter by deleted products for item details - show all items for the supplier
-      const filteredData = (Array.isArray(data) ? data : data.products || []).filter(
-        (product) => product.Supllier === selectedSupplier.supplierName && product.grnNumber === selectedItemCode
+      const response = await fetch(
+        `https://raxwo-management.onrender.com/api/suppliers/${selectedSupplier._id}/items/grn/${encodeURIComponent(selectedItemCode)}`
       );
-      setItemDetails(data);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch item details from supplier');
+      }
+
+      const data = await response.json();
+
+      setItemDetails(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -313,8 +326,8 @@ const filteredSuppliers = suppliers.filter(supplier => {
         />
       )}
       {showItemDetailsModal && (
-        <div className="product-summary-modal-overlay">
-          <div className={`product-summary-modal-content ${darkMode ? 'dark' : ''}`}>
+        <div className="product-summary-modal-overlay-supplier">
+          <div className={`product-summary-modal-content-supplier ${darkMode ? 'dark' : ''}`}>
             <div className="product-summary-modal-header">
               <h3 className="product-summary-modal-title">Item Details</h3>
               <button
@@ -347,20 +360,94 @@ const filteredSuppliers = suppliers.filter(supplier => {
                   </option>
                 ))}
               </select>
-              <select
-                value={selectedItemCode}
-                onChange={(e) => setSelectedItemCode(e.target.value)}
-                className={`item-details-select ${darkMode ? 'dark' : ''}`}
-              >
-                <option value="">Select GRN</option>
-                {products
-                  .filter(p => selectedSupplier && p.Supplier === selectedSupplier.supplierName)
-                  .map((product) => (
-                    <option key={product._id} value={product.grnNumber}>
-                      {product.grnNumber}
-                    </option>
-                  ))}
-              </select>
+              {selectedSupplier ? (
+                <Select
+                  value={selectedItemCode ? { value: selectedItemCode, label: selectedItemCode } : null}
+                  onChange={(selectedOption) => setSelectedItemCode(selectedOption ? selectedOption.value : '')}
+                  options={Array.from(new Set(
+                    selectedSupplier.items
+                      .filter(item => item.grnNumber)
+                      .map(item => item.grnNumber)
+                  )).map(grn => ({ value: grn, label: grn }))}
+                  placeholder="Select or search GRN..."
+                  isClearable
+                  isSearchable
+                  className={`react-select-container ${darkMode ? 'dark' : ''}`}
+                  classNamePrefix="react-select"
+                  styles={{
+                    control: (base, state) => ({
+                      ...base,
+                      backgroundColor: darkMode ? '#333' : 'white',
+                      borderColor: state.isFocused ? (darkMode ? '#6c63ff' : '#007bff') : '#ccc',
+                      boxShadow: state.isFocused ? `0 0 0 1px ${darkMode ? '#6c63ff' : '#007bff'}` : 'none',
+                      '&:hover': {
+                        borderColor: darkMode ? '#6c63ff' : '#007bff',
+                      },
+                      minHeight: '38px',
+                      fontSize: '14px',
+                    }),
+                    menu: (base) => ({
+                      ...base,
+                      backgroundColor: darkMode ? '#333' : 'white',
+                      border: `1px solid ${darkMode ? '#444' : '#ccc'}`,
+                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+                      zIndex: 1000,
+                    }),
+                    menuList: (base) => ({
+                      ...base,
+                      maxHeight: '200px',
+                      '::-webkit-scrollbar': {
+                        width: '6px',
+                      },
+                      '::-webkit-scrollbar-track': {
+                        background: darkMode ? '#2d2d2d' : '#f1f1f1',
+                      },
+                      '::-webkit-scrollbar-thumb': {
+                        background: darkMode ? '#666' : '#ccc',
+                        borderRadius: '3px',
+                      },
+                    }),
+                    option: (base, { isFocused, isSelected }) => ({
+                      ...base,
+                      backgroundColor: isSelected
+                        ? (darkMode ? '#6c63ff' : '#007bff')
+                        : isFocused
+                        ? (darkMode ? '#444' : '#e9ecef')
+                        : 'transparent',
+                      color: isSelected
+                        ? 'white'
+                        : darkMode
+                        ? 'white'
+                        : 'black',
+                      ':active': {
+                        backgroundColor: darkMode ? '#555' : '#0056b3',
+                      },
+                    }),
+                    singleValue: (base) => ({
+                      ...base,
+                      color: darkMode ? 'white' : 'black',
+                    }),
+                    placeholder: (base) => ({
+                      ...base,
+                      color: darkMode ? '#aaa' : '#666',
+                    }),
+                    input: (base) => ({
+                      ...base,
+                      color: darkMode ? 'white' : 'black',
+                    }),
+                  }}
+                />
+              ) : (
+                <input
+                  type="text"
+                  value=""
+                  placeholder="Select a supplier first"
+                  disabled
+                  className={`react-select-placeholder ${darkMode ? 'dark' : ''}`}
+                />
+              )}
+            </div>
+            <div className="item-details-selection">
               <button
                 onClick={fetchItemDetails}
                 className="btn-primary"
@@ -372,30 +459,48 @@ const filteredSuppliers = suppliers.filter(supplier => {
             {loading ? (
               <p className="loading">Loading item details...</p>
             ) : itemDetails.length > 0 ? (
-              <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+              <table className={`product-table-supplierfetch ${darkMode ? 'dark' : ''}`}>
                 <thead>
                   <tr>
                     <th>GRN</th>
                     <th>Item Name</th>
                     <th>Category</th>
                     <th>Buying Price</th>
-                    <th>Selling Price</th>
+                    {/* <th>Selling Price</th> */}
                     <th>Stock</th>
-                    <th>Supplier</th>
+                    {/* <th>Supplier</th> */}
                   </tr>
                 </thead>
                 <tbody>
                   {itemDetails.map((product) => (
                     <tr key={product._id}>
                       <td>{product.grnNumber || 'N/A'}</td>
-                      <td>{product.itemName}</td>
+                      <td className={`text-wrap ${darkMode ? 'dark' : ''}`} title={product.itemName}>{product.itemName}</td>
                       <td>{product.category}</td>
                       <td>Rs. {product.buyingPrice.toFixed(2)}</td>
-                      <td>Rs. {product.sellingPrice.toFixed(2)}</td>
-                      <td>{product.stock}</td>
-                      <td>{product.Supplier || 'N/A'}</td>
+                      {/* <td>Rs. {product.sellingPrice.toFixed(2)}</td> */}
+                      <td>{product.quantity}</td>
+                      {/* <td>{product.supplierName || 'N/A'}</td> */}
                     </tr>
                   ))}
+                  <tr className="summary-total-row">
+                    <td><strong>Total</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td>
+                      <strong>
+                        Rs. {itemDetails
+                          .reduce((total, item) => total + (item.quantity * item.buyingPrice), 0)
+                          .toFixed(2)}
+                      </strong>
+                    </td>
+                    <td>
+                      <strong>
+                        {itemDetails
+                          .reduce((total, item) => total + item.quantity, 0)}
+                      </strong>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             ) : (
@@ -446,6 +551,12 @@ const filteredSuppliers = suppliers.filter(supplier => {
                             <div className="action-btn-content">
                               <img src={cart} alt="cart" width="30" height="30" className="p-edit-btn-icon" />
                               <span>Cart</span>
+                            </div>
+                          </button>
+                          <button onClick={() => handleDiscounts(supplier)} className="p-edit-btn">
+                            <div className="action-btn-content">
+                              <FontAwesomeIcon icon={faPercentage} width="30" height="30" className="p-edit-btn-icon" />
+                              <span>Add Discount</span>
                             </div>
                           </button>
                           <button onClick={() => handlePastpayment(supplier)} className="p-edit-btn">
@@ -539,6 +650,20 @@ const filteredSuppliers = suppliers.filter(supplier => {
           supplier={selectedSupplier}
           closeModal={() => {
             setshowPastPaymentModal(false);
+            setSelectedSupplier(null);
+            fetchSuppliers();
+            refreshProducts();
+          }}
+          darkMode={darkMode}
+          refreshProducts={refreshProducts}
+        />
+      )}
+
+      {showDiscountModal && selectedSupplier && (
+        <Discounts
+          supplier={selectedSupplier}
+          closeModal={() => {
+            setshowDiscountModal(false);
             setSelectedSupplier(null);
             fetchSuppliers();
             refreshProducts();
