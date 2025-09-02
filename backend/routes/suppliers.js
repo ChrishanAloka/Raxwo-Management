@@ -380,7 +380,7 @@ router.delete('/:id/items/:itemIndex', getSupplier, async (req, res) => {
 
 // POST: Record a payment for a supplier
 router.post('/:id/payments', getSupplier, async (req, res) => {
-  const { paymentAmount } = req.body;
+  const { paymentAmount, paymentMethod, assignedTo } = req.body;
 
   if (typeof paymentAmount !== 'number' || paymentAmount <= 0) {
     return res.status(400).json({ message: 'Payment amount must be a positive number' });
@@ -415,8 +415,9 @@ router.post('/:id/payments', getSupplier, async (req, res) => {
   const paymenthistory = {
     uptodateCost: amountDue || 0,
     currentPayment: paymentAmount || 0,
-    amountDue: amountDue - paymentAmount
-
+    amountDue: amountDue - paymentAmount,
+    assignedTo,
+    paymentMethod,
   };
 
   res.supplier.paymentHistory.push(paymenthistory);

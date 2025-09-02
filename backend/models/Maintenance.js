@@ -6,7 +6,10 @@ const MaintenanceSchema = new mongoose.Schema({
     time: { type: String, required: true },
     serviceType: { type: String, required: true },
     price: { type: Number, required: true },
-    remarks: { type: String, required: false }
-});
+    remarks: { type: String, required: false },
+    assignedTo: { type: String, required: false },
+    paymentMethod: { type: String, required: false },
+},
+  { timestamps: true });
 
 module.exports = mongoose.model("Maintenance", MaintenanceSchema);

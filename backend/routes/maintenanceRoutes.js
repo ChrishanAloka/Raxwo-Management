@@ -6,7 +6,7 @@ router.post("/", async (req, res) => {
     try {
         console.log("Incoming request body:", req.body); // Debugging
         
-        const { serviceType, price, remarks, date, time} = req.body;
+        const { serviceType, price, remarks, date, time, paymentMethod, assignedTo} = req.body;
 
         if (!serviceType || !price) {
             return res.status(400).json({ message: "Service Type and Price are required" });
@@ -45,7 +45,9 @@ router.post("/", async (req, res) => {
             time: utime, 
             serviceType, 
             price, 
-            remarks 
+            remarks,
+            paymentMethod,
+            assignedTo,  
         });
 
         await newMaintenance.save();
@@ -85,7 +87,7 @@ router.get("/:id", async (req, res) => {
 router.put("/:id", async (req, res) => {
     try {
         
-        const { serviceType, price, remarks, date, time } = req.body;
+        const { serviceType, price, remarks, date, time, paymentMethod, assignedTo } = req.body;
 
         // Validate required fields
         if (!serviceType || typeof price !== 'number' || !date || !time) {
@@ -112,7 +114,7 @@ router.put("/:id", async (req, res) => {
 
         const updatedMaintenance = await Maintenance.findByIdAndUpdate(
             req.params.id,
-            { serviceType, price, remarks, date, time: utime },
+            { serviceType, price, remarks, date, time: utime, paymentMethod, assignedTo},
             { new: true }
         );
 

@@ -21,7 +21,9 @@ const paymentSchema = new mongoose.Schema({
   date: {type: Date, default: Date.now},
   uptodateCost: { type: String, required: true },
   currentPayment: { type: String, required: true },
-  amountDue: { type: String, required: true }
+  amountDue: { type: String, required: true },
+  assignedTo: { type: String, required: false },
+  paymentMethod: { type: String, required: false },
 }, { timestamps: true });
 
 const repairServiceSchema = new mongoose.Schema({

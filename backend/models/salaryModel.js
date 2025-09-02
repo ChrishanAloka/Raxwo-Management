@@ -7,6 +7,8 @@ const salarySchema = new mongoose.Schema(
     advance: { type: Number, required: true },
     remarks: { type: String },
     date: { type: Date, default: Date.now },
+    assignedTo: { type: String, required: false },
+    paymentMethod: { type: String, required: false },
   },
   { timestamps: true }
 );
