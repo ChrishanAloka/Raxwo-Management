@@ -14,6 +14,8 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
   const [date, setDate] = useState(getCurrentDate());
   const [time, setTime] = useState(getCurrentTime());
   const [error, setError] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
 
   const navigate = useNavigate();
 
@@ -24,7 +26,7 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceType, price, remarks, date, time }),
+        body: JSON.stringify({ serviceType, price, remarks, date, time, paymentMethod, assignedTo, }),
       });
 
       const data = await response.json();
@@ -75,6 +77,37 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
             onChange={(e) => setPrice(e.target.value)}
             required
           />
+          {/* Payment Method */}
+          <label className={`madd-label ${darkMode ? "dark" : ""}`}>Payment Method</label>
+          <select
+            className={`madd-input ${darkMode ? "dark" : ""}`}
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value)}
+            required
+          >
+            <option value="" disabled>Select Payment Method</option>
+            <option className="drop" value="Cash">Cash</option>
+            <option className="drop" value="Card">Card</option>
+            <option className="drop" value="Bank-Transfer">Bank Transfer</option>
+            <option className="drop" value="Bank-Check">Bank Check</option>
+            <option className="drop" value="Credit">Credit</option>
+          </select>
+
+          {/* Assign To */}
+          {/* <label className={`madd-label ${darkMode ? "dark" : ""}`}>Assign To</label>
+          <select
+            className={`madd-input ${darkMode ? "dark" : ""}`}
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
+            required
+          >
+            <option value="" disabled>Select Assignee</option>
+            <option value="Prabath">Prabath</option>
+            <option value="Nadeesh">Nadeesh</option>
+            <option value="Accessories">Accessories</option>
+            <option value="Genex-EX">Genex EX</option>
+            <option value="I-Device">I Device</option>
+          </select> */}
           <label className={`madd-label ${darkMode ? "dark" : ""}`}>Remarks</label>
           <input
             className={`madd-input ${darkMode ? "dark" : ""}`}

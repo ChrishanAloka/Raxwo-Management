@@ -11,6 +11,8 @@ const SalaryEdit = ({ isOpen, onClose, salary, refreshSalaries, darkMode }) => {
     employeeName: salary.employeeName,
     advance: salary.advance,
     remarks: salary.remarks,
+    paymentMethod: salary.paymentMethod || "",   // ← Add with fallback
+    assignedTo: salary.assignedTo || "", 
   });
   const [error, setError] = useState(null);
 
@@ -29,6 +31,17 @@ const SalaryEdit = ({ isOpen, onClose, salary, refreshSalaries, darkMode }) => {
       }
     }
   };
+
+  useEffect(() => {
+    setFormData({
+      employeeId: salary.employeeId,
+      employeeName: salary.employeeName,
+      advance: salary.advance,
+      remarks: salary.remarks,
+      paymentMethod: salary.paymentMethod || "",
+      assignedTo: salary.assignedTo || "",
+    });
+  }, [salary]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -81,6 +94,39 @@ const SalaryEdit = ({ isOpen, onClose, salary, refreshSalaries, darkMode }) => {
                 required
                 min="0"
               />
+              {/* Payment Method */}
+              <label className={`salary-add-label ${darkMode ? "dark" : ""}`}>Payment Method</label>
+              <select
+                className={`salary-add-input ${darkMode ? "dark" : ""}`}
+                name="paymentMethod"
+                value={formData.paymentMethod}
+                onChange={handleChange}
+                required
+              >
+                <option value="" disabled>Select Payment Method</option>
+                <option className="drop" value="Cash">Cash</option>
+                <option className="drop" value="Card">Card</option>
+                <option className="drop" value="Bank-Transfer">Bank Transfer</option>
+                <option className="drop" value="Bank-Check">Bank Check</option>
+                <option className="drop" value="Credit">Credit</option>
+              </select>
+
+              {/* Assign To */}
+              {/* <label className={`salary-add-label ${darkMode ? "dark" : ""}`}>Assign To</label>
+              <select
+                className={`salary-add-input ${darkMode ? "dark" : ""}`}
+                name="assignedTo"
+                value={formData.assignedTo}
+                onChange={handleChange}
+                required
+              >
+                <option value="" disabled>Select Assignee</option>
+                <option value="Prabath">Prabath</option>
+                <option value="Nadeesh">Nadeesh</option>
+                <option value="Accessories">Accessories</option>
+                <option value="Genex-EX">Genex EX</option>
+                <option value="I-Device">I Device</option>
+              </select> */}
               <label className={`salary-add-label ${darkMode ? "dark" : ""}`}>Remarks</label>
               <input
                 className={`salary-add-input ${darkMode ? "dark" : ""}`}

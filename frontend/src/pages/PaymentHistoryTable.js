@@ -72,6 +72,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
               <th>Up to date Cost</th>
               <th>Payed Amount</th>
               <th>Amount Due</th>
+              <th>Payment Method</th>
               {/* <th>Action</th> */}
             </tr>
           </thead>
@@ -82,6 +83,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                 <td>Rs. {item.uptodateCost || '0'}</td>
                 <td>Rs. {item.currentPayment || '0'}</td>
                 <td>Rs. {item.amountDue || '0'}</td>
+                <td>{item.paymentMethod || '-'}</td>
                 {/* <td>
                   <div className="action-container">
                     <button

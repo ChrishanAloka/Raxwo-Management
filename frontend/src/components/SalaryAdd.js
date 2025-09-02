@@ -11,6 +11,8 @@ const SalaryAdd = ({ isOpen, onClose, refreshSalaries, darkMode }) => {
     employeeName: "",
     advance: "",
     remarks: "",
+    paymentMethod: "",     // ← New
+    assignedTo: "", 
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -116,6 +118,39 @@ const SalaryAdd = ({ isOpen, onClose, refreshSalaries, darkMode }) => {
                 min="0"
                 step="0.01"
               />
+              {/* Payment Method */}
+              <label className={`add-salary-lbl ${darkMode ? "dark" : ""}`}>Payment Method</label>
+              <select
+                className={`add-salary-input ${darkMode ? "dark" : ""}`}
+                value={salary.paymentMethod}
+                onChange={handleChange}
+                name="paymentMethod"
+                required
+              >
+                <option value="" disabled>Select Payment Method</option>
+                <option className="drop" value="Cash">Cash</option>
+                <option className="drop" value="Card">Card</option>
+                <option className="drop" value="Bank-Transfer">Bank Transfer</option>
+                <option className="drop" value="Bank-Check">Bank Check</option>
+                <option className="drop" value="Credit">Credit</option>
+              </select>
+
+              {/* Assign To */}
+              {/* <label className={`add-salary-lbl ${darkMode ? "dark" : ""}`}>Assign To</label>
+              <select
+                className={`add-salary-input ${darkMode ? "dark" : ""}`}
+                value={salary.assignedTo}
+                onChange={handleChange}
+                name="assignedTo"
+                required
+              >
+                <option value="" disabled>Select Assignee</option>
+                <option value="Prabath">Prabath</option>
+                <option value="Nadeesh">Nadeesh</option>
+                <option value="Accessories">Accessories</option>
+                <option value="Genex-EX">Genex EX</option>
+                <option value="I-Device">I Device</option>
+              </select> */}
               <label className={`add-salary-lbl ${darkMode ? "dark" : ""}`}>Remarks</label>
               <input
                 className={`add-salary-input ${darkMode ? "dark" : ""}`}

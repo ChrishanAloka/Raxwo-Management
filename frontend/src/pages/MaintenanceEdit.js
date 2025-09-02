@@ -8,15 +8,33 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!editedRecord.date) {
-      const currentDate = new Date().toISOString().split("T")[0];
-      setEditedRecord((prevRecord) => ({ ...prevRecord, date: currentDate }));
-    }
-    if (!editedRecord.time) {
-      const currentTime = new Date().toLocaleTimeString();
-      setEditedRecord((prevRecord) => ({ ...prevRecord, time: currentTime }));
-    }
-  }, [editedRecord]);
+    // Helper to format time to HH:mm for input[type="time"]
+    const formatTimeForInput = (timeString) => {
+      if (!timeString) return "";
+      const date = new Date();
+      const time = new Date(`2000-01-01 ${timeString}`);
+      if (isNaN(time)) return "";
+      const hours = time.getHours().toString().padStart(2, '0');
+      const minutes = time.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    };
+
+    // Get current time in HH:mm format
+    const getCurrentTime = () => {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    };
+
+    setEditedRecord(prev => ({
+      ...prev,
+      date: prev.date || new Date().toISOString().split("T")[0],
+      time: prev.time ? formatTimeForInput(prev.time) : getCurrentTime(),
+      paymentMethod: prev.paymentMethod || "",
+      assignedTo: prev.assignedTo || "",
+    }));
+  }, [record]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -72,6 +90,37 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
             onChange={(e) => setEditedRecord({ ...editedRecord, price: e.target.value })}
             required
           />
+          {/* Payment Method */}
+          <label className={`me-lable ${darkMode ? "dark" : ""}`}>Payment Method</label>
+          <select
+            className={`me-input ${darkMode ? "dark" : ""}`}
+            value={editedRecord.paymentMethod || ""}
+            onChange={(e) => setEditedRecord({ ...editedRecord, paymentMethod: e.target.value })}
+            required
+          >
+            <option value="" disabled>Select Payment Method</option>
+            <option className="drop" value="Cash">Cash</option>
+            <option className="drop" value="Card">Card</option>
+            <option className="drop" value="Bank-Transfer">Bank Transfer</option>
+            <option className="drop" value="Bank-Check">Bank Check</option>
+            <option className="drop" value="Credit">Credit</option>
+          </select>
+
+          {/* Assign To */}
+          {/* <label className={`me-lable ${darkMode ? "dark" : ""}`}>Assign To</label>
+          <select
+            className={`me-input ${darkMode ? "dark" : ""}`}
+            value={editedRecord.assignedTo || ""}
+            onChange={(e) => setEditedRecord({ ...editedRecord, assignedTo: e.target.value })}
+            required
+          >
+            <option value="" disabled>Select Assignee</option>
+            <option value="Prabath">Prabath</option>
+            <option value="Nadeesh">Nadeesh</option>
+            <option value="Accessories">Accessories</option>
+            <option value="Genex-EX">Genex EX</option>
+            <option value="I-Device">I Device</option>
+          </select> */}
           <label className={`me-lable ${darkMode ? "dark" : ""}`}>Remarks</label>
           <input
             type="text"

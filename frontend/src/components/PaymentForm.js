@@ -5,7 +5,10 @@ import '../styles/Supplier.css';
 
 const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');     // ← New
+  const [assignedTo, setAssignedTo] = useState('');  
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState("");
 
   // Calculate total cost and amount due
   const totalitemCost = supplier.items.reduce(
@@ -33,6 +36,7 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setSuccess("");
 
     const payment = parseFloat(paymentAmount);
     if (!payment || payment <= 0) {
@@ -43,12 +47,16 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
       setError('Payment amount cannot exceed amount due');
       return;
     }
+    if (!paymentMethod) {
+      setError('Please select a payment method');
+      return;
+    }
 
     try {
       const response = await fetch(`https://raxwo-management.onrender.com/api/suppliers/${supplier._id}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentAmount: payment }),
+        body: JSON.stringify({ paymentAmount: payment, paymentMethod, assignedTo }),
       });
 
       if (!response.ok) {
@@ -56,8 +64,9 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
         throw new Error(errorData.message || 'Failed to record payment');
       }
 
+      setSuccess(`Payment of Rs. ${payment.toFixed(2)} recorded successfully!`);
       await refreshSuppliers();
-      closeModal();
+      setTimeout(() => closeModal(), 1000);
     } catch (err) {
       setError(err.message);
     }
@@ -72,6 +81,7 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
             ✕
           </button>
         </div>
+        {success && <p className="success-message">{success}</p>}
         <form className="payment-form" onSubmit={handleSubmit}>
           <div>
             <label className="payment-label">Total Amount Due</label>
@@ -94,6 +104,41 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
               placeholder="Enter payment amount"
             />
           </div>
+          {/* Payment Method */}
+          <div>
+            <label className="payment-label">Payment Method</label>
+            <select
+              className="payment-input"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              required
+            >
+              <option value="" disabled>Select Payment Method</option>
+              <option className="drop" value="Cash">Cash</option>
+              <option className="drop" value="Card">Card</option>
+              <option className="drop" value="Bank-Transfer">Bank Transfer</option>
+              <option className="drop" value="Bank-Check">Bank Check</option>
+              <option className="drop" value="Credit">Credit</option>
+            </select>
+          </div>
+
+          {/* Assign To */}
+          {/* <div>
+            <label className="payment-label">Assign To</label>
+            <select
+              className="payment-input"
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
+              required
+            >
+              <option value="" disabled>Select Assignee</option>
+              <option value="Prabath">Prabath</option>
+              <option value="Nadeesh">Nadeesh</option>
+              <option value="Accessories">Accessories</option>
+              <option value="Genex-EX">Genex EX</option>
+              <option value="I-Device">I Device</option>
+            </select>
+          </div> */}
           <div>
             <label className="payment-label">Remaining Amount Due</label>
             <input
