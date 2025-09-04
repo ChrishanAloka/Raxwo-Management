@@ -9,7 +9,7 @@ import profitIcon from "../icon/2.png";
 import sucessIcon from "../icon/6.png";
 import warningIcon from "../icon/warning.png";
 import repairingIcon from "../icon/00.png";
-import { FaChartLine, FaArrowUp, FaArrowDown, FaCheckCircle, FaClock, FaTools } from "react-icons/fa";
+import { FaChartLine } from "react-icons/fa";
 import "../styles/Dashboard.css";
 
 const API_URL = "https://raxwo-management.onrender.com/api/dashboard";
@@ -17,20 +17,9 @@ const PRODUCTS_REPAIR_API_URL = 'https://raxwo-management.onrender.com/api/produ
 const EXTRA_INCOME_API_URL = 'https://raxwo-management.onrender.com/api/extra-income';
 const SALARIES_API_URL = 'https://raxwo-management.onrender.com/api/salaries';
 const MAINTENANCE_API_URL = 'https://raxwo-management.onrender.com/api/maintenance';
-
-// Sample data for demonstration
-const sampleData = {
-  dailyIncome: 125000,
-  dailyCost: 85000,
-  dailyProfit: 40000,
-  completedJobs: 10,
-  pendingJobs: 5,
-  inProgressJobs: 8,
-  sixMonthMonths: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-  sixMonthIncome: [98000, 112000, 125000, 118000, 135000, 142000],
-  sixMonthCost: [72000, 85000, 92000, 88000, 95000, 98000],
-  sixMonthProfit: [26000, 27000, 33000, 30000, 40000, 44000]
-};
+const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments/forsummery';
+const PRODUCTS_API_URL = 'https://raxwo-management.onrender.com/api/products';
+const SUPPLIERS_API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
 
 const Dashboard = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -41,29 +30,29 @@ const Dashboard = ({ darkMode }) => {
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
   const [totalIncome, setTotalIncome] = useState(0);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [totalNetProfit, setTotalNetProfit] = useState(0);
+
+  // State for historical data
   const [repairsData, setRepairsData] = useState([]);
   const [extraIncomeData, setExtraIncomeData] = useState([]);
+  const [paymentsData, setPaymentsData] = useState([]);
+  const [productsData, setProductsData] = useState([]);
   const [salariesData, setSalariesData] = useState([]);
   const [maintenanceData, setMaintenanceData] = useState([]);
-  const [totalExpenses, setTotalExpenses] = useState(0);
-  const [totalPartsCost, setTotalPartsCost] = useState(0);
-  const [totalNetProfit, setTotalNetProfit] = useState(0);
+  const [supplierPaymentsData, setSupplierPaymentsData] = useState([]);
 
   const isDarkMode = darkMode;
 
-  // Get user name from localStorage
   const getUserName = () => {
-    const cashierName = localStorage.getItem('cashierName');
-    const userName = localStorage.getItem('userName');
-    const username = localStorage.getItem('username');
-    return cashierName || userName || username || 'User';
+    return localStorage.getItem('cashierName') ||
+           localStorage.getItem('userName') ||
+           localStorage.getItem('username') || 'User';
   };
 
   useEffect(() => {
     fetchDashboardData();
-    fetchTotalIncome();
-    fetchTodayIncomeData();
-    fetchTodayExpensesData();
+    fetchAllDataForTotals();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -71,178 +60,174 @@ const Dashboard = ({ darkMode }) => {
     setError("");
     try {
       const response = await fetch(API_URL);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      console.log("Backend data received:", data);
-      
-      // Ensure we have valid data from backend
-      if (data && (data.dailyIncome !== undefined || data.sixMonthIncome !== undefined)) {
-        setDailyData({ 
-          income: data.dailyIncome || 0, 
-          cost: data.dailyCost || 0, 
-          profit: data.dailyProfit || 0 
-        });
-        setJobData({
-          completed: data.completedJobs || 0,
-          pending: data.pendingJobs || 0,
-          inProgress: data.inProgressJobs || 0
-        });
-        setSixMonthData({
-          months: data.sixMonthMonths || sampleData.sixMonthMonths,
-          income: data.sixMonthIncome || sampleData.sixMonthIncome,
-          cost: data.sixMonthCost || sampleData.sixMonthCost,
-          profit: data.sixMonthProfit || sampleData.sixMonthProfit,
-        });
-        setLastUpdated(new Date().toLocaleTimeString());
-      } else {
-        // If backend data is incomplete, throw an error
-        throw new Error("Backend data incomplete or invalid.");
-      }
+
+      setDailyData({
+        income: data.dailyIncome || 0,
+        cost: data.dailyCost || 0,
+        profit: data.dailyProfit || 0
+      });
+      setJobData({
+        completed: data.completedJobs || 0,
+        pending: data.pendingJobs || 0,
+        inProgress: data.inProgressJobs || 0
+      });
+      setSixMonthData({
+        months: data.sixMonthMonths || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        income: data.sixMonthIncome || [0, 0, 0, 0, 0, 0],
+        cost: data.sixMonthCost || [0, 0, 0, 0, 0, 0],
+        profit: data.sixMonthProfit || [0, 0, 0, 0, 0, 0],
+      });
+      setLastUpdated(new Date().toLocaleTimeString());
     } catch (err) {
-      console.error("Error fetching data:", err);
-      setError("Failed to load dashboard data. Please try again later.");
+      console.error("Error fetching dashboard data:", err);
+      setError("Failed to load dashboard data. Using calculated values.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch and calculate total income (all time)
-  const fetchTotalIncome = async () => {
+  // Fetch all data for total calculations
+  const fetchAllDataForTotals = async () => {
     try {
-      const [repairsRes, extraIncomeRes, salariesRes, maintenanceRes] = await Promise.all([
+      const [repairsRes, extraIncomeRes, salariesRes, maintenanceRes, paymentsRes, productsRes, suppliersRes] = await Promise.all([
         fetch(PRODUCTS_REPAIR_API_URL),
         fetch(EXTRA_INCOME_API_URL),
         fetch(SALARIES_API_URL),
-        fetch(MAINTENANCE_API_URL)
-      ]);
-      let repairs = [];
-      let extraIncomes = [];
-      let salaries = [];
-      let maintenance = [];
-      if (repairsRes.ok) repairs = await repairsRes.json();
-      if (extraIncomeRes.ok) extraIncomes = await extraIncomeRes.json();
-      if (salariesRes.ok) salaries = await salariesRes.json();
-      if (maintenanceRes.ok) maintenance = await maintenanceRes.json();
-      // All-time income
-      const repairsTotal = Array.isArray(repairs)
-        ? repairs.reduce((sum, r) => sum + (r.finalAmount || r.totalRepairCost || 0), 0)
-        : 0;
-      const extraIncomeTotal = Array.isArray(extraIncomes)
-        ? extraIncomes.reduce((sum, ei) => sum + (ei.amount || 0), 0)
-        : 0;
-      setTotalIncome(repairsTotal + extraIncomeTotal);
-      // All-time parts cost
-      const calculateCartTotal = (cart) => {
-        if (!cart || !Array.isArray(cart)) return 0;
-        return cart.reduce((total, item) => total + Math.max(0, parseFloat(item.cost || 0)), 0);
-      };
-      const allPartsCost = Array.isArray(repairs)
-        ? repairs.reduce((sum, r) => sum + calculateCartTotal(r.repairCart), 0)
-        : 0;
-      setTotalPartsCost(allPartsCost);
-      // All-time salary expenses
-      const allSalaryTotal = Array.isArray(salaries)
-        ? salaries.reduce((sum, s) => sum + (s.advance || 0), 0)
-        : 0;
-      // All-time maintenance expenses
-      const allMaintenanceTotal = Array.isArray(maintenance)
-        ? maintenance.reduce((sum, m) => sum + (m.price || 0), 0)
-        : 0;
-      // All-time total expenses
-      setTotalExpenses(allPartsCost + allSalaryTotal + allMaintenanceTotal);
-      // All-time net profit (income - parts cost)
-      setTotalNetProfit(repairsTotal + extraIncomeTotal - allPartsCost);
-    } catch (err) {
-      setTotalIncome(0);
-      setTotalPartsCost(0);
-      setTotalExpenses(0);
-      setTotalNetProfit(0);
-    }
-  };
-
-  // Fetch all repairs and extra income for today calculation
-  const fetchTodayIncomeData = async () => {
-    try {
-      const [repairsRes, extraIncomeRes] = await Promise.all([
-        fetch(PRODUCTS_REPAIR_API_URL),
-        fetch(EXTRA_INCOME_API_URL)
-      ]);
-      let repairs = [];
-      let extraIncomes = [];
-      if (repairsRes.ok) repairs = await repairsRes.json();
-      if (extraIncomeRes.ok) extraIncomes = await extraIncomeRes.json();
-      setRepairsData(Array.isArray(repairs) ? repairs : []);
-      setExtraIncomeData(Array.isArray(extraIncomes) ? extraIncomes : []);
-      // Calculate today's total income
-      const todayKey = getLocalDateKey(new Date());
-      const todayRepairsTotal = repairs.filter(r => getLocalDateKey(r.createdAt) === todayKey)
-        .reduce((sum, r) => sum + (r.finalAmount || r.totalRepairCost || 0), 0);
-      const todayExtraIncomeTotal = extraIncomes.filter(ei => getLocalDateKey(ei.date) === todayKey)
-        .reduce((sum, ei) => sum + (ei.amount || 0), 0);
-      setDailyData(prev => ({ ...prev, income: todayRepairsTotal + todayExtraIncomeTotal }));
-    } catch (err) {
-      // fallback: do not update dailyData.income
-    }
-  };
-
-  // Fetch all salaries and maintenance for today calculation
-  const fetchTodayExpensesData = async () => {
-    try {
-      const [salariesRes, maintenanceRes, repairsRes] = await Promise.all([
-        fetch(SALARIES_API_URL),
         fetch(MAINTENANCE_API_URL),
-        fetch(PRODUCTS_REPAIR_API_URL)
+        fetch(PAYMENTS_API_URL),
+        fetch(PRODUCTS_API_URL),
+        fetch(SUPPLIERS_API_URL)
       ]);
+
+      let repairs = [];
+      let extraIncome = [];
       let salaries = [];
       let maintenance = [];
-      let repairs = [];
+      let payments = [];
+      let products = [];
+      let suppliers = [];
+
+      if (repairsRes.ok) repairs = await repairsRes.json();
+      if (extraIncomeRes.ok) extraIncome = await extraIncomeRes.json();
       if (salariesRes.ok) salaries = await salariesRes.json();
       if (maintenanceRes.ok) maintenance = await maintenanceRes.json();
-      if (repairsRes.ok) repairs = await repairsRes.json();
-      setSalariesData(Array.isArray(salaries) ? salaries : []);
-      setMaintenanceData(Array.isArray(maintenance) ? maintenance : []);
-      // Today's date key
-      const todayKey = getLocalDateKey(new Date());
-      // Salary expenses for today
-      const todaySalaryTotal = salaries.filter(s => getLocalDateKey(s.date) === todayKey)
-        .reduce((sum, s) => sum + (s.advance || 0), 0);
-      // Maintenance expenses for today
-      const todayMaintenanceTotal = maintenance.filter(m => getLocalDateKey(m.date) === todayKey)
-        .reduce((sum, m) => sum + (m.price || 0), 0);
-      // Parts cost for today's repairs
-      const todayRepairs = repairs.filter(r => getLocalDateKey(r.createdAt) === todayKey);
-      const calculateCartTotal = (cart) => {
-        if (!cart || !Array.isArray(cart)) return 0;
-        return cart.reduce((total, item) => total + Math.max(0, parseFloat(item.cost || 0)), 0);
-      };
-      const todayPartsCost = todayRepairs.reduce((sum, r) => sum + calculateCartTotal(r.repairCart), 0);
-      // Today's total expenses
-      const todayTotalExpenses = todayPartsCost + todaySalaryTotal + todayMaintenanceTotal;
-      // Today's net profit (income - parts cost)
-      setDailyData(prev => ({
-        ...prev,
-        cost: todayTotalExpenses,
-        profit: prev.income - todayPartsCost
-      }));
+      if (paymentsRes.ok) payments = await paymentsRes.json();
+      if (productsRes.ok) products = await productsRes.json();
+      if (suppliersRes.ok) suppliers = await suppliersRes.json();
+
+      setRepairsData(repairs);
+      setExtraIncomeData(extraIncome);
+      setPaymentsData(payments);
+      setProductsData(products);
+      setSalariesData(salaries);
+      setMaintenanceData(maintenance);
+
+      // Flatten supplier payments
+      const supplierPayments = [];
+      suppliers.forEach(s => {
+        if (Array.isArray(s.paymentHistory)) {
+          s.paymentHistory.forEach(p => {
+            supplierPayments.push({ ...p, supplierName: s.supplierName });
+          });
+        }
+      });
+      setSupplierPaymentsData(supplierPayments);
+
+      // Calculate totals
+      calculateTotals(repairs, extraIncome, salaries, maintenance, payments, products, supplierPayments);
+      calculateTodayData(repairs, extraIncome, salaries, maintenance, payments, products, supplierPayments);
+
     } catch (err) {
-      // fallback: do not update dailyData.cost/profit
+      console.error("Error fetching data for totals:", err);
     }
   };
 
-  // Helper to get YYYY-MM-DD string from a date or date string
+  const calculateTotals = (repairs, extraIncome, salaries, maintenance, payments, products, supplierPayments) => {
+    // Income
+    const totalRepairIncome = repairs
+      .reduce((sum, repair) => sum + (repair.totalAdditionalServicesAmount + repair.checkingCharge + repair.totalRepairCost - repair.totalDiscountAmount || 0), 0);
+
+    const totalExtraIncome = extraIncome
+      .reduce((sum, ei) => sum + (ei.amount || 0), 0);
+
+    const totalPurchaseIncome = payments
+      .filter(p => ![ 'refund'].includes((p.paymentMethod || '').toLowerCase()))
+      .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+    const totalPurchaseRefund = payments
+    .filter(p => [ 'refund'].includes((p.paymentMethod || '').toLowerCase()))
+    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+    const totalIncomeValue = totalRepairIncome + totalExtraIncome + totalPurchaseIncome + totalPurchaseRefund;
+    setTotalIncome(totalIncomeValue);
+
+    // Expenses
+    const totalProductExpenses = products
+      .filter(p => p.buyingPrice > 0)
+      .reduce((sum, p) => sum + (p.buyingPrice * (p.stock || 0)), 0);
+
+    const totalSalaryExpenses = salaries.reduce((sum, s) => sum + (s.advance || 0), 0);
+    const totalMaintenanceExpenses = maintenance.reduce((sum, m) => sum + (m.price || 0), 0);
+    const totalSupplierPayments = supplierPayments.reduce((sum, p) => sum + Number(p.currentPayment || 0), 0);
+
+    const totalExpensesValue = totalProductExpenses + totalSalaryExpenses + totalMaintenanceExpenses;
+    setTotalExpenses(totalExpensesValue);
+
+    setTotalNetProfit(totalIncomeValue - totalExpensesValue);
+  };
+
+  const calculateTodayData = (repairs, extraIncome, salaries, maintenance, payments, products, supplierPayments) => {
+    const todayKey = getLocalDateKey(new Date());
+
+    const todayRepairIncome = repairs
+      .filter(r => getLocalDateKey(r.createdAt) === todayKey && (r.paymentMethod || '').toLowerCase() !== 'credit')
+      .reduce((sum, repair) => sum + (repair.totalAdditionalServicesAmount + repair.checkingCharge + repair.totalRepairCost - repair.totalDiscountAmount || 0), 0);
+
+    const todayExtraIncome = extraIncome
+      .filter(ei => getLocalDateKey(ei.date) === todayKey && (ei.paymentMethod || '').toLowerCase() !== 'credit')
+      .reduce((sum, ei) => sum + (ei.amount || 0), 0);
+
+    const todayPurchaseIncome = payments
+      .filter(p => getLocalDateKey(p.date) === todayKey && !['credit', 'refund'].includes((p.paymentMethod || '').toLowerCase()))
+      .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+    const todayIncome = todayRepairIncome + todayExtraIncome + todayPurchaseIncome;
+
+    const todaySalary = salaries
+      .filter(s => getLocalDateKey(s.date) === todayKey)
+      .reduce((sum, s) => sum + (s.advance || 0), 0);
+
+    const todayMaintenance = maintenance
+      .filter(m => getLocalDateKey(m.date) === todayKey)
+      .reduce((sum, m) => sum + (m.price || 0), 0);
+
+    const todayProductExpenses = products
+      .filter(p => getLocalDateKey(p.createdAt) === todayKey && p.buyingPrice > 0)
+      .reduce((sum, p) => sum + (p.buyingPrice * (p.stock || 0)), 0);
+
+    const todaySupplierPayments = supplierPayments
+      .filter(p => getLocalDateKey(p.date) === todayKey)
+      .reduce((sum, p) => sum + Number(p.currentPayment || 0), 0);
+
+    const todayCost = todaySalary + todayMaintenance + todayProductExpenses + todaySupplierPayments;
+
+    setDailyData(prev => ({
+      ...prev,
+      income: todayIncome,
+      cost: todayCost,
+      profit: todayIncome - (prev.cost ? prev.cost : 0) // Optional: subtract parts cost if needed
+    }));
+  };
+
   const getLocalDateKey = (dateInput) => {
     if (!dateInput) return 'Unknown';
     const d = new Date(dateInput);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
-  // Calculate last 6 months' financial data for the chart
   const getLast6MonthsData = () => {
-    // Get all repairs, extra incomes, salaries, maintenance from state
-    // (these are set by fetchTotalIncome and fetchTodayExpensesData)
     const now = new Date();
     const months = [];
     const monthKeys = [];
@@ -251,45 +236,41 @@ const Dashboard = ({ darkMode }) => {
       months.push(d.toLocaleString('default', { month: 'short' }));
       monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
-    // Helper to get month key from date
+
     const getMonthKey = (dateInput) => {
       if (!dateInput) return '';
       const d = new Date(dateInput);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     };
-    // Calculate income, cost, profit for each month
+
     const incomeArr = monthKeys.map(monthKey => {
-      // Repairs income for this month
-      const repairsIncome = repairsData.filter(r => getMonthKey(r.createdAt) === monthKey)
-        .reduce((sum, r) => sum + (r.finalAmount || r.totalRepairCost || 0), 0);
-      // Extra income for this month
-      const extraIncome = extraIncomeData.filter(ei => getMonthKey(ei.date) === monthKey)
+      const repairs = repairsData.filter(r => getMonthKey(r.createdAt) === monthKey)
+        .reduce((sum, repair) => sum + (repair.totalAdditionalServicesAmount + repair.checkingCharge + repair.totalRepairCost - repair.totalDiscountAmount || 0), 0);
+      const extra = extraIncomeData.filter(ei => getMonthKey(ei.date) === monthKey)
         .reduce((sum, ei) => sum + (ei.amount || 0), 0);
-      return repairsIncome + extraIncome;
+      const sales = paymentsData.filter(p => getMonthKey(p.date) === monthKey )
+        .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+      return repairs + extra + sales;
     });
+
     const costArr = monthKeys.map(monthKey => {
-      // Parts cost for this month
-      const calculateCartTotal = (cart) => {
-        if (!cart || !Array.isArray(cart)) return 0;
-        return cart.reduce((total, item) => total + Math.max(0, parseFloat(item.cost || 0)), 0);
-      };
-      const partsCost = repairsData.filter(r => getMonthKey(r.createdAt) === monthKey)
-        .reduce((sum, r) => sum + calculateCartTotal(r.repairCart), 0);
-      // Salary expenses for this month
-      const salaryCost = salariesData.filter(s => getMonthKey(s.date) === monthKey)
+      const products = productsData.filter(p => getMonthKey(p.createdAt) === monthKey && p.buyingPrice > 0)
+        .reduce((sum, p) => sum + (p.buyingPrice * (p.stock || 0)), 0);
+      const salaries = salariesData.filter(s => getMonthKey(s.date) === monthKey)
         .reduce((sum, s) => sum + (s.advance || 0), 0);
-      // Maintenance expenses for this month
-      const maintenanceCost = maintenanceData.filter(m => getMonthKey(m.date) === monthKey)
+      const maintenance = maintenanceData.filter(m => getMonthKey(m.date) === monthKey)
         .reduce((sum, m) => sum + (m.price || 0), 0);
-      return partsCost + salaryCost + maintenanceCost;
+      const supplier = supplierPaymentsData.filter(p => getMonthKey(p.date) === monthKey)
+        .reduce((sum, p) => sum + Number(p.currentPayment || 0), 0);
+      return products + salaries + maintenance ;
     });
+
     const profitArr = incomeArr.map((inc, i) => inc - (costArr[i] || 0));
     return { months, incomeArr, costArr, profitArr };
   };
 
   const { months: chartMonths, incomeArr: chartIncome, costArr: chartCost, profitArr: chartProfit } = getLast6MonthsData();
 
-  // Helper to format large numbers with K/L suffix
   const formatShortNumber = (num) => {
     if (num >= 10000000) return (num / 10000000).toFixed(2) + ' Cr';
     if (num >= 100000) return (num / 100000).toFixed(2) + ' L';
@@ -300,202 +281,63 @@ const Dashboard = ({ darkMode }) => {
   const chartOptions = {
     chart: {
       type: "column",
-      // Explicitly enforce 2D upright orientation
       inverted: false,
-      spacingLeft: 40,
-      spacingRight: 40,
-      alignTicks: false,
       backgroundColor: isDarkMode ? "#181f2a" : "#f8fafc",
-      borderWidth: 0,
       borderRadius: 16,
-      style: {
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-      },
+      style: { fontFamily: "'Inter', sans-serif" },
       animation: true,
     },
     title: {
       text: "Financial Performance Overview",
-      style: { 
-        color: isDarkMode ? "#f9fafb" : "#1e293b",
-        fontFamily: "'Inter', sans-serif",
-        fontSize: '22px',
-        fontWeight: '700',
-        letterSpacing: '0.5px',
-      },
+      style: { color: isDarkMode ? "#f9fafb" : "#1e293b", fontSize: '22px', fontWeight: '700' },
       align: 'left',
       margin: 24
     },
     subtitle: {
       text: "6-Month Revenue, Expenses, and Profit Trends",
-      style: { 
-        color: isDarkMode ? "#9ca3af" : "#64748b",
-        fontFamily: "'Inter', sans-serif",
-        fontSize: '15px',
-        fontWeight: '500',
-      },
+      style: { color: isDarkMode ? "#9ca3af" : "#64748b", fontSize: '15px', fontWeight: '500' },
       align: 'left',
       y: 44
     },
     xAxis: {
       categories: chartMonths,
-      labels: {
-        style: {
-          color: isDarkMode ? "#d1d5db" : "#334155",
-          fontFamily: "'Inter', sans-serif",
-          fontSize: "15px",
-          fontWeight: '600'
-        },
-        y: 8
-      },
+      labels: { style: { color: isDarkMode ? "#d1d5db" : "#334155", fontSize: "15px", fontWeight: '600' }, y: 8 },
       lineColor: isDarkMode ? "#374151" : "#e5e7eb",
-      tickColor: isDarkMode ? "#374151" : "#e5e7eb",
       gridLineColor: isDarkMode ? "#232b39" : "#e5e7eb",
-      gridLineWidth: 1,
-      minPadding: 0.15,
-      maxPadding: 0.15,
     },
     yAxis: {
-      title: { 
-        text: "Amount (Rs.)",
-        align: 'high',
-        offset: 10,
-        style: {
-          color: isDarkMode ? "#9ca3af" : "#64748b",
-          fontFamily: "'Inter', sans-serif",
-          fontSize: '15px',
-          fontWeight: '600'
-        }
-      },
-      labels: {
-        style: {
-          color: isDarkMode ? "#d1d5db" : "#334155",
-          fontFamily: "'Inter', sans-serif",
-          fontSize: "14px",
-          fontWeight: '500'
-        },
-        formatter: function () {
-          return formatShortNumber(this.value);
-        },
-      },
+      title: { text: "Amount (Rs.)", style: { color: isDarkMode ? "#9ca3af" : "#64748b", fontSize: '15px', fontWeight: '600' } },
+      labels: { style: { color: isDarkMode ? "#d1d5db" : "#334155" }, formatter: function () { return formatShortNumber(this.value); } },
       gridLineColor: isDarkMode ? "#232b39" : "#e5e7eb",
-      lineColor: isDarkMode ? "#374151" : "#e5e7eb",
-      lineWidth: 1,
       min: 0,
     },
     plotOptions: {
       column: {
-        depth: 25,
-        groupPadding: 0.18,
-        pointPadding: 0.08,
         borderRadius: 6,
         dataLabels: {
           enabled: true,
           format: "Rs. {y}",
-          style: {
-            color: isDarkMode ? "#f9fafb" : "#1e293b",
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "13px",
-            fontWeight: '700',
-            textOutline: "none",
-          },
-        },
-        animation: {
-          duration: 900
-        }
-      },
-      series: {
-        animation: {
-          duration: 900
+          style: { color: isDarkMode ? "#f9fafb" : "#1e293b", fontSize: "13px", fontWeight: '700' },
         }
       }
     },
     series: [
-      {
-        name: "Revenue",
-        data: chartIncome,
-        color: "#10b981",
-        borderColor: "#059669",
-        borderWidth: 2,
-      },
-      {
-        name: "Expenses",
-        data: chartCost,
-        color: "#ef4444",
-        borderColor: "#dc2626",
-        borderWidth: 2,
-      },
-      {
-        name: "Net Profit",
-        data: chartProfit,
-        color: "#3b82f6",
-        borderColor: "#2563eb",
-        borderWidth: 2,
-      },
+      { name: "Revenue", data: chartIncome, color: "#10b981" },
+      { name: "Expenses", data: chartCost, color: "#ef4444" },
+      { name: "Net Profit", data: chartProfit, color: "#3b82f6" },
     ],
     legend: {
       align: "center",
       verticalAlign: "bottom",
-      itemStyle: {
-        color: isDarkMode ? "#f9fafb" : "#1e293b",
-        fontFamily: "'Inter', sans-serif",
-        fontSize: "15px",
-        fontWeight: '600'
-      },
-      itemHoverStyle: {
-        color: isDarkMode ? "#fbbf24" : "#0ea5e9"
-      },
-      symbolHeight: 16,
-      symbolWidth: 16,
-      symbolRadius: 8,
-      margin: 16
+      itemStyle: { color: isDarkMode ? "#f9fafb" : "#1e293b", fontSize: "15px", fontWeight: '600' }
     },
     credits: { enabled: false },
     tooltip: {
       backgroundColor: isDarkMode ? "#232b39" : "#f1f5f9",
       borderColor: isDarkMode ? "#374151" : "#e5e7eb",
-      borderRadius: 10,
-      style: {
-        color: isDarkMode ? "#f9fafb" : "#1e293b",
-        fontFamily: "'Inter', sans-serif",
-        fontSize: '15px',
-        fontWeight: '500'
-      },
       formatter: function() {
-        return `<b>${this.x}</b><br/>` +
-          `<span style="color: ${this.color}">●</span> ${this.series.name}: <b>Rs. ${formatShortNumber(this.y)}</b>`;
+        return `<b>${this.x}</b><br/><span style="color:${this.color}">●</span> ${this.series.name}: <b>Rs. ${formatShortNumber(this.y)}</b>`;
       }
-    },
-    responsive: {
-      rules: [{
-        condition: {
-          maxWidth: 700
-        },
-        chartOptions: {
-          chart: {
-            marginLeft: 20,
-            marginRight: 20
-          },
-          xAxis: {
-            labels: {
-              style: {
-                fontSize: '12px'
-              }
-            }
-          },
-          yAxis: {
-            labels: {
-              style: {
-                fontSize: '11px'
-              }
-            }
-          },
-          legend: {
-            itemStyle: {
-              fontSize: '12px'
-            }
-          }
-        }
-      }]
     }
   };
 
@@ -516,16 +358,9 @@ const Dashboard = ({ darkMode }) => {
     }).format(amount).replace('INR', 'Rs.');
   };
 
-  const getTrendIcon = (value) => {
-    if (value > 0) return <FaArrowUp className="trend-icon positive" />;
-    if (value < 0) return <FaArrowDown className="trend-icon negative" />;
-    return <FaChartLine className="trend-icon neutral" />;
-  };
-
   return (
     <div className={`dashboard-container ${darkMode ? "dark" : ""}`}>
       <main className="dashboard-main">
-        {/* Header Section */}
         <header className="dashboard-header">
           <div className="header-content">
             <div className="header-left">
@@ -533,21 +368,14 @@ const Dashboard = ({ darkMode }) => {
               <p className="dashboard-subtitle">Here's Your Business Overview for Today</p>
             </div>
             <div className="header-right">
-              {lastUpdated && (
-                <div className="last-updated">
-                  <span>Last updated: {lastUpdated}</span>
-                </div>
-              )}
+              {lastUpdated && <div className="last-updated"><span>Last updated: {lastUpdated}</span></div>}
             </div>
           </div>
         </header>
 
-        {/* Loading State */}
         {loading ? (
           <div className="loading-container">
-            <div className="loading-spinner">
-              <div className="spinner-icon">⏳</div>
-            </div>
+            <div className="loading-spinner"><div className="spinner-icon">⏳</div></div>
             <p className="loading-text">Loading Dashboard Data...</p>
           </div>
         ) : error ? (
@@ -555,9 +383,7 @@ const Dashboard = ({ darkMode }) => {
             <div className="error-content">
               <h3>Error Loading Data</h3>
               <p>{error}</p>
-              <button className="retry-button" onClick={fetchDashboardData}>
-                Try Again
-              </button>
+              <button className="retry-button" onClick={fetchDashboardData}>Try Again</button>
             </div>
           </div>
         ) : (
@@ -576,7 +402,7 @@ const Dashboard = ({ darkMode }) => {
                     <h3 className="card-title">Total Revenue</h3>
                     <p className="card-amount">{formatCurrency(dailyData.income)}</p>
                     <p className="card-subtitle">Today's Earnings</p>
-                    <p className="card-total-income" style={{marginTop: 8, color: '#10b981', fontWeight: 500}}>
+                    <p className="card-total-income" style={{ marginTop: 8, color: '#10b981', fontWeight: 500 }}>
                       Total Income: {formatCurrency(totalIncome)}
                     </p>
                   </div>
@@ -592,7 +418,7 @@ const Dashboard = ({ darkMode }) => {
                     <h3 className="card-title">Total Expenses</h3>
                     <p className="card-amount">{formatCurrency(dailyData.cost)}</p>
                     <p className="card-subtitle">Today's Costs</p>
-                    <p className="card-total-income" style={{marginTop: 8, color: '#ef4444', fontWeight: 500}}>
+                    <p className="card-total-income" style={{ marginTop: 8, color: '#ef4444', fontWeight: 500 }}>
                       Total Expenses: {formatCurrency(totalExpenses)}
                     </p>
                   </div>
@@ -608,7 +434,7 @@ const Dashboard = ({ darkMode }) => {
                     <h3 className="card-title">Net Profit</h3>
                     <p className="card-amount">{formatCurrency(dailyData.profit)}</p>
                     <p className="card-subtitle">Today's Profit</p>
-                    <p className="card-total-income" style={{marginTop: 8, color: '#3b82f6', fontWeight: 500}}>
+                    <p className="card-total-income" style={{ marginTop: 8, color: '#3b82f6', fontWeight: 500 }}>
                       Net Profit: {formatCurrency(totalNetProfit)}
                     </p>
                   </div>
@@ -621,12 +447,11 @@ const Dashboard = ({ darkMode }) => {
               <h2 className="section-title">Repair Jobs Status</h2>
               <div className="summary-grid">
                 <div className="summary-card completed-card">
-                <div className="card-header">
+                  <div className="card-header">
                     <div className="card-icon-wrapper income">
                       <img src={sucessIcon} alt="Completed" className="card-icon" />
                     </div>
                   </div>
-
                   <div className="card-content">
                     <h3 className="card-title">Completed Jobs</h3>
                     <p className="card-amount">{jobData.completed}</p>
@@ -635,7 +460,7 @@ const Dashboard = ({ darkMode }) => {
                 </div>
 
                 <div className="summary-card pending-card">
-                <div className="card-header">
+                  <div className="card-header">
                     <div className="card-icon-wrapper expense">
                       <img src={warningIcon} alt="Pending" className="card-icon" />
                     </div>

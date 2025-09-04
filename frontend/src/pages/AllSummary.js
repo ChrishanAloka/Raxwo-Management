@@ -23,6 +23,9 @@ const AllSummary = ({ darkMode }) => {
   const [maintenance, setMaintenance] = useState([]);
   const [filteredMaintenance, setFilteredMaintenance] = useState([]);
 
+  const [supplierPayments, setSupplierPayments] = useState([]);
+  const [filteredSupplierPayments, setFilteredSupplierPayments] = useState([]);
+
   // State for income
   const [repairs, setRepairs] = useState([]);
   const [filteredRepairs, setFilteredRepairs] = useState([]);
@@ -57,8 +60,9 @@ const AllSummary = ({ darkMode }) => {
     filterRepairs();
     filterExtraIncome();
     filterePayments();
+    filterSupplierPayments();
     // eslint-disable-next-line
-  }, [products, grnExpenses.raw, salaries, maintenance, repairs, extraIncome, payments, filterType, filterDate, startDate, endDate, dateField, categoryFilter, statusFilter, assignedToFilter, paymentMethodFilter]);
+  }, [products, grnExpenses.raw, salaries, maintenance, repairs, extraIncome, payments, supplierPayments, filterType, filterDate, startDate, endDate, dateField, categoryFilter, statusFilter, assignedToFilter, paymentMethodFilter]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -90,6 +94,21 @@ const AllSummary = ({ darkMode }) => {
       const maintenanceData = await maintenanceRes.json();
       const extraIncomeData = await extraIncomeRes.json();
       const paymentsData = await paymentsRes.json();
+
+      // Extract and flatten supplier payment history
+      const allSupplierPayments = [];
+      for (const supplier of suppliersData) {
+        if (Array.isArray(supplier.paymentHistory)) {
+          for (const payment of supplier.paymentHistory) {
+            allSupplierPayments.push({
+              ...payment,
+              supplierName: supplier.supplierName,
+              _id: payment._id || `${supplier._id}-${Math.random()}`, // Ensure unique key
+            });
+          }
+        }
+      }
+      setSupplierPayments(allSupplierPayments);
       
       
       // Filter products to only show those from the main product list (not deleted)
@@ -107,20 +126,20 @@ const AllSummary = ({ darkMode }) => {
       setExtraIncome(Array.isArray(extraIncomeData) ? extraIncomeData : []);
       setpayments(Array.isArray(paymentsData) ? paymentsData : []);
 
-      // Fetch all GRNs for all suppliers
-      const allGrns = [];
-      for (const supplier of suppliersData) {
-        try {
-          const grnRes = await fetch(`${SUPPLIERS_API_URL}/${supplier._id}/grns`);
-          if (grnRes.ok) {
-            const grns = await grnRes.json();
-            for (const grn of grns) {
-              allGrns.push({ ...grn, supplierName: supplier.supplierName });
-            }
-          }
-        } catch (e) { /* skip supplier if error */ }
-      }
-      setGrnExpenses({ raw: allGrns });
+      // // Fetch all GRNs for all suppliers
+      // const allGrns = [];
+      // for (const supplier of suppliersData) {
+      //   try {
+      //     const grnRes = await fetch(`${SUPPLIERS_API_URL}/${supplier._id}/grns`);
+      //     if (grnRes.ok) {
+      //       const grns = await grnRes.json();
+      //       for (const grn of grns) {
+      //         allGrns.push({ ...grn, supplierName: supplier.supplierName });
+      //       }
+      //     }
+      //   } catch (e) { /* skip supplier if error */ }
+      // }
+      // setGrnExpenses({ raw: allGrns });
       setLoading(false);
     } catch (err) {
       setError(err.message);
@@ -280,9 +299,86 @@ const AllSummary = ({ darkMode }) => {
     setFilteredGrnExpenses(filtered);
   };
 
+  const filterSupplierPayments = () => {
+    if (filterType === 'all') {
+      let filtered = supplierPayments;
+      if (assignedToFilter) {
+        filtered = filtered.filter(p => p.assignedTo === assignedToFilter);
+      }
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(p => p.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
+      }
+      setFilteredSupplierPayments(filtered);
+      return;
+    }
+
+    if (filterType === 'range') {
+      if (!startDate || !endDate) {
+        setFilteredSupplierPayments(supplierPayments);
+        return;
+      }
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      let filtered = supplierPayments.filter(p => {
+        const pDate = new Date(p.date);
+        return pDate >= start && pDate <= end;
+      });
+
+      if (assignedToFilter) {
+        filtered = filtered.filter(p => p.assignedTo === assignedToFilter);
+      }
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(p => p.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
+      }
+
+      setFilteredSupplierPayments(filtered);
+      return;
+    }
+
+    if (!filterDate) {
+      setFilteredSupplierPayments(supplierPayments);
+      return;
+    }
+
+    const dateObj = new Date(filterDate);
+    let filtered = supplierPayments.filter(p => !!p.date);
+
+    if (assignedToFilter) {
+      filtered = filtered.filter(p => p.assignedTo === assignedToFilter);
+    }
+    if (paymentMethodFilter) {
+      filtered = filtered.filter(p => p.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
+    }
+
+    if (filterType === 'daily') {
+      filtered = filtered.filter(p => getLocalDateKey(p.date) === getLocalDateKey(filterDate));
+    } else if (filterType === 'monthly') {
+      filtered = filtered.filter(p => {
+        const d = new Date(p.date);
+        return d.getFullYear() === dateObj.getFullYear() && d.getMonth() === dateObj.getMonth();
+      });
+    } else if (filterType === 'yearly') {
+      filtered = filtered.filter(p => {
+        const d = new Date(p.date);
+        return d.getFullYear() === dateObj.getFullYear();
+      });
+    }
+
+    setFilteredSupplierPayments(filtered);
+  };
+
   const filterSalaries = () => {
     if (filterType === 'all') {
-      setFilteredSalaries(salaries);
+      let filtered = salaries;
+      if (assignedToFilter) {
+        filtered = filtered.filter(salary => salary.assignedTo === assignedToFilter);
+      }
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(salary => salary.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
+      }
+      setFilteredSalaries(filtered);
       return;
     }
 
@@ -294,11 +390,18 @@ const AllSummary = ({ darkMode }) => {
       const start = new Date(startDate);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-      
-      const filtered = salaries.filter(salary => {
+      let filtered = salaries.filter(salary => {
         const salaryDate = new Date(salary.date);
         return salaryDate >= start && salaryDate <= end;
       });
+
+      if (assignedToFilter) {
+        filtered = filtered.filter(salary => salary.assignedTo === assignedToFilter);
+      }
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(salary => salary.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
+      }
+
       setFilteredSalaries(filtered);
       return;
     }
@@ -310,7 +413,14 @@ const AllSummary = ({ darkMode }) => {
 
     const dateObj = new Date(filterDate);
     let filtered = salaries.filter(salary => !!salary.date);
-    
+
+    if (assignedToFilter) {
+      filtered = filtered.filter(salary => salary.assignedTo === assignedToFilter);
+    }
+    if (paymentMethodFilter) {
+      filtered = filtered.filter(salary => salary.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
+    }
+
     if (filterType === 'daily') {
       filtered = filtered.filter(salary => {
         const salaryDate = getLocalDateKey(salary.date);
@@ -328,13 +438,20 @@ const AllSummary = ({ darkMode }) => {
         return d.getFullYear() === dateObj.getFullYear();
       });
     }
-    
+
     setFilteredSalaries(filtered);
   };
 
   const filterMaintenance = () => {
     if (filterType === 'all') {
-      setFilteredMaintenance(maintenance);
+      let filtered = maintenance;
+      if (assignedToFilter) {
+        filtered = filtered.filter(m => m.assignedTo === assignedToFilter);
+      }
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(m => m.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
+      }
+      setFilteredMaintenance(filtered);
       return;
     }
 
@@ -346,11 +463,19 @@ const AllSummary = ({ darkMode }) => {
       const start = new Date(startDate);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-      
-      const filtered = maintenance.filter(maint => {
+
+      let filtered = maintenance.filter(maint => {
         const maintDate = new Date(maint.date);
         return maintDate >= start && maintDate <= end;
       });
+
+      if (assignedToFilter) {
+        filtered = filtered.filter(m => m.assignedTo === assignedToFilter);
+      }
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(m => m.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
+      }
+
       setFilteredMaintenance(filtered);
       return;
     }
@@ -362,7 +487,14 @@ const AllSummary = ({ darkMode }) => {
 
     const dateObj = new Date(filterDate);
     let filtered = maintenance.filter(maint => !!maint.date);
-    
+
+    if (assignedToFilter) {
+      filtered = filtered.filter(m => m.assignedTo === assignedToFilter);
+    }
+    if (paymentMethodFilter) {
+      filtered = filtered.filter(m => m.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
+    }
+
     if (filterType === 'daily') {
       filtered = filtered.filter(maint => {
         const maintDate = getLocalDateKey(maint.date);
@@ -380,7 +512,7 @@ const AllSummary = ({ darkMode }) => {
         return d.getFullYear() === dateObj.getFullYear();
       });
     }
-    
+
     setFilteredMaintenance(filtered);
   };
 
@@ -536,62 +668,90 @@ const AllSummary = ({ darkMode }) => {
   const filterePayments = () => {
     if (filterType === 'all') {
       let filtered = payments;
+
+      // Filter by assignedTo (check inside items)
       if (assignedToFilter) {
-        filtered = filtered.filter(p => p.assignedTo === assignedToFilter);
+        filtered = filtered.filter(p => 
+          Array.isArray(p.items) && 
+          p.items.some(item => item.assignedTo === assignedToFilter)
+        );
       }
+
+      // Filter by payment method (root level)
       if (paymentMethodFilter) {
         filtered = filtered.filter(p => p.paymentMethod === paymentMethodFilter);
       }
+
       setFilteredPayments(filtered);
       return;
     }
+
     if (filterType === 'range') {
       if (!startDate || !endDate) {
         setFilteredPayments(payments);
         return;
       }
-      let filtered = payments.filter(p => !!p.date);
-      if (assignedToFilter) {
-        filtered = filtered.filter(p => p.assignedTo === assignedToFilter);
-      }
-      if (paymentMethodFilter) {
-        filtered = filtered.filter(p => p.paymentMethod === paymentMethodFilter);
-      }
       const start = new Date(startDate);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(p => {
-        const d = new Date(p.date);
-        return d >= start && d <= end;
+
+      let filtered = payments.filter(p => {
+        const pDate = new Date(p.date);
+        return pDate >= start && pDate <= end;
       });
+
+      // Filter by assignedTo in items
+      if (assignedToFilter) {
+        filtered = filtered.filter(p => 
+          Array.isArray(p.items) && 
+          p.items.some(item => item.assignedTo === assignedToFilter)
+        );
+      }
+
+      // Filter by payment method
+      if (paymentMethodFilter) {
+        filtered = filtered.filter(p => p.paymentMethod === paymentMethodFilter);
+      }
+
       setFilteredPayments(filtered);
       return;
     }
+
     if (!filterDate) {
       setFilteredPayments(payments);
       return;
     }
+
     const pdateObj = new Date(filterDate);
     let filteredp = payments.filter(p => !!p.date);
+
+    // Filter by assignedTo in items
     if (assignedToFilter) {
-      filteredp = filteredp.filter(p => p.assignedTo === assignedToFilter);
+      filteredp = filteredp.filter(p => 
+        Array.isArray(p.items) && 
+        p.items.some(item => item.assignedTo === assignedToFilter)
+      );
     }
+
+    // Filter by payment method
     if (paymentMethodFilter) {
       filteredp = filteredp.filter(p => p.paymentMethod === paymentMethodFilter);
     }
+
     if (filterType === 'daily') {
-      filteredp = filteredp.filter(ei => getLocalDateKey(ei.date) === getLocalDateKey(filterDate));
+      filteredp = filteredp.filter(p => getLocalDateKey(p.date) === getLocalDateKey(filterDate));
     } else if (filterType === 'monthly') {
-      filteredp = filteredp.filter(ei => {
-        const d = new Date(ei.date);
+      filteredp = filteredp.filter(p => {
+        const d = new Date(p.date);
         return d.getFullYear() === pdateObj.getFullYear() && d.getMonth() === pdateObj.getMonth();
       });
     } else if (filterType === 'yearly') {
-      filteredp = filteredp.filter(ei => {
-        const d = new Date(ei.date);
+      filteredp = filteredp.filter(p => {
+        const d = new Date(p.date);
         return d.getFullYear() === pdateObj.getFullYear();
       });
     }
+
     setFilteredPayments(filteredp);
   };
 
@@ -617,6 +777,17 @@ const AllSummary = ({ darkMode }) => {
     return cart.reduce((total, item) => total + ((Math.max(0, parseFloat(item.buyingPrice || 0))) * item.quantity), 0);
   };
 
+  const calculateAssigneeItemTotal = (items, assignee) => {
+  if (!assignee || !Array.isArray(items)) return 0;
+  return items.reduce((sum, item) => {
+    if (item.assignedTo === assignee) {
+      return sum + (item.price * item.quantity) - item.discount;
+    }
+    
+    return sum;
+  }, 0);
+};
+
   // Calculate totals
   const totalProductExpenses = filteredProducts
   .filter(product => 
@@ -637,21 +808,57 @@ const AllSummary = ({ darkMode }) => {
     return sum + (maint.price || 0);
   }, 0);
 
+  const totalSupplierPayments = filteredSupplierPayments.reduce((sum, p) => 
+    sum + (Number(p.currentPayment || 0)), 0);
+
   const totalExtraIncome = filteredExtraIncome.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').reduce((sum, ei) => sum + (ei.amount || 0), 0);
 
   const totalExtraCreditIncome = filteredExtraIncome.filter(p => p.paymentMethod?.toLowerCase() === 'credit').reduce((sum, ei) => sum + (ei.amount || 0), 0);
 
   const totalCash = filteredPayments
     .filter(p => p.paymentMethod?.toLowerCase() === 'cash')
-    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    .reduce((sum, payment) => {
+      const itemSum = payment.items.reduce((itemTotal, item) => {
+        if (item.assignedTo === assignedToFilter) {
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        else if (assignedToFilter === ''){
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        return itemTotal;
+      }, 0);
+      return sum + itemSum;
+    }, 0);
 
   const totalCard = filteredPayments
     .filter(p => p.paymentMethod?.toLowerCase() === 'card')
-    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    .reduce((sum, payment) => {
+      const itemSum = payment.items.reduce((itemTotal, item) => {
+        if (item.assignedTo === assignedToFilter) {
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        else if (assignedToFilter === ''){
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        return itemTotal;
+      }, 0);
+      return sum + itemSum;
+    }, 0);
 
   const totalBankTransfer = filteredPayments
     .filter(p => p.paymentMethod?.toLowerCase() === 'bank-transfer')
-    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    .reduce((sum, payment) => {
+      const itemSum = payment.items.reduce((itemTotal, item) => {
+        if (item.assignedTo === assignedToFilter) {
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        else if (assignedToFilter === ''){
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        return itemTotal;
+      }, 0);
+      return sum + itemSum;
+    }, 0);
 
   const totalRefund = filteredPayments
     .filter(p => p.paymentMethod?.toLowerCase() === 'refund')
@@ -659,18 +866,71 @@ const AllSummary = ({ darkMode }) => {
 
   const totalBankCheck = filteredPayments
     .filter(p => p.paymentMethod?.toLowerCase() === 'bank-check')
-    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    .reduce((sum, payment) => {
+      const itemSum = payment.items.reduce((itemTotal, item) => {
+        if (item.assignedTo === assignedToFilter) {
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        else if (assignedToFilter === ''){
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        return itemTotal;
+      }, 0);
+      return sum + itemSum;
+    }, 0);
 
   const totalCredit = filteredPayments
     .filter(p => p.paymentMethod?.toLowerCase() === 'credit')
-    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    .reduce((sum, payment) => {
+      const itemSum = payment.items.reduce((itemTotal, item) => {
+        if (item.assignedTo === assignedToFilter) {
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        else if (assignedToFilter === ''){
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        return itemTotal;
+      }, 0);
+      return sum + itemSum;
+    }, 0);
 
-  const totalPayments = filteredPayments.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').reduce((sum, ei) => sum + (ei.totalAmount || 0), 0);
+  const totalPayments = filteredPayments
+    .filter(p => p.paymentMethod?.toLowerCase() !== 'credit' && p.paymentMethod?.toLowerCase() !== 'refund') // Exclude credit
+    .reduce((sum, payment) => {
+      // Sum only items assigned to current assignedToFilter
+      const itemSum = payment.items.reduce((itemTotal, item) => {
+        // Only include item if assignedTo matches filter
+        if (item.assignedTo === assignedToFilter) {
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        else if (assignedToFilter === ''){
+          return itemTotal + (item.price * item.quantity) - item.discount;
+        }
+        return itemTotal;
+      }, 0);
+      return sum + itemSum;
+    }, 0);
 
-  const totalExpenses = totalProductExpenses + totalSalaryExpenses + totalMaintenanceExpenses ;
+  const totalExpenses = (totalProductExpenses - totalSupplierPayments) + totalSalaryExpenses + totalMaintenanceExpenses + totalSupplierPayments;
 
   const totalRepairIncome = filteredRepairs.filter(repair => repair.paymentMethod?.toLowerCase() !== 'credit').reduce((sum, repair) => {
     return sum + (repair.totalAdditionalServicesAmount + repair.checkingCharge + repair.totalRepairCost - repair.totalDiscountAmount || 0);
+  }, 0);
+
+  const totalAdditionalServicesAmount = filteredRepairs.filter(repair => repair.paymentMethod?.toLowerCase() !== 'credit').reduce((sum, repair) => {
+    return sum + (repair.totalAdditionalServicesAmount || 0);
+  }, 0);
+
+  const totalcheckingCharge = filteredRepairs.filter(repair => repair.paymentMethod?.toLowerCase() !== 'credit').reduce((sum, repair) => {
+    return sum + ( repair.checkingCharge  || 0);
+  }, 0);
+
+  const totalRepairCost = filteredRepairs.filter(repair => repair.paymentMethod?.toLowerCase() !== 'credit').reduce((sum, repair) => {
+    return sum + ( repair.totalRepairCost || 0);
+  }, 0);
+
+  const totalDiscountAmount = filteredRepairs.filter(repair => repair.paymentMethod?.toLowerCase() !== 'credit').reduce((sum, repair) => {
+    return sum + ( repair.totalDiscountAmount || 0);
   }, 0);
 
   const creditRepairs = filteredRepairs
@@ -681,14 +941,53 @@ const AllSummary = ({ darkMode }) => {
     return sum + calculateCartTotal(repair.repairCart);
   }, 0);
 
-  const totalIncome = totalRepairIncome + creditRepairs - totalCartCosts + totalCredit + totalPayments - totalRefund + totalExtraIncome + totalExtraCreditIncome ;
+  const totalIncome = totalRepairIncome + creditRepairs  + totalCredit + totalPayments + totalRefund + totalExtraIncome + totalExtraCreditIncome ;
   
     const totalCheckingCharges = filteredRepairs.reduce((sum, repair) => {
     return sum + (repair.checkingCharge || 0);
   }, 0);
 
   const netProfit = totalIncome - totalExpenses;
-  const netCashFlow = totalIncome - totalExtraCreditIncome - totalCredit - creditRepairs - totalExpenses;
+  
+  // 🔹 Calculate Cash Inflows (only 'Cash' payments)
+  const cashInflows = [
+    // 1. Repairs paid in cash
+    ...filteredRepairs.filter(r => r.paymentMethod?.toLowerCase() === 'cash'),
+    // 2. Item Purchases (Payments) paid in cash
+    ...filteredPayments.filter(p => 
+    p.paymentMethod?.toLowerCase() === 'cash' && 
+    p.paymentMethod?.toLowerCase() !== 'refund'
+  ),
+    // 3. Extra Income received in cash
+    ...filteredExtraIncome.filter(ei => ei.paymentMethod?.toLowerCase() === 'cash')
+  ]
+  .reduce((sum, record) => {
+    // Handle different amount fields
+    if (record.finalAmount !== undefined) {
+      return sum + record.finalAmount; // Repair
+    } else if (record.totalAmount !== undefined) {
+      return sum + record.totalAmount; // Payment
+    } else if (record.amount !== undefined) {
+      return sum + record.amount; // Extra Income
+    }
+    return sum;
+  }, 0);
+
+  // 🔹 Calculate Cash Outflows (only 'Cash' expenses)
+  const cashOutflows = [
+    // 1. Salaries paid in cash
+    ...filteredSalaries.filter(s => s.paymentMethod?.toLowerCase() === 'cash'),
+    // 2. Maintenance paid in cash
+    ...filteredMaintenance.filter(m => m.paymentMethod?.toLowerCase() === 'cash'),
+    // 3. Supplier Payments made in cash
+    ...filteredSupplierPayments.filter(sp => sp.paymentMethod?.toLowerCase() === 'cash')
+  ]
+  .reduce((sum, expense) => {
+    return sum + (expense.advance || expense.price || Number(expense.currentPayment || 0));
+  }, 0);
+
+  // ✅ Final Net Cash Flow
+  const netCashFlow = cashInflows - cashOutflows;
 
   const handleExportExcel = () => {
     const workbook = XLSX.utils.book_new();
@@ -777,13 +1076,17 @@ const AllSummary = ({ darkMode }) => {
         'Amount (Rs.)': `Rs. ${totalMaintenanceExpenses.toFixed(2)}`
       },
       {
+        'Metric': 'Supplier Payments',
+        'Amount (Rs.)': `Rs. ${totalSupplierPayments.toFixed(2)}`
+      },
+      {
         'Metric': 'Checking Charges',
         'Amount (Rs.)': `Rs. ${totalCheckingCharges.toFixed(2)}`
       },
-      {
-        'Metric': 'Parts Cost',
-        'Amount (Rs.)': `Rs. ${totalCartCosts.toFixed(2)}`
-      },
+      // {
+      //   'Metric': 'Parts Cost',
+      //   'Amount (Rs.)': `Rs. ${totalCartCosts.toFixed(2)}`
+      // },
       {
         'Metric': 'Net Profit',
         'Amount (Rs.)': `Rs. ${netProfit.toFixed(2)}`
@@ -1156,6 +1459,7 @@ const AllSummary = ({ darkMode }) => {
         >
           Overview
         </button>
+        
         {/* <button 
           onClick={() => setActiveTab('expenses')}
           style={{
@@ -1269,7 +1573,7 @@ const AllSummary = ({ darkMode }) => {
               </p>
             </div>
 
-            <div style={{ 
+            {/* <div style={{ 
               background: darkMode ? '#2a2a2a' : '#f0f0f0', 
               padding: '15px', 
               borderRadius: '8px', 
@@ -1280,7 +1584,7 @@ const AllSummary = ({ darkMode }) => {
               <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
                 Rs. {totalCartCosts.toFixed(2)}
               </p>
-            </div>
+            </div> */}
             
             <div 
             onClick={() => setActiveTab('purchase')}
@@ -1411,6 +1715,21 @@ const AllSummary = ({ darkMode }) => {
                 Rs. {totalMaintenanceExpenses.toFixed(2)}
               </p>
             </div>
+            <div 
+              onClick={() => setActiveTab('supplierPayments')} 
+              style={{ 
+                background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+                padding: '15px', 
+                borderRadius: '8px', 
+                minWidth: '200px',
+                border: darkMode ? '1px solid #444' : '1px solid #ddd',
+                cursor: 'pointer'
+              }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Supplier Payments</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalSupplierPayments.toFixed(2)}
+              </p>
+            </div>
             {/* <div style={{ 
               background: darkMode ? '#2a2a2a' : '#f0f0f0', 
               padding: '15px', 
@@ -1474,7 +1793,26 @@ const AllSummary = ({ darkMode }) => {
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalRepairIncome.toFixed(2)}</td>
                     <td>Total revenue from repair jobs</td>
                   </tr>
-                  
+                  <tr>
+                    <td style={{ paddingLeft: '20px' }}>• Additional Service Amounts</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalAdditionalServicesAmount.toFixed(2)}</td>
+                    <td>Total Additional Service Charges</td>
+                  </tr>
+                  <tr>
+                    <td style={{ paddingLeft: '20px' }}>• Checking Charges</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalcheckingCharge.toFixed(2)}</td>
+                    <td>Total Checking Charges</td>
+                  </tr>
+                  <tr>
+                    <td style={{ paddingLeft: '20px' }}>• Repair Cart Items</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalRepairCost.toFixed(2)}</td>
+                    <td>Total Repair Cart Items Charges</td>
+                  </tr>
+                  <tr>
+                    <td style={{ paddingLeft: '20px' }}>• Discounts</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalDiscountAmount.toFixed(2)}</td>
+                    <td>Total Discounts</td>
+                  </tr>
                   <tr>
                     <td>Item Purchase</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalPayments.toFixed(2)}</td>
@@ -1536,15 +1874,21 @@ const AllSummary = ({ darkMode }) => {
                     <td>Service bills and maintenance costs</td>
                   </tr>
                   <tr>
+                    <td style={{ paddingLeft: '20px' }}>• Supplier Payments</td>
+                    <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalSupplierPayments.toFixed(2)}</td>
+                    <td>All bills payments for suppliers</td>
+                  </tr>
+                  
+                  <tr>
                     <td>Checking Charges</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalCheckingCharges.toFixed(2)}</td>
                     <td>Diagnostic charges collected</td>
                   </tr>
-                  <tr>
+                  {/* <tr>
                     <td>Parts Cost</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalCartCosts.toFixed(2)}</td>
                     <td>Cost of parts used in repairs</td>
-                  </tr>
+                  </tr> */}
                   <tr>
                     <td>Net Profit</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {netProfit.toFixed(2)}</td>
@@ -1710,6 +2054,7 @@ const AllSummary = ({ darkMode }) => {
                   <th>Amount (Expense)</th>
                   <th>Description</th>
                   <th>Category/Service</th>
+                  <th>Payment Method</th>
                   <th>Date</th>
                 </tr>
               </thead>
@@ -1726,6 +2071,7 @@ const AllSummary = ({ darkMode }) => {
                         <td style={{ color: '#000' }}>Rs. {(s.advance || 0).toFixed(2)}</td>
                         <td>{s.employeeName || '-'}</td>
                         <td>Salary Advance</td>
+                        <td>{s.paymentMethod || 'N/A'}</td>
                         <td>{getLocalDateKey(s.date)}</td>
                       </tr>
                     ))}
@@ -1745,6 +2091,7 @@ const AllSummary = ({ darkMode }) => {
                   <th>Amount (Expense)</th>
                   <th>Description</th>
                   <th>Category/Service</th>
+                  <th>Payment Method</th>
                   <th>Date</th>
                 </tr>
               </thead>
@@ -1762,10 +2109,51 @@ const AllSummary = ({ darkMode }) => {
                         <td style={{ color: '#000' }}>Rs. {(m.price || 0).toFixed(2)}</td>
                         <td>{m.remarks || '-'}</td>
                         <td>{m.serviceType || '-'}</td>
+                        <td>{m.paymentMethod || 'N/A'}</td>
                         <td>{getLocalDateKey(m.date)}</td>
                       </tr>
                     ))}
                   </>
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {/* Supplier Payments Tab */}
+          {activeTab === 'supplierPayments' && (
+            <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Supplier</th>
+                  <th>Up-to-Date Cost</th>
+                  <th>Current Payment</th>
+                  <th>Amount Due</th>
+                  {/* <th>Assigned To</th> */}
+                  <th>Payment Method</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSupplierPayments.length === 0 ? (
+                  <tr><td colSpan={7} className="no-products">No supplier payments found.</td></tr>
+                ) : (
+                  filteredSupplierPayments.map((p, idx) => (
+                    <tr key={p._id || idx}>
+                      <td>{getLocalDateKey(p.date)}</td>
+                      <td>{p.supplierName || '-'}</td>
+                      <td style={{ color: '#000' }}>
+                        Rs. {Number(p.uptodateCost || 0).toFixed(2)}
+                      </td>
+                      <td style={{ color: '#000' }}>
+                        Rs. {Number(p.currentPayment || 0).toFixed(2)}
+                      </td>
+                      <td style={{ color: '#000' }}>
+                        Rs. {Number(p.amountDue || 0).toFixed(2)}
+                      </td>
+                      {/* <td>{p.assignedTo || 'N/A'}</td> */}
+                      <td>{p.paymentMethod || 'N/A'}</td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -1872,6 +2260,12 @@ const AllSummary = ({ darkMode }) => {
                   <th>Time </th>
                   <th>INV No </th>
                   <th>Items </th>
+                  {/* Show Assignee Amount column only when filtering by assignee */}
+                  {assignedToFilter && (
+                  <th style={{ color: '#007bff', fontWeight: 'bold' }}>
+                    {assignedToFilter ? `${assignedToFilter}'s Amount` : 'Assignee Amount'}
+                  </th>
+                  )}
                   <th>Discount</th>
                   <th>Total Amount</th>
                   <th>Payment Method</th>
@@ -1883,26 +2277,41 @@ const AllSummary = ({ darkMode }) => {
                 {filteredPayments.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').length === 0 ? (
                   <tr><td colSpan={11} className="no-products">No income found.</td></tr>
                 ) : (
-                  filteredPayments.filter(p => p.paymentMethod?.toLowerCase() !== 'credit').map((payment, idx) => (
-                    <tr key={payment._id || idx}>
-                      <td>{new Date(payment.date).toLocaleDateString()}</td>
-                      <td>{new Date(payment.date).toLocaleTimeString()}</td>
-                      <td>{payment.invoiceNumber}</td>
-                      <td>{/* Combine all item names */}
-                        {payment.items.map(item => item.itemName).join(', ')}
-                      </td>
-                      {/* <td> */}
-                        {/* Combine quantities */}
-                        {/* {payment.items.map(item => item.quantity).join(', ')} */}
-                      {/* </td> */}
-                      {/* <td>{payment.cashierName}</td> */}
-                      <td>Rs. {(payment.discountApplied || 0).toFixed(2)}</td>
-                      <td>Rs. {payment.totalAmount.toFixed(2)}</td>
-                      <td>{payment.paymentMethod}</td>
-                      {/* <td>{getLocalDateKey(r.createdAt)}</td>
-                      <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td> */}
-                    </tr>
-                  ))
+                  filteredPayments
+                    .filter(p => p.paymentMethod?.toLowerCase() !== 'credit' && p.paymentMethod?.toLowerCase() !== 'refund')
+                    .map((payment, idx) => {
+                      // Calculate only items assigned to current assignee
+                      const assigneeAmount = assignedToFilter
+                        ? calculateAssigneeItemTotal(payment.items, assignedToFilter)
+                        : 0;
+
+                      return (
+                      <tr key={payment._id || idx}>
+                        <td>{new Date(payment.date).toLocaleDateString()}</td>
+                        <td>{new Date(payment.date).toLocaleTimeString()}</td>
+                        <td>{payment.invoiceNumber}</td>
+                        <td>{/* Combine all item names */}
+                          {payment.items.map(item => item.itemName).join(', ')}
+                        </td>
+                        {/* <td> */}
+                          {/* Combine quantities */}
+                          {/* {payment.items.map(item => item.quantity).join(', ')} */}
+                        {/* </td> */}
+                        {/* <td>{payment.cashierName}</td> */}
+                        {/* Show Assignee Amount only when filtering */}
+                        {assignedToFilter && (
+                          <td style={{ color: '#007bff', fontWeight: 'bold' }}>
+                            Rs. {assigneeAmount.toFixed(2)}
+                          </td>
+                        )}
+                        <td>Rs. {(payment.discountApplied || 0).toFixed(2)}</td>
+                        <td>Rs. {payment.totalAmount.toFixed(2)}</td>
+                        <td>{payment.paymentMethod}</td>
+                        {/* <td>{getLocalDateKey(r.createdAt)}</td>
+                        <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td> */}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1917,6 +2326,11 @@ const AllSummary = ({ darkMode }) => {
                   <th>Time </th>
                   <th>INV No </th>
                   <th>Items </th>
+                  {assignedToFilter && (
+                  <th style={{ color: '#007bff', fontWeight: 'bold' }}>
+                    {assignedToFilter ? `${assignedToFilter}'s Amount` : 'Assignee Amount'}
+                  </th>
+                  )}
                   <th>Discount</th>
                   <th>Total Amount</th>
                   <th>Payment Method</th>
@@ -1928,26 +2342,38 @@ const AllSummary = ({ darkMode }) => {
                 {filteredPayments.filter(p => p.paymentMethod?.toLowerCase() === 'credit').length === 0 ? (
                   <tr><td colSpan={11} className="no-products">No income found.</td></tr>
                 ) : (
-                  filteredPayments.filter(p => p.paymentMethod?.toLowerCase() === 'credit').map((payment, idx) => (
-                    <tr key={payment._id || idx}>
-                      <td>{new Date(payment.date).toLocaleDateString()}</td>
-                      <td>{new Date(payment.date).toLocaleTimeString()}</td>
-                      <td>{payment.invoiceNumber}</td>
-                      <td>{/* Combine all item names */}
-                        {payment.items.map(item => item.itemName).join(', ')}
-                      </td>
-                      {/* <td> */}
-                        {/* Combine quantities */}
-                        {/* {payment.items.map(item => item.quantity).join(', ')} */}
-                      {/* </td> */}
-                      {/* <td>{payment.cashierName}</td> */}
-                      <td>Rs. {(payment.discountApplied || 0).toFixed(2)}</td>
-                      <td>Rs. {payment.totalAmount.toFixed(2)}</td>
-                      <td>{payment.paymentMethod}</td>
-                      {/* <td>{getLocalDateKey(r.createdAt)}</td>
-                      <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td> */}
-                    </tr>
-                  ))
+                  filteredPayments.filter(p => p.paymentMethod?.toLowerCase() === 'credit').map((payment, idx) => {
+                      // Calculate only items assigned to current assignee
+                      const assigneeAmount = assignedToFilter
+                        ? calculateAssigneeItemTotal(payment.items, assignedToFilter)
+                        : 0;
+
+                      return (
+                      <tr key={payment._id || idx}>
+                        <td>{new Date(payment.date).toLocaleDateString()}</td>
+                        <td>{new Date(payment.date).toLocaleTimeString()}</td>
+                        <td>{payment.invoiceNumber}</td>
+                        <td>{/* Combine all item names */}
+                          {payment.items.map(item => item.itemName).join(', ')}
+                        </td>
+                        {/* <td> */}
+                          {/* Combine quantities */}
+                          {/* {payment.items.map(item => item.quantity).join(', ')} */}
+                        {/* </td> */}
+                        {/* <td>{payment.cashierName}</td> */}
+                        {assignedToFilter && (
+                          <td style={{ color: '#007bff', fontWeight: 'bold' }}>
+                            Rs. {assigneeAmount.toFixed(2)}
+                          </td>
+                        )}
+                        <td>Rs. {(payment.discountApplied || 0).toFixed(2)}</td>
+                        <td>Rs. {payment.totalAmount.toFixed(2)}</td>
+                        <td>{payment.paymentMethod}</td>
+                        {/* <td>{getLocalDateKey(r.createdAt)}</td>
+                        <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td> */}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
