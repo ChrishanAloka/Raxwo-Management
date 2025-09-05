@@ -3773,8 +3773,13 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
               <button onClick={handleUpdateCart} className="update-cart-btn">
                 Update Cart
               </button>
-              <button onClick={() => setShowSelectModal(false)} className="a-p-cancel-btn">
-                Close
+              <button
+                type="button"
+                onClick={() => !loading && setShowSelectModal(false)}
+                className="modal-cancel-btn"
+                disabled={loading}
+              >
+                {loading ? 'Updating...' : 'Close'}
               </button>
             </div>
           </div>
