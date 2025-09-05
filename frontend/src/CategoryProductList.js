@@ -4,6 +4,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import "./Products.css";
 import editicon from './icon/edit.png';
+import viewicon from './icon/clipboard.png'; 
 import deleteicon from './icon/delete.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile, faFilePdf, faFileExcel, faSearch } from '@fortawesome/free-solid-svg-icons';
@@ -11,6 +12,11 @@ import EditProduct from './EditProduct';
 
 const API_URL = "https://raxwo-management.onrender.com/api/products";
 const itemsPerPage = 20;
+
+const PRODUCT_API_URL = 'https://raxwo-management.onrender.com/api/products';
+
+const REPAIRS_API_URL = 'https://raxwo-management.onrender.com/api/productsRepair';
+const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments';
 
 const CategoryProductList = ({ darkMode }) => {
   const [products, setProducts] = useState([]);
@@ -30,6 +36,10 @@ const CategoryProductList = ({ darkMode }) => {
   const [show0StockOnly, setShow0StockOnly] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);  
+
+  const [trackItemData, setTrackItemData] = useState(null);
+  const [showTrackModal, setShowTrackModal] = useState(false);
+  const [trackingLoading, setTrackingLoading] = useState(false);
 
   // Get all unique categories from products
   const allCategories = [...new Set(products.map(p => p.category).filter(Boolean))];
@@ -390,6 +400,86 @@ const CategoryProductList = ({ darkMode }) => {
     setCurrentPage(1);
   };
 
+  const formatTrackDate = (dateString) => {
+    if (!dateString) return 'N/A';
+
+    try {
+      // Use 'en-GB' for day-first and consistent formatting
+      return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      }).format(new Date(dateString));
+    } catch (err) {
+      console.error('Invalid date:', dateString);
+      return 'Invalid Date';
+    }
+  };
+
+  const handleTrackItem = async (item) => {
+    setTrackingLoading(true);
+    setTrackItemData(null);
+    try {
+      const { itemCode, itemName } = item;
+
+      // --- Step 2: Fetch Repairs using GRN or Item Code in repairCart ---
+      const repairsRes = await fetch(`${REPAIRS_API_URL}`);
+      if (!repairsRes.ok) throw new Error("Failed to fetch repair data");
+      const repairsList = await repairsRes.json();
+      
+      const repairsUsed = repairsList
+        .filter((repair) =>
+          repair.repairCart?.some((cartItem) => cartItem.itemCode === itemCode)
+        )
+        .map((repair) => {
+          const cartItem = repair.repairCart.find((i) => i.itemCode === itemCode);
+          return {
+            type: "Repair",
+            invoiceNo: repair.repairInvoice || "N/A",
+            customerName: repair.customerName || "Unknown",
+            quantity: cartItem?.quantity || 0,
+            date: repair.createdAt ? formatTrackDate(repair.createdAt) : "N/A",
+          };
+        });
+      console.log("Found ", repairsUsed);
+      // --- Step 3: Fetch Payments and find usage by productId ---
+      const paymentsRes = await fetch(
+        `${PAYMENTS_API_URL}/track?itemCode=${encodeURIComponent(itemCode)}`
+      );
+
+      if (!paymentsRes.ok) {
+        const error = await paymentsRes.json().catch(() => ({}));
+        throw new Error(error.message || 'Failed to fetch payment usage');
+      }
+
+      const paymentsUsed = await paymentsRes.json();
+
+      const formattedPaymentsUsed = paymentsUsed.map(item => ({
+        ...item,
+        date: formatTrackDate(item.date) // ✅ Same format
+      }));
+
+      // Combine both lists
+      const usageRecords = [...repairsUsed, ...formattedPaymentsUsed].sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
+
+      console.log("Found item.itemCode", item.itemCode, item.itemName);
+
+      setTrackItemData({
+        itemCode: item.itemCode,
+        itemName: item.itemName,
+        usage: usageRecords,
+      });
+    } catch (err) {
+      console.error(err);
+      alert(`Error tracking item: ${err.message}`);
+    } finally {
+      setTrackingLoading(false);
+      setShowTrackModal(true);
+    }
+  };
+
   // Action handlers (dummy for now)
   const handleEdit = (product) => {
     setSelectedProduct(product);
@@ -649,6 +739,49 @@ const CategoryProductList = ({ darkMode }) => {
           </div>
         </div>
       )}
+      {/* TRACK ITEM MODAL */}
+      {showTrackModal && trackItemData && (
+        <div className="track-modal-overlay" onClick={() => setShowTrackModal(false)}>
+          <div className={`track-modal-content ${darkMode ? 'dark' : ''}`} onClick={(e) => e.stopPropagation()}>
+            <h3>Item Usage Tracking</h3>
+            <p><strong>Item Code:</strong> {trackItemData.itemCode}</p>
+            <p><strong>Item Name:</strong> {trackItemData.itemName}</p>
+
+            {trackingLoading ? (
+              <p>Loading usage details...</p>
+            ) : trackItemData.usage.length > 0 ? (
+              <table className={`track-usage-table ${darkMode ? 'dark' : ''}`}>
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Invoice No</th>
+                    <th>Customer</th>
+                    <th>Quantity Used</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trackItemData.usage.map((record, idx) => (
+                    <tr key={idx}>
+                      <td>{record.type}</td>
+                      <td>{record.invoiceNo}</td>
+                      <td>{record.customerName}</td>
+                      <td>{record.quantity}</td>
+                      <td>{record.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No usage found for this item.</p>
+            )}
+
+            <button className="close-track-modal-btn" onClick={() => setShowTrackModal(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       {showEditModal && selectedProduct && (
         <EditProduct
           product={selectedProduct}
@@ -683,6 +816,9 @@ const CategoryProductList = ({ darkMode }) => {
                           </span>
                         )}
                       </th>
+                      <th>
+                        Item Code
+                      </th>
                       <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                         Item Name
                         {sortConfig.key === 'itemName' && (
@@ -715,6 +851,9 @@ const CategoryProductList = ({ darkMode }) => {
                           </span>
                         )}
                       </th>
+                      <th>
+                        Supplier
+                      </th>
                       {/* <th>Created At</th> */}
                       <th>Action</th>
                     </tr>
@@ -725,6 +864,11 @@ const CategoryProductList = ({ darkMode }) => {
                         <td>
                           <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
                             {product.grnNumber} 
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                            {product.itemCode} 
                           </span>
                         </td>
                         <td>
@@ -747,6 +891,11 @@ const CategoryProductList = ({ darkMode }) => {
                             {product.stock}
                           </span>
                         </td>
+                        <td>
+                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                            {product.supplier === 'Unknown' ? 'SYSTEM' : product.supplier }
+                          </span>
+                        </td>
                         {/* <td>{product.createdAt ? new Date(product.createdAt).toLocaleString() : ""}</td> */}
                         <td>
                           <div className="action-container">
@@ -763,6 +912,15 @@ const CategoryProductList = ({ darkMode }) => {
                               <>
                                 <div className="action-menu-overlay" onClick={() => setShowActionMenu(null)} />
                                 <div className="action-menu">
+                                  <button onClick={() => {
+                                    setShowActionMenu(null);
+                                    handleTrackItem(product);
+                                  }} className="p-track-btn">
+                                    <div className="action-btn-content">
+                                      <img src={viewicon} alt="track" width="30" height="30" className="p-track-btn-icon" />
+                                      <span>Track Usage</span>
+                                    </div>
+                                  </button>
                                   <button onClick={() => handleEdit(product)} className="p-edit-btn">
                                     <div className="action-btn-content">
                                       <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />

@@ -1,3 +1,75 @@
+.track-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.track-modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.track-modal-content.dark {
+  background: #1e1e1e;
+  color: #e0e0e0;
+}
+
+.track-usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+
+.track-usage-table th, .track-usage-table td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+}
+
+.track-usage-table th {
+  background-color: #f1f1f1;
+}
+
+.track-usage-table.dark th,
+.track-usage-table.dark td {
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+.track-usage-table.dark th {
+  background-color: #333;
+}
+
+.close-track-modal-btn {
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.close-track-modal-btn:hover {
+  background-color: #0056b3;
+}
+
+
+
+
 /* Action Menu Button Base Styles */
 .action-menu button {
   background: #fff;

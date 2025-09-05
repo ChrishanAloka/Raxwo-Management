@@ -264,6 +264,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
             <tr>
               <th>Date</th>
               <th>GRN</th>
+              <th>Item Code</th>
               <th>Item Name</th>
               <th>Category</th>
               <th>Stock</th>
@@ -277,6 +278,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
               <tr key={index}>
                 <td>{new Date(item.createdAt).toISOString().split("T")[0] || '-'}</td>
                 <td>{item.grnNumber || 'N/A'}</td>
+                <td>{item.itemCode || 'N/A'}</td>
                 <td>{item.itemName || 'N/A'}</td>
                 <td>{item.category || 'N/A'}</td>
                 <td>{item.quantity || '0'}</td>

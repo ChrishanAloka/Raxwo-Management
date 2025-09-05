@@ -126,17 +126,36 @@ router.get('/track', async (req, res) => {
       'items.productId': productId
     }).select('invoiceNumber customerName items createdAt');
 
-    // Step 3: Extract item usage details
-    const usageRecords = payments.flatMap(payment => {
+    // Step 3: Extract and group item usage, summing quantities by invoice
+    const usageMap = new Map();
+
+    payments.forEach(payment => {
       const matchedItems = payment.items.filter(item => item.productId.equals(productId));
-      return matchedItems.map(item => ({
-        type: 'Payment',
-        invoiceNo: payment.invoiceNumber,
-        customerName: payment.customerName || 'Unknown',
-        quantity: item.quantity,
-        date: payment.createdAt
-      }));
-    }).sort((a, b) => new Date(b.date) - new Date(a.date));
+      const totalQuantityInPayment = matchedItems.reduce((sum, item) => sum + item.quantity, 0);
+
+      const invoiceNo = payment.invoiceNumber;
+      if (usageMap.has(invoiceNo)) {
+        // If invoice already exists, add quantity
+        const existing = usageMap.get(invoiceNo);
+        usageMap.set(invoiceNo, {
+          ...existing,
+          quantity: existing.quantity + totalQuantityInPayment
+        });
+      } else {
+        // New invoice entry
+        usageMap.set(invoiceNo, {
+          type: 'Payment',
+          invoiceNo,
+          customerName: payment.customerName || 'Unknown',
+          quantity: totalQuantityInPayment,
+          date: payment.createdAt
+        });
+      }
+    });
+
+    // Convert map to array and sort by date (newest first)
+    const usageRecords = Array.from(usageMap.values())
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     res.json(usageRecords);
   } catch (err) {
