@@ -24,6 +24,9 @@ import { useMemo } from "react";
  const API_URL = 'https://raxwo-management.onrender.com/api/products';
 const CLICKED_PRODUCTS_API_URL = 'https://raxwo-management.onrender.com/api/clicked-products';
 
+const REPAIRS_API_URL = 'https://raxwo-management.onrender.com/api/productsRepair';
+const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments';
+
 const ProductList = ({ darkMode }) => {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
@@ -63,6 +66,10 @@ const ProductList = ({ darkMode }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [show0StockOnly, setShow0StockOnly] = useState(false);
+
+  const [trackItemData, setTrackItemData] = useState(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [showTrackModal, setShowTrackModal] = useState(false);
 
   const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);  
@@ -176,6 +183,82 @@ const ProductList = ({ darkMode }) => {
     };
   }, [showCategoryFilter]);
 
+
+  const formatTrackDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      }).format(new Date(dateString));
+    } catch (err) {
+      console.error('Invalid date:', dateString);
+      return 'Invalid Date';
+    }
+  };
+
+  const handleTrackItem = async (item) => {
+    setTrackingLoading(true);
+    setTrackItemData(null);
+    try {
+      const { itemCode, itemName } = item;
+
+      // --- Fetch Repairs ---
+      const repairsRes = await fetch(REPAIRS_API_URL);
+      if (!repairsRes.ok) throw new Error("Failed to fetch repair data");
+      const repairsList = await repairsRes.json();
+
+      const repairsUsed = repairsList
+        .filter((repair) =>
+          repair.repairCart?.some((cartItem) => cartItem.itemCode === itemCode)
+        )
+        .map((repair) => {
+          const cartItem = repair.repairCart.find((i) => i.itemCode === itemCode);
+          return {
+            type: "Repair",
+            invoiceNo: repair.repairInvoice || "N/A",
+            customerName: repair.customerName || "Unknown",
+            quantity: cartItem?.quantity || 0,
+            date: formatTrackDate(repair.createdAt),
+          };
+        });
+
+      // --- Fetch Payments ---
+      const paymentsRes = await fetch(
+        `${PAYMENTS_API_URL}/track?itemCode=${encodeURIComponent(itemCode)}`
+      );
+
+      if (!paymentsRes.ok) {
+        const error = await paymentsRes.json().catch(() => ({}));
+        throw new Error(error.message || 'Failed to fetch payment usage');
+      }
+
+      const paymentsUsed = await paymentsRes.json();
+
+      const formattedPaymentsUsed = paymentsUsed.map(item => ({
+        ...item,
+        date: formatTrackDate(item.date)
+      }));
+
+      // Combine and sort by date (newest first)
+      const usageRecords = [...repairsUsed, ...formattedPaymentsUsed].sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
+
+      setTrackItemData({
+        itemCode,
+        itemName,
+        usage: usageRecords,
+      });
+    } catch (err) {
+      console.error(err);
+      alert(`Error tracking item: ${err.message}`);
+    } finally {
+      setTrackingLoading(false);
+      setShowTrackModal(true);
+    }
+  };
 
   const handleEdit = (product) => {
     setSelectedProduct(product);
@@ -1223,6 +1306,18 @@ const ProductList = ({ darkMode }) => {
                           <>
                             <div className="action-menu-overlay" onClick={() => setShowActionMenu(null)} />
                             <div className="action-menu">
+                              <button
+                                onClick={() => {
+                                  setShowActionMenu(null);
+                                  handleTrackItem(product);
+                                }}
+                                className="p-track-btn"
+                              >
+                                <div className="action-btn-content">
+                                  <span style={{ fontSize: '18px', marginRight: '8px' }}>🔍</span>
+                                  <span>Track Usage</span>
+                                </div>
+                              </button>
                               <button onClick={() => handleEdit(product)} className="p-edit-btn">
                                 <div className="action-btn-content">
                                   <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
@@ -1268,6 +1363,49 @@ const ProductList = ({ darkMode }) => {
           <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
           <span>Page {currentPage} of {totalProductPages}</span>
           <button onClick={() => setCurrentPage(p => Math.min(totalProductPages, p + 1))} disabled={currentPage === totalProductPages}>Next</button>
+        </div>
+      )}
+      {/* TRACK ITEM MODAL */}
+      {showTrackModal && trackItemData && (
+        <div className="track-modal-overlay" onClick={() => setShowTrackModal(false)}>
+          <div className={`track-modal-content ${darkMode ? 'dark' : ''}`} onClick={(e) => e.stopPropagation()}>
+            <h3>Item Usage Tracking</h3>
+            <p><strong>Item Code:</strong> {trackItemData.itemCode}</p>
+            <p><strong>Item Name:</strong> {trackItemData.itemName}</p>
+
+            {trackingLoading ? (
+              <p>Loading usage details...</p>
+            ) : trackItemData.usage.length > 0 ? (
+              <table className={`track-usage-table ${darkMode ? 'dark' : ''}`}>
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Invoice No</th>
+                    <th>Customer</th>
+                    <th>Quantity Used</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trackItemData.usage.map((record, idx) => (
+                    <tr key={idx}>
+                      <td>{record.type}</td>
+                      <td>{record.invoiceNo}</td>
+                      <td>{record.customerName}</td>
+                      <td>{record.quantity}</td>
+                      <td>{record.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No usage found for this item.</p>
+            )}
+
+            <button className="close-track-modal-btn" onClick={() => setShowTrackModal(false)}>
+              Close
+            </button>
+          </div>
         </div>
       )}
       {showModal && selectedProduct && (
