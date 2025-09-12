@@ -1048,7 +1048,7 @@ const AllSummary = ({ darkMode }) => {
         'Amount (Rs.)': `Rs. ${totalIncome.toFixed(2)}`
       },
       {
-        'Metric': 'Repair Income',
+        'Metric': 'Repair Jobs Income',
         'Amount (Rs.)': `Rs. ${totalRepairIncome.toFixed(2)}`
       },
       {
@@ -1072,7 +1072,7 @@ const AllSummary = ({ darkMode }) => {
         'Amount (Rs.)': `Rs. ${totalSalaryExpenses.toFixed(2)}`
       },
       {
-        'Metric': 'Maintenance Expenses',
+        'Metric': 'Bills and Other Expenses',
         'Amount (Rs.)': `Rs. ${totalMaintenanceExpenses.toFixed(2)}`
       },
       {
@@ -1143,7 +1143,7 @@ const AllSummary = ({ darkMode }) => {
       
       const maintenanceSheet = XLSX.utils.json_to_sheet(maintenanceData);
       styleSheet(maintenanceSheet, maintenanceData);
-      XLSX.utils.book_append_sheet(workbook, maintenanceSheet, 'Maintenance_Expenses');
+      XLSX.utils.book_append_sheet(workbook, maintenanceSheet, 'Bills_and_Other_Expences');
     }
 
     // 5. Repair Income Sheet
@@ -1552,9 +1552,55 @@ const AllSummary = ({ darkMode }) => {
               minWidth: '200px',
               border: darkMode ? '1px solid #444' : '1px solid #ddd'
             }}>
-              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Repair Income</h4>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Repair Jobs Income</h4>
               <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
                 Rs. {totalRepairIncome.toFixed(2)}
+              </p>
+            </div>
+
+            <div 
+            onClick={() => setActiveTab('purchase')}
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Invoice Incomes</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalPayments.toFixed(2)}
+              </p>
+            </div>
+
+            <div 
+            onClick={() => setActiveTab('extraIncome')} 
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Extra Other Income</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalExtraIncome.toFixed(2)}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
+            <div
+            onClick={() => setActiveTab('purchase-refunded')} 
+            style={{ 
+              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
+              padding: '15px', 
+              borderRadius: '8px', 
+              minWidth: '200px',
+              border: darkMode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Refunded Items</h4>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                Rs. {totalRefund.toFixed(2)}
               </p>
             </div>
 
@@ -1567,7 +1613,7 @@ const AllSummary = ({ darkMode }) => {
               minWidth: '200px',
               border: darkMode ? '1px solid #444' : '1px solid #ddd'
             }}>
-              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Repair Credit Income</h4>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Repair Jobs Income - Credit</h4>
               <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
                 Rs. {creditRepairs.toFixed(2)}
               </p>
@@ -1586,20 +1632,6 @@ const AllSummary = ({ darkMode }) => {
               </p>
             </div> */}
             
-            <div 
-            onClick={() => setActiveTab('purchase')}
-            style={{ 
-              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-              padding: '15px', 
-              borderRadius: '8px', 
-              minWidth: '200px',
-              border: darkMode ? '1px solid #444' : '1px solid #ddd'
-            }}>
-              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Item Purchase</h4>
-              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                Rs. {totalPayments.toFixed(2)}
-              </p>
-            </div>
             <div
             onClick={() => setActiveTab('purchase-credit')} 
             style={{ 
@@ -1609,41 +1641,14 @@ const AllSummary = ({ darkMode }) => {
               minWidth: '200px',
               border: darkMode ? '1px solid #444' : '1px solid #ddd'
             }}>
-              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Item Purchase for Credit</h4>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Invoice - Credit</h4>
               <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
                 Rs. {totalCredit.toFixed(2)}
               </p>
             </div>
 
-            <div
-            onClick={() => setActiveTab('purchase-refunded')} 
-            style={{ 
-              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-              padding: '15px', 
-              borderRadius: '8px', 
-              minWidth: '200px',
-              border: darkMode ? '1px solid #444' : '1px solid #ddd'
-            }}>
-              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Refunded Items</h4>
-              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                Rs. {totalRefund.toFixed(2)}
-              </p>
-            </div>
             
-            <div 
-            onClick={() => setActiveTab('extraIncome')} 
-            style={{ 
-              background: darkMode ? '#2a2a2a' : '#f0f0f0', 
-              padding: '15px', 
-              borderRadius: '8px', 
-              minWidth: '200px',
-              border: darkMode ? '1px solid #444' : '1px solid #ddd'
-            }}>
-              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Extra Income</h4>
-              <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
-                Rs. {totalExtraIncome.toFixed(2)}
-              </p>
-            </div>
+            
             <div 
             onClick={() => setActiveTab('extraCreditIncome')} 
             style={{ 
@@ -1653,7 +1658,7 @@ const AllSummary = ({ darkMode }) => {
               minWidth: '200px',
               border: darkMode ? '1px solid #444' : '1px solid #ddd'
             }}>
-              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Extra Income - Credit</h4>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Extra Other Income - Credit</h4>
               <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
                 Rs. {totalExtraCreditIncome.toFixed(2)}
               </p>
@@ -1710,7 +1715,7 @@ const AllSummary = ({ darkMode }) => {
               minWidth: '200px',
               border: darkMode ? '1px solid #444' : '1px solid #ddd'
             }}>
-              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Maintenance Expenses</h4>
+              <h4 style={{ margin: '0 0 10px 0', color: darkMode ? '#fff' : '#333' }}>Bills and Other Expences</h4>
               <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
                 Rs. {totalMaintenanceExpenses.toFixed(2)}
               </p>
@@ -1789,7 +1794,7 @@ const AllSummary = ({ darkMode }) => {
                     <td>Total revenue from repair jobs, items purchase and extra income</td>
                   </tr>
                   <tr>
-                    <td>Repair Income</td>
+                    <td>Repair Jobs Income</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalRepairIncome.toFixed(2)}</td>
                     <td>Total revenue from repair jobs</td>
                   </tr>
@@ -1814,7 +1819,7 @@ const AllSummary = ({ darkMode }) => {
                     <td>Total Discounts</td>
                   </tr>
                   <tr>
-                    <td>Item Purchase</td>
+                    <td>Invoice Incomes</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalPayments.toFixed(2)}</td>
                     <td>Income from purchased Items</td>
                   </tr>
@@ -1844,7 +1849,7 @@ const AllSummary = ({ darkMode }) => {
                     <td>Cost from return purchased Items</td>
                   </tr>
                   <tr>
-                    <td>Item Purchase for Credit</td>
+                    <td>Invoices - Credit</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. { totalCredit.toFixed(2)}</td>
                     <td>Credit from purchased Items</td>
                   </tr>
@@ -1856,7 +1861,7 @@ const AllSummary = ({ darkMode }) => {
                   <tr>
                     <td>Total Expenses</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalExpenses.toFixed(2)}</td>
-                    <td>Total of all expenses (products + salaries + maintenance)</td>
+                    <td>Total of all expenses (products + salaries + bills and other expences)</td>
                   </tr>
                   <tr>
                     <td style={{ paddingLeft: '20px' }}>• Product Expenses</td>
@@ -1869,7 +1874,7 @@ const AllSummary = ({ darkMode }) => {
                     <td>Employee salary advances and payments</td>
                   </tr>
                   <tr>
-                    <td style={{ paddingLeft: '20px' }}>• Maintenance Expenses</td>
+                    <td style={{ paddingLeft: '20px' }}>• Bills and Other Expences</td>
                     <td style={{ color: '#000', fontWeight: 'bold' }}>Rs. {totalMaintenanceExpenses.toFixed(2)}</td>
                     <td>Service bills and maintenance costs</td>
                   </tr>
@@ -1968,7 +1973,7 @@ const AllSummary = ({ darkMode }) => {
                     {/* Maintenance Expenses */}
                     {filteredMaintenance.map((m, idx) => (
                       <tr key={`maintenance-${m._id || idx}`}>
-                        <td>Maintenance</td>
+                        <td>Bills and Other </td>
                         <td>{m.no || '-'}</td>
                         <td style={{ color: '#000' }}>Rs. {(m.price || 0).toFixed(2)}</td>
                         <td>{m.remarks || '-'}</td>
@@ -2104,7 +2109,7 @@ const AllSummary = ({ darkMode }) => {
                     {/* Maintenance Expenses */}
                     {filteredMaintenance.map((m, idx) => (
                       <tr key={`maintenance-${m._id || idx}`}>
-                        <td>Maintenance</td>
+                        <td>Bills and Other</td>
                         <td>{m.no || '-'}</td>
                         <td style={{ color: '#000' }}>Rs. {(m.price || 0).toFixed(2)}</td>
                         <td>{m.remarks || '-'}</td>

@@ -791,6 +791,31 @@ const PaymentTable = ({ darkMode }) => {
 
   const paymentMethods = [...new Set(payments.map(p => p.paymentMethod).filter(Boolean))];
 
+  // Fuzzy substring match: tolerate minor typos like "ipone" → "iphone"
+  function fuzzyIncludes(haystack, needle) {
+    // Remove non-alphanumeric and split needle into chars
+    const cleanHaystack = Array.from(haystack);
+    const cleanNeedle = Array.from(needle);
+
+    // console.log("Search query", cleanHaystack, cleanNeedle);
+
+    let j = 0; // pointer in haystack
+    for (let i = 0; i < cleanNeedle.length; i++) {
+      const char = cleanNeedle[i];
+      let found = false;
+      while (j < cleanHaystack.length) {
+        if (cleanHaystack[j] === char) {
+          found = true;
+          j++;
+          break;
+        }
+        j++;
+      }
+      if (!found) return false;
+    }
+    return true;
+  }
+
   const sortedAndFilteredPayments = useMemo(() => {
     // Start with filtered list
     // let result = payments.filter(payment =>
@@ -808,24 +833,79 @@ const PaymentTable = ({ darkMode }) => {
     let result = payments;
 
     // Apply search filter only if query exists
-    if (searchQuery.trim() !== '') {
-      result = payments.filter(payment => {
-        const searchableText = normalize(payment.items.itemName + ' ' + payment.invoiceNumber + ' ' + payment.cashierName + ' ' + payment.cashierId + ' ' + payment.paymentMethod);
-        const words = normalize(searchQuery).trim().split(/\s+/);
+    // if (searchQuery.trim() !== '') {
+    //   result = payments.filter(payment => {
+    //     const searchableText = normalize(payment.items.itemName + ' ' + payment.invoiceNumber + ' ' + payment.cashierName + ' ' + payment.cashierId + ' ' + payment.paymentMethod);
+    //     const words = normalize(searchQuery).trim().split(/\s+/);
 
-        return words.every(word => {
-          const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          if (/^\d+$/.test(word)) {
-            // Numeric: require word boundaries (exact number match)
-            const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
-            return regex.test(searchableText);
-          } else {
-            // Text: allow partial substring match
-            const regex = new RegExp(escapedWord, 'i');
-            return regex.test(searchableText);
-          }
-        });
-      });
+    //     return words.every(word => {
+    //       const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    //       if (/^\d+$/.test(word)) {
+    //         // Numeric: require word boundaries (exact number match)
+    //         const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+    //         return regex.test(searchableText);
+    //       } else {
+    //         // Text: allow partial substring match
+    //         const regex = new RegExp(escapedWord, 'i');
+    //         return regex.test(searchableText);
+    //       }
+    //     });
+    //   });
+    // }
+
+    if (searchQuery.trim() !== '') {
+      let subresult1 = payments.filter(product => {
+        const name = (product.date +product.invoiceNumber + product.items.itemName + product.cashierName + product.paymentMethod).toLowerCase()
+        .trim()
+        .replace(/\s+/g, '');
+        
+
+        // Split query into meaningful words, remove empty
+        const queryWords = searchQuery
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '');
+        // .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
+        // .split(/\s+/)
+        // .filter(Boolean);
+
+        // If no valid words, show all
+        if (queryWords.length === 0) return true;
+
+        // console.log("Search query", queryWords);
+
+        return name.includes(queryWords);
+      }).sort((a, b) => a.date.localeCompare(b.date));
+
+      let subresult2 = payments.filter(product => {
+        const name = (product.date + product.invoiceNumber + product.items.itemName + product.cashierName + product.paymentMethod).toLowerCase()
+        .trim()
+        .replace(/\s+/g, '');
+        
+
+        // Split query into meaningful words, remove empty
+        const queryWords = searchQuery
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '');
+        // .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
+        // .split(/\s+/)
+        // .filter(Boolean);
+
+        // If no valid words, show all
+        if (queryWords.length === 0) return true;
+
+        // console.log("Search query", queryWords);
+        
+        return fuzzyIncludes(name, queryWords);
+      }).sort((a, b) => a.date.localeCompare(b.date));
+
+      if (subresult1.length === 0) {
+        result = subresult2;
+      }
+      else{
+        result = subresult1;
+      }
     }
 
     // Apply payment method filter

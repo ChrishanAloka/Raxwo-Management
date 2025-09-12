@@ -529,7 +529,7 @@ const filteredSuppliers = suppliers.filter(supplier => {
             {filteredSuppliers.map((supplier) => (
               <tr key={supplier._id}>
                 <td>{supplier.supplierName || 'N/A'}</td>
-                <td>{supplier.businessName || 'N/A'}</td>
+                <td style={{  fontWeight:  'bold'  }}>{supplier.businessName || 'N/A'}</td>
                 <td>{supplier.phoneNumber || 'N/A'}</td>
                 <td>{supplier.address || 'N/A'}</td>
                 <td>

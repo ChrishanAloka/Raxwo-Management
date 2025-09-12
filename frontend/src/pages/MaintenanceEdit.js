@@ -44,7 +44,7 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editedRecord),
       });
-      if (!response.ok) throw new Error("Error updating maintenance record");
+      if (!response.ok) throw new Error("Error updating Bills and Other Expences record");
       onUpdate();
       onClose();
     } catch (error) {
@@ -55,7 +55,7 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
   return (
     <div className="m-e-modal-overlay" onClick={onClose}>
       <div className={`m-e-modal-container ${darkMode ? "dark" : ""}`} onClick={(e) => e.stopPropagation()}>
-        <h3 className={`m-e-title ${darkMode ? "dark" : ""}`} >Edit Maintenance Record</h3>
+        <h3 className={`m-e-title ${darkMode ? "dark" : ""}`} >Edit Bills and Other Expences Record</h3>
         {error && <p className="error-message">{error}</p>}
         <form onSubmit={handleUpdate}>
           <label className={`me-lable ${darkMode ? "dark" : ""}`}>Date</label>

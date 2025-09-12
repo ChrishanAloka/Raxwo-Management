@@ -182,14 +182,14 @@ const MaintenanceList = ({ darkMode }) => {
       }))
     );
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Maintenance Records");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Bills and Other Expences");
     XLSX.writeFile(workbook, "Maintenance_Records.xlsx");
     setShowReportOptions(false);
   };
 
   const generatePDF = () => {
     const doc = new jsPDF();
-    doc.text("Maintenance Records", 14, 15);
+    doc.text("Bills and Other Expences", 14, 15);
     autoTable(doc, {
       startY: 20,
       head: [["No", "Date", "Time", "Service Type", "Price", "Remarks"]],
@@ -225,7 +225,7 @@ const MaintenanceList = ({ darkMode }) => {
         
 
         <h2 className={`product-repair-list-title ${darkMode ? "dark" : ""}`}>
-        Maintenance Records
+        Bills and Other Expences
         </h2>
       </div>
       <div className="search-action-container">
@@ -291,9 +291,9 @@ const MaintenanceList = ({ darkMode }) => {
       )}
       {error && <p className="error-message">{error}</p>}
       {loading ? (
-        <p className="loading">Loading maintenance records...</p>
+        <p className="loading">Loading Bills and Other Expences...</p>
       ) : filteredRecords.length === 0 ? (
-        <p className="no-products">No maintenance records available.</p>
+        <p className="no-products">No Bills and Other Expences available.</p>
       ) : (
         <table className={`product-table ${darkMode ? 'dark' : ''}`}>
           <thead>

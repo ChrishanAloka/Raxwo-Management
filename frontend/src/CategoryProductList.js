@@ -32,8 +32,12 @@ const CategoryProductList = ({ darkMode }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const productsPerPage = 20;
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [hideLowStockOnly, setHideLowStockOnly] = useState(false);
   const [show0StockOnly, setShow0StockOnly] = useState(false);
+  const [hide0StockOnly, setHide0StockOnly] = useState(false);
+  
   const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);  
 
@@ -145,9 +149,13 @@ const CategoryProductList = ({ darkMode }) => {
   const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
 
   function fuzzyIncludes(haystack, needle) {
+
+  
     // Remove non-alphanumeric and split needle into chars
-    const cleanHaystack = Array.from(haystack.replace(/[^a-z0-9]/g, ''));
-    const cleanNeedle = Array.from(needle.replace(/[^a-z0-9]/g, ''));
+    const cleanHaystack = Array.from(haystack);
+    const cleanNeedle = Array.from(needle);
+
+    // console.log("Search query", cleanHaystack, cleanNeedle);
 
     let j = 0; // pointer in haystack
     for (let i = 0; i < cleanNeedle.length; i++) {
@@ -166,20 +174,20 @@ const CategoryProductList = ({ darkMode }) => {
     return true;
   }
 
-  const filteredProductsForModal = searchQuery.trim() === ""
-    ? products
-    : products.filter(product => {
-        const searchableText = (product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
+  // const filteredProductsForModal = searchQuery.trim() === ""
+  //   ? products
+  //   : products.filter(product => {
+  //       const searchableText = (product.itemName + ' ' + product.category + ' ' + product.itemCode).toLowerCase();
 
-        // Split query into words and test each as a whole word or number
-        const words = normalize(searchQuery).trim().split(/\s+/);
+  //       // Split query into words and test each as a whole word or number
+  //       const words = normalize(searchQuery).trim().split(/\s+/);
 
-        return words.every(word => {
-          // Create a regex with word boundaries for exact partial matching
-          const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-          return regex.test(searchableText);
-        });
-      });
+  //       return words.every(word => {
+  //         // Create a regex with word boundaries for exact partial matching
+  //         const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+  //         return regex.test(searchableText);
+  //       });
+  //     });
 
   const sortedAndFilteredProducts = useMemo(() => {
     
@@ -204,26 +212,58 @@ const CategoryProductList = ({ darkMode }) => {
       //     }
       //   });
       // });
-      result = products.filter(product => {
-        const name = product.itemName.toLowerCase();
+      let subresult1 = products.filter(product => {
+        const name = (product.grnNumber  + product.itemName).toLowerCase()
+        .trim()
+        .replace(/\s+/g, '');
+        
 
-      // Split query into meaningful words, remove empty
-      const queryWords = searchQuery
+        // Split query into meaningful words, remove empty
+        const queryWords = searchQuery
         .toLowerCase()
         .trim()
-        .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
-        .split(/\s+/)
-        .filter(Boolean);
+        .replace(/\s+/g, '');
+        // .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
+        // .split(/\s+/)
+        // .filter(Boolean);
 
-      // If no valid words, show all
-      if (queryWords.length === 0) return true;
+        // If no valid words, show all
+        if (queryWords.length === 0) return true;
 
-      return queryWords.every(word =>
-          /^\d+$/.test(word)
-            ? name.includes(word)
-            : fuzzyIncludes(name, word)
-        );
-      });
+        // console.log("Search query", queryWords);
+
+        return name.includes(queryWords);
+      }).sort((a, b) => a.itemName.localeCompare(b.itemName));
+
+      let subresult2 = products.filter(product => {
+        const name = (product.grnNumber  + product.itemName).toLowerCase()
+        .trim()
+        .replace(/\s+/g, '');
+        
+
+        // Split query into meaningful words, remove empty
+        const queryWords = searchQuery
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '');
+        // .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
+        // .split(/\s+/)
+        // .filter(Boolean);
+
+        // If no valid words, show all
+        if (queryWords.length === 0) return true;
+
+        // console.log("Search query", queryWords);
+        
+        return fuzzyIncludes(name, queryWords);
+      }).sort((a, b) => a.itemName.localeCompare(b.itemName));
+
+      if (subresult1.length === 0) {
+        result = subresult2;
+      }
+      else{
+        result = subresult1;
+      }
     }
 
     if (selectedCategories.size > 0) {
@@ -234,14 +274,24 @@ const CategoryProductList = ({ darkMode }) => {
 
     // Apply low stock filter if checkbox is checked
     if (showLowStockOnly) {
-      result = result.filter(product => (product.stock || 0) <= 2 && (product.stock || 0) > 0);
+      result = result.filter(product => (product.stock || 0) <= 2 );
+    }
+
+    if (hideLowStockOnly) {
+      result = result.filter(product => (product.stock || 0) > 2 );
     }
 
     if (show0StockOnly) {
-      result = result.filter(product => (product.stock || 0) == 0);
+      result = result.filter(product => (product.stock || 0) === 0);
     }
-    else{
+
+    if (hide0StockOnly) {
       result = result.filter(product => (product.stock || 0) !== 0);
+    }
+
+    else{
+      result = result;
+      
     }
 
     // Apply sorting
@@ -290,7 +340,7 @@ const CategoryProductList = ({ darkMode }) => {
     }
 
     return result;
-  }, [products, searchQuery, sortConfig, showLowStockOnly, show0StockOnly, selectedCategories]);
+  }, [products, searchQuery, sortConfig, showLowStockOnly, show0StockOnly, hide0StockOnly, hideLowStockOnly, selectedCategories]);
 
   const totalProductPages = Math.ceil(sortedAndFilteredProducts.length / productsPerPage);
   const paginatedProductsForModal = sortedAndFilteredProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
@@ -526,27 +576,48 @@ const CategoryProductList = ({ darkMode }) => {
             Products: {totalProducts}
           </span>
           {/* Low Stock Filter Checkbox */}
-          <span style={{ display: 'flex', alignItems: 'center', fontSize: 14, color: '#666', marginRight: 13 }}>
-            Show Low Stock (≤ 2) 
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: 14, color: '#666', marginRight: 4 }}>
+            Show Low Stock
           
-            <span style={{ fontSize: 14, color: '#666', marginLeft: 8, marginTop: 8 }}>
+            <span style={{ fontSize: 14, color: '#666', marginLeft: 8, marginTop: 8, marginRight: 8 }}>
               <input
                 type="checkbox"
                 checked={showLowStockOnly}
-                onChange={(e) => setShowLowStockOnly(e.target.checked)}
+                onChange={(e) => {setShowLowStockOnly(e.target.checked); setHideLowStockOnly(false);}}
+              />
+            </span>
+
+            Hide Low Stock
+
+            <span style={{ fontSize: 14, color: '#666', marginLeft: 8, marginTop: 8 }}>
+              <input
+                type="checkbox"
+                checked={hideLowStockOnly}
+                onChange={(e) => {setHideLowStockOnly(e.target.checked); setShowLowStockOnly(false);}}
               />
             </span>
           
           </span>
+          <span>/</span>
           {/* Low Stock Filter Checkbox */}
-          <span style={{ display: 'flex', alignItems: 'center', fontSize: 14, color: '#666', marginRight: 13 }}>
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: 14, color: '#666', marginRight: 8 }}>
             Show 0 Stock 
+          
+            <span style={{ fontSize: 14, color: '#666', marginLeft: 8, marginTop: 8, marginRight: 8 }}>
+              <input
+                type="checkbox"
+                checked={show0StockOnly}
+                onChange={(e) => {setShow0StockOnly(e.target.checked); setHide0StockOnly(false);}}
+              />
+            </span>
+
+            Hide 0 Stock 
           
             <span style={{ fontSize: 14, color: '#666', marginLeft: 8, marginTop: 8 }}>
               <input
                 type="checkbox"
-                checked={show0StockOnly}
-                onChange={(e) => setShow0StockOnly(e.target.checked)}
+                checked={hide0StockOnly}
+                onChange={(e) => {setHide0StockOnly(e.target.checked); setShow0StockOnly(false);}}
               />
             </span>
           
@@ -816,9 +887,9 @@ const CategoryProductList = ({ darkMode }) => {
                           </span>
                         )}
                       </th>
-                      <th>
+                      {/* <th>
                         Item Code
-                      </th>
+                      </th> */}
                       <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                         Item Name
                         {sortConfig.key === 'itemName' && (
@@ -862,37 +933,37 @@ const CategoryProductList = ({ darkMode }) => {
                     {groupedByCategory[category].map((product, idx) => (
                       <tr key={product._id || product.itemCode || idx}>
                         <td>
-                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                          <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
                             {product.grnNumber} 
                           </span>
                         </td>
-                        <td>
-                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                        {/* <td>
+                          <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
                             {product.itemCode} 
                           </span>
-                        </td>
+                        </td> */}
                         <td>
-                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                          <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
                             {product.itemName} 
                           </span>
                         </td>
                         <td>
-                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                          <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
                             {product.buyingPrice}
                           </span>
                         </td>
                         <td>
-                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                          <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
                             {product.sellingPrice}
                           </span>
                         </td>
                         <td>
-                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                          <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
                             {product.stock}
                           </span>
                         </td>
                         <td>
-                          <span style={{ color: product.stock <= 2 ? 'red' : 'black', fontWeight: product.stock <= 2 ? 'bold' : 'normal' }}>
+                          <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
                             {product.supplier === 'Unknown' ? 'SYSTEM' : product.supplier }
                           </span>
                         </td>
