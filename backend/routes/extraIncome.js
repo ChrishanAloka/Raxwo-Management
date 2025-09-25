@@ -41,7 +41,7 @@ router.get("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, incomeType, amount, description, assignedTo, paymentMethod } = req.body;
+    const { date, incomeType, amount, description, assignedTo, paymentMethod, returnAlert, serviceCharge, totalAmount } = req.body;
     console.log(`Updating extra income ID ${id}:`, { date, incomeType, amount, description, assignedTo, paymentMethod});
 
     const extraIncome = await ExtraIncome.findByIdAndUpdate(
@@ -53,6 +53,9 @@ router.put("/:id", async (req, res) => {
         description,
         assignedTo,
         paymentMethod,
+        returnAlert, 
+        serviceCharge, 
+        totalAmount,
       },
       { new: true, runValidators: true }
     );

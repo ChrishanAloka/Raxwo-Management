@@ -16,10 +16,22 @@ const extraIncomeSchema = new mongoose.Schema({
     required: true,
     min: 0,
   },
+  serviceCharge: {
+    type: Number,
+    required: false
+  },
+  totalAmount: {
+    type: Number,
+    required: true
+  },
   description: {
     type: String,
     trim: true,
     default: "",
+  },
+  returnAlert: { 
+    type: String, 
+    default: '' 
   },
   assignedTo: { 
     type: String, 

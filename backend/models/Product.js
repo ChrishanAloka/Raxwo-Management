@@ -30,6 +30,11 @@ const productSchema = new mongoose.Schema({
     default: 0,
     min: [0, 'Stock cannot be negative']
   },
+  returnstock: {
+    type: Number,
+    default: 0,
+    min: [0, 'Stock cannot be negative']
+  },
   Supplier: {
     type: String,
     default: 'Unknown'
@@ -56,10 +61,10 @@ const productSchema = new mongoose.Schema({
   changeHistory: [{
     field: { type: String },
     oldValue: { type: String },
-    newValue: { type: String },
+    newValue: mongoose.Schema.Types.Mixed,
     changedBy: { type: String },
     changedAt: { type: Date, default: Date.now },
-    changeType: { type: String, enum: ['create', 'update', 'delete', 'stock'] }
+    changeType: { type: String }
   }],
   // Add deleted flag to track soft-deleted products
   deleted: { type: Boolean, default: false },

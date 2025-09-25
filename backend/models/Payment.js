@@ -10,10 +10,20 @@ const paymentSchema = new mongoose.Schema({
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
     itemName: { type: String, required: true },
     quantity: { type: Number, required: true },
+    retquantity: { type: Number, required: false },
+    givenQty: { type: Number, default: 0 },
     price: { type: Number, required: true },
     discount: { type: Number, default: 0 },
     assignedTo: { type: String }
   }],
+  serviceCharge: {
+    type: Number,
+    required: false
+  },
+  rettotalAmount: {
+    type: Number,
+    required: false
+  },
   totalAmount: {
     type: Number,
     required: true
@@ -21,6 +31,10 @@ const paymentSchema = new mongoose.Schema({
   discountApplied: {
     type: Number,
     default: 0
+  },
+  returnAlert: { 
+    type: String, 
+    default: '' 
   },
   paymentMethod: {
     type: String,

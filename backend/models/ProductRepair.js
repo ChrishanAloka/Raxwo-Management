@@ -24,10 +24,13 @@ const productRepairSchema = new mongoose.Schema({
   additionalNotes: { type: String, required: false },
   sellingPrice: Number,
   repairCost: { type: Number, required: false, default: 0 },
+  returnCost: { type: Number, required: false, default: 0 },
   repairStatus: { type: String, required: true, default: "Pending" },
   repairCode: { type: String, required: true, unique: true },
   repairCart: [{ type: Object }],
+  returnCart: [{ type: Object }],
   totalRepairCost: { type: Number, required: false, default: 0 },
+  totalReturnCost: { type: Number, required: false, default: 0 },
   technicianReview: { type: String, required: false },
   // Services and discounts
   services: {
@@ -53,8 +56,20 @@ const productRepairSchema = new mongoose.Schema({
     ],
     default: [],
   },
+  returnedadditionalServices: {
+    type: [
+      {
+        serviceName: { type: String, required: true },
+        serviceAmount: { type: Number, required: true, min: 0 },
+        description: { type: String, required: false },
+        dateAdded: { type: Date, default: Date.now }
+      },
+    ],
+    default: [],
+  },
   totalDiscountAmount: { type: Number, required: false, default: 0 },
   totalAdditionalServicesAmount: { type: Number, required: false, default: 0 },
+  rettotalAdditionalServicesAmount: { type: Number, required: false, default: 0 },
   finalAmount: { type: Number, required: false, default: 0 },
   // Change history to track modifications
   changeHistory: [{

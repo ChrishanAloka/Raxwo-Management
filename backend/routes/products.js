@@ -207,6 +207,7 @@ router.get('/', async (req, res) => {
           {
             $group: {
               _id: {
+                grnNumber: "$grnNumber",
                 itemName: "$itemName",
                 category: "$category",
                 buyingPrice: "$buyingPrice"
@@ -238,6 +239,7 @@ router.get('/', async (req, res) => {
           {
             $group: {
               _id: {
+                grnNumber: "$grnNumber",
                 itemName: "$itemName",
                 category: "$category",
                 buyingPrice: "$buyingPrice"
@@ -322,6 +324,27 @@ router.get('/items', async (req, res) => {
   } catch (err) {
     console.error('Error in product search:', err.message);
     res.status(500).json({ message: 'Server error while searching products' });
+  }
+});
+
+// GET: Fetch product by itemCode
+router.get('/:itemCode', async (req, res) => {
+  try {
+    const { itemCode } = req.params;
+
+    // Find product by itemCode (case-insensitive)
+    const product = await Product.findOne({ 
+      itemCode: { $regex: new RegExp(`^${itemCode}$`, 'i') }
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    res.json(product);
+  } catch (err) {
+    console.error('Error fetching product by itemCode:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -1133,7 +1156,7 @@ router.patch('/update-stockitem/*', async (req, res) => {
     }
     const decodedItemCode = decodeURIComponent(itemCode);
 
-    const { newStock, newBuyingPrice, newSellingPrice, itemName, category, supplierName } = req.body;
+    const { newStock, newBuyingPrice, newSellingPrice, returnstock, itemName, category, supplierName } = req.body;
 
     // Validate required fields
     if (!itemName || typeof itemName !== 'string' || itemName.trim() === '') {
@@ -1142,61 +1165,99 @@ router.patch('/update-stockitem/*', async (req, res) => {
     if (!category || typeof category !== 'string' || category.trim() === '') {
       return res.status(400).json({ message: 'Category is required and must be a non-empty string' });
     }
-    if (newStock === undefined || newStock === null || newStock === '' || isNaN(Number(newStock)) || Number(newStock) < 0) {
+    if (newStock === undefined || newStock === null || newStock === ''  || Number(newStock) < 0) {
       return res.status(400).json({ message: 'New stock is required and must be a non-negative number' });
     }
-    if (newBuyingPrice === undefined || newBuyingPrice === null || newBuyingPrice === '' || isNaN(Number(newBuyingPrice)) || Number(newBuyingPrice) < 0) {
+    if (newBuyingPrice === undefined || newBuyingPrice === null || newBuyingPrice === '' || Number(newBuyingPrice) < 0) {
       return res.status(400).json({ message: 'New buying price is required and must be a non-negative number' });
     }
-    if (newSellingPrice === undefined || newSellingPrice === null || newSellingPrice === '' || isNaN(Number(newSellingPrice)) || Number(newSellingPrice) < 0) {
+    if (newSellingPrice === undefined || newSellingPrice === null || newSellingPrice === ''  || Number(newSellingPrice) < 0) {
       return res.status(400).json({ message: 'New selling price is required and must be a non-negative number' });
     }
     // Supplier name is now optional - use empty string if not provided
     const finalSupplier = supplierName || 'Unknown';
+    
 
     let product = await Product.findOne({ itemCode: decodedItemCode });
       // Log stock change
-      const changes = [];
-      if (product.stock !== newStock) {
-        changes.push({
-          field: 'stock',
-          oldValue: product.stock,
-          newValue: newStock,
-          changedBy: req.body.changedBy || 'system',
-          changedAt: new Date(),
-          changeType: 'update'
-        });
-      }
-      if (product.buyingPrice !== newBuyingPrice) {
-        changes.push({
-          field: 'buyingPrice',
-          oldValue: product.buyingPrice,
-          newValue: newBuyingPrice,
-          changedBy: req.body.changedBy || 'system',
-          changedAt: new Date(),
-          changeType: 'update'
-        });
-      }
-      if (product.sellingPrice !== newSellingPrice) {
-        changes.push({
-          field: 'sellingPrice',
-          oldValue: product.sellingPrice,
-          newValue: newSellingPrice,
-          changedBy: req.body.changedBy || 'system',
-          changedAt: new Date(),
-          changeType: 'update'
-        });
-      }
+      // const changes = [];
+      // if (product.stock !== newStock) {
+      //   changes.push({
+      //     field: 'stock',
+      //     oldValue: product.stock,
+      //     newValue: newStock,
+      //     changedBy: req.body.changedBy || 'system',
+      //     changedAt: new Date(),
+      //     changeType: 'update'
+      //   });
+      // }
+      // if (product.buyingPrice !== newBuyingPrice) {
+      //   changes.push({
+      //     field: 'buyingPrice',
+      //     oldValue: product.buyingPrice,
+      //     newValue: newBuyingPrice,
+      //     changedBy: req.body.changedBy || 'system',
+      //     changedAt: new Date(),
+      //     changeType: 'update'
+      //   });
+      // }
+      // if (product.sellingPrice !== newSellingPrice) {
+      //   changes.push({
+      //     field: 'sellingPrice',
+      //     oldValue: product.sellingPrice,
+      //     newValue: newSellingPrice,
+      //     changedBy: req.body.changedBy || 'system',
+      //     changedAt: new Date(),
+      //     changeType: 'update'
+      //   });
+      // }
       // if (changes.length > 0) {
       //   product.changeHistory = [...(product.changeHistory || []), ...changes];
       // }
+      if (returnstock > 0){
+        product.stock -= parseInt(returnstock);
+      }
+
       // Update the stock and prices
       product.stock = Number(newStock);
       product.buyingPrice = Number(newBuyingPrice);
       product.sellingPrice = Number(newSellingPrice);
       product.Supplier = finalSupplier;
-
+      product.returnstock = parseInt(returnstock);
+    
     const updatedProduct = await product.save();
+    
+    res.json({ message: "Stock updated successfully", updatedProduct });
+  } catch (err) {
+    // Check for MongoDB duplicate key error (code 11000)
+    if (err.code === 11000 && err.keyPattern && err.keyPattern.decodedItemCode) {
+      return res.status(400).json({ message: "Item Code already exists. Please use a unique Item Code." });
+    }
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// PATCH: Update stock and price of an existing product or create new
+router.patch('/update-returnstockitem/*', async (req, res) => {
+  try {
+    const itemCode = req.params[0];
+    if (!itemCode) {
+      return res.status(400).json({ message: 'Item code is required' });
+    }
+    const decodedItemCode = decodeURIComponent(itemCode);
+
+    const {  returnstock } = req.body; 
+
+    let product = await Product.findOne({ itemCode: decodedItemCode });
+      
+      if (returnstock > 0){
+        product.stock -= parseInt(returnstock);
+      }
+
+      product.returnstock = parseInt(returnstock);
+    
+    const updatedProduct = await product.save();
+    
     res.json({ message: "Stock updated successfully", updatedProduct });
   } catch (err) {
     // Check for MongoDB duplicate key error (code 11000)

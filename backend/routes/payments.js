@@ -124,7 +124,7 @@ router.get('/track', async (req, res) => {
     // Step 2: Find payments that have this productId in items
     const payments = await Payment.find({
       'items.productId': productId
-    }).select('invoiceNumber customerName items createdAt');
+    }).select('invoiceNumber customerName items returnAlert createdAt');
 
     // Step 3: Extract and group item usage, summing quantities by invoice
     const usageMap = new Map();
@@ -132,6 +132,7 @@ router.get('/track', async (req, res) => {
     payments.forEach(payment => {
       const matchedItems = payment.items.filter(item => item.productId.equals(productId));
       const totalQuantityInPayment = matchedItems.reduce((sum, item) => sum + item.quantity, 0);
+      const totalRetQuantityInPayment = matchedItems.reduce((sum, item) => sum + item.retquantity, 0);
 
       const invoiceNo = payment.invoiceNumber;
       if (usageMap.has(invoiceNo)) {
@@ -139,7 +140,9 @@ router.get('/track', async (req, res) => {
         const existing = usageMap.get(invoiceNo);
         usageMap.set(invoiceNo, {
           ...existing,
-          quantity: existing.quantity + totalQuantityInPayment
+          quantity: existing.quantity + totalQuantityInPayment,
+          retquantity: existing.retquantity + totalRetQuantityInPayment,
+          retalert: payment.returnAlert,
         });
       } else {
         // New invoice entry
@@ -148,6 +151,8 @@ router.get('/track', async (req, res) => {
           invoiceNo,
           customerName: payment.customerName || 'Unknown',
           quantity: totalQuantityInPayment,
+          retquantity: totalRetQuantityInPayment,
+          retalert: payment.returnAlert,
           date: payment.createdAt
         });
       }
@@ -188,6 +193,9 @@ router.patch('/:id', authMiddleware, async (req, res) => {
       'address',
       'description',
       'assignedTo', // top-level assignment
+      'returnAlert',
+      'serviceCharge',
+      'rettotalAmount',
     ];
 
     // Apply allowed top-level updates
@@ -204,20 +212,21 @@ router.patch('/:id', authMiddleware, async (req, res) => {
       for (const update of updates.items) {
         const itemId = update._id;
         const assignedTo = update.assignedTo;
+        
 
         // Validate item ID
         if (!itemId) {
           return res.status(400).json({ message: 'Missing _id in item update' });
         }
 
-        // Validate assignedTo
-        if (assignedTo !== undefined) {
-
-          // Find item in payment.items
+        // Find item in payment.items
           const item = payment.items.id(itemId); // Mongoose subdocument findById
           if (!item) {
             return res.status(404).json({ message: `Item with _id ${itemId} not found in payment` });
           }
+
+        // Validate assignedTo
+        if (assignedTo !== undefined) {
 
           // Update only if changed
           if (item.assignedTo !== assignedTo) {
@@ -225,6 +234,45 @@ router.patch('/:id', authMiddleware, async (req, res) => {
             itemsUpdated = true;
           }
         }
+
+        // Update retquantity
+        if (update.retquantity !== undefined) {
+          item.retquantity = update.retquantity;
+          itemsUpdated = true;
+        }
+
+        const product = await Product.findById(update.productId);
+        if (!product) {
+          return res.status(404).json({ message: `Product ${update.itemName} not found` });
+        }
+        await Product.findByIdAndUpdate(update.productId, { $set: { returnstock: update.retquantity } });
+
+        if (update.givenQty !== undefined) {
+          const delta = update.givenQty;
+
+          if (delta > 0 && update.productId) {
+            const product = await Product.findById(update.productId);
+            if (!product) {
+              return res.status(404).json({ message: `Product not found for item: ${item.itemName}` });
+            }
+
+            if (product.stock < delta) {
+              return res.status(400).json({
+                message: `Insufficient stock for "${item.itemName}". Available: ${product.stock}, Requested: ${delta}`
+              });
+            }
+
+            await Product.findByIdAndUpdate(update.productId, {
+              $inc: { stock: -delta }
+            });
+            
+            await product.save();
+          }
+
+          item.givenQty = update.givenQty;
+          itemsUpdated = true;
+        }
+
       }
     }
 

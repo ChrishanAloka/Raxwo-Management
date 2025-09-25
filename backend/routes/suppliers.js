@@ -34,6 +34,28 @@ async function getSupplier(req, res, next) {
   next();
 }
 
+// GET: Fetch products by supplierName
+router.get('/retitems/:supplierName', async (req, res) => {
+  try {
+    const { supplierName } = req.params;
+
+    let filter = {};
+    if (supplierName) {
+      filter.Supplier = { $regex: new RegExp(supplierName, 'i') };
+    }
+
+    const products = await Product.find(filter).select(
+      'itemCode itemName category stock buyingPrice returnstock Supplier'
+    );
+
+    res.json(products);
+    console.log("log",supplierName)
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // GET: Get a single supplier by ID
 router.get('/:id', getSupplier, (req, res) => {
   res.json(res.supplier);
@@ -156,9 +178,12 @@ router.post('/:id/items', getSupplier, async (req, res) => {
     //   counter++;
     //   candidate = baseCode + String(counter).padStart(2, '0');
     // }
-  
+  const now = new Date();
 
   const item = {
+    date: now,          // your custom field
+    createdAt: now,     // force Mongoose timestamp
+    updatedAt: now, 
     itemCode: candidate,
     itemName: req.body.itemName,
     category: req.body.category,
@@ -380,7 +405,7 @@ router.delete('/:id/items/:itemIndex', getSupplier, async (req, res) => {
 
 // POST: Record a payment for a supplier
 router.post('/:id/payments', getSupplier, async (req, res) => {
-  const { paymentAmount, paymentMethod, assignedTo } = req.body;
+  const { paymentAmount, paymentMethod, assignedTo, returnedProductsValue } = req.body;
 
   if (typeof paymentAmount !== 'number' || paymentAmount <= 0) {
     return res.status(400).json({ message: 'Payment amount must be a positive number' });
@@ -406,7 +431,7 @@ router.post('/:id/payments', getSupplier, async (req, res) => {
 
   const totalCost = totalitemCost + pastcharges + repairServicecharges - discounts;
   const currentPayments = res.supplier.totalPayments || 0;
-  const amountDue = totalCost - currentPayments;
+  const amountDue = totalCost - currentPayments - returnedProductsValue;
 
   if (paymentAmount > amountDue) {
     return res.status(400).json({ message: 'Payment amount cannot exceed amount due' });

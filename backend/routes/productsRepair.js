@@ -649,14 +649,19 @@ router.patch("/:id", getRepair, async (req, res) => {
       "paymentMethod",
       "cartDescription",
       "repairCart",
+      "returnCart",
       "totalRepairCost",
+      "totalReturnCost",
       "repairStatus",
       "technicianReview",
       "services",
       "totalDiscountAmount",
       "finalAmount",
+      "returnedadditionalServices",
       "additionalServices",
-      "totalAdditionalServicesAmount"
+      "totalAdditionalServicesAmount",
+      "rettotalAdditionalServicesAmount", // ✅ ADD THIS
+      "returnCost" // ✅ ADD THIS
     ];
 
     const updates = {};
@@ -698,6 +703,22 @@ router.patch("/:id", getRepair, async (req, res) => {
         console.log(`Stock updated for itemCode: ${removeditem}, new stock: ${product.stock}`);
       } else {
         console.warn(`Product with itemCode ${removeditem} not found. Stock not updated.`);
+      }
+    }
+
+    // After handling removeditem, add:
+    const { returnedItems } = req.body;
+    if (Array.isArray(returnedItems) && returnedItems.length > 0) {
+      for (const item of returnedItems) {
+        if (item.itemCode && item.quantity) {
+          const product = await Product.findOne({ itemCode: item.itemCode });
+          if (product) {
+            product.returnstock += item.quantity;
+            // if (product.stock < 0) product.stock = 0;
+            await product.save();
+            console.log(`Deducted ${item.quantity} from stock for ${item.itemCode}`);
+          }
+        }
       }
     }
     
