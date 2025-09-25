@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import '../styles/Supplier.css';
+import Select from 'react-select';
 
-const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
+const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppliers, darkMode }) => {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');     // ← New
   const [assignedTo, setAssignedTo] = useState('');  
@@ -11,6 +12,157 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
   const [success, setSuccess] = useState("");
   const [returnedProductsValue, setReturnedProductsValue] = useState(0);
   const [products, setProducts] = useState([]);
+  const [description, setDescription] = useState(''); // For past payment description
+
+  const [grnNumber, setGrnNumber] = useState('');
+  const [grnReturnedValue, setGrnReturnedValue] = useState(0);
+  const [grnTotal, setGrnTotal] = useState(0);
+  const [grnDiscounts, setGrnDiscounts] = useState(0);
+  const [grnItems, setGrnItems] = useState([]);
+  const [returnedGrnItems, setReturnedGrnItems] = useState([]);
+
+  // Special options
+  const PAST_PAYMENT_OPTION = {
+    value: '__PAST_PAYMENT__',
+    label: '➕ Past Payment (Manual Entry)',
+    type: 'past'
+  };
+
+  const REPAIR_SERVICE_OPTION = {
+    value: '__REPAIR_SERVICE__',
+    label: '🔧 Repair Service',
+    type: 'repair'
+  };
+
+  // Inside PaymentForm component
+  const paidGrnNumbers = React.useMemo(() => {
+    const paid = new Set();
+    supplier.paymentHistory.forEach(payment => {
+      if (payment.grnNumber) {
+        paid.add(String(payment.grnNumber));
+      }
+    });
+    return paid;
+  }, [supplier.paymentHistory]);
+
+  // Prepare GRN options
+  // const supplierGrnOptions = (supplier?.grnOptions || []).map(grn => {
+  //   const value = String(grn.grnNumber || grn.value || '');
+  //   const label = grn.label 
+  //     ? String(grn.label)
+  //     : `${value} | Rs. ${(grn.totalAmount || 0).toFixed(2)}`;
+  //   return {
+  //     value,
+  //     label,
+  //     totalAmount: grn.totalAmount || 0
+  //   };
+  // }).filter(opt => opt.value.trim() !== '');
+
+  // ✅ Enhanced GRN options with individual payable amounts
+  const [supplierGrnOptions, setSupplierGrnOptions] = useState([]);
+
+  useEffect(() => {
+    const calculateGrnOptions = async () => {
+      if (!supplier?.grnOptions) {
+        setSupplierGrnOptions([]);
+        return;
+      }
+
+      const options = [];
+      for (const grn of supplier.grnOptions) {
+        const grnNumber = String(grn.grnNumber || grn.value || '');
+        const isPaid = paidGrnNumbers.has(grnNumber);
+        const status = isPaid ? '✅ Paid' : '⏳ Pending';
+        
+        // For unpaid GRNs, calculate payable amount
+        try {
+          const { items, returnedValue } = await fetchGrnReturnStocks(grnNumber);
+          
+          // Calculate GRN total
+          const total = items.reduce((sum, item) => 
+            sum + (item.quantity || 0) * (item.buyingPrice || 0), 0
+          );
+
+          // Calculate discounts
+          const grnDiscs = (supplier.discounts || []).filter(d =>
+            String(d.grnNumber) === grnNumber
+          );
+          const totalDiscs = grnDiscs.reduce((sum, d) => sum + (d.discountCharge || 0), 0);
+
+          const payableAmount = Math.max(0, total - returnedValue - totalDiscs);
+
+          // Format date
+          const formattedDate = grn.grnDate 
+            ? new Date(grn.grnDate).toLocaleDateString('en-GB')
+            // (() => {
+            //     const [year, month, day] = grn.grnDate.split('-');
+            //     return year && month && day ? `${day}/${month}/${year}` : '';
+            //   })()
+            : '';
+
+          const label = `${grnNumber} | ${formattedDate} | Rs. ${total.toFixed(2)} | Payable: Rs. ${payableAmount.toFixed(2)} | ${status}`;
+
+          options.push({
+            value: grnNumber,
+            label: label,
+            totalAmount: total,
+            payableAmount: payableAmount,
+            returnedValue: returnedValue,
+            totalDiscounts: totalDiscs,
+            isPaid: false,
+            isDisabled: false
+          });
+        } catch (err) {
+          console.error(`Error calculating payable for GRN ${grnNumber}:`, err);
+          // Fallback to basic calculation
+          const formattedDate = grn.grnDate 
+            ? new Date(grn.grnDate).toLocaleDateString('en-GB')
+            // (() => {
+            //     const [year, month, day] = grn.grnDate.split('-');
+            //     return year && month && day ? `${day}/${month}/${year}` : '';
+            //   })()
+            : '';
+          const label = `${grnNumber} | ${formattedDate} | Payable: Rs. ${grn.totalAmount?.toFixed(2) || '0.00'} | ${status}`;
+          options.push({
+            value: grnNumber,
+            label: label,
+            totalAmount: grn.totalAmount || 0,
+            payableAmount: grn.totalAmount || 0,
+            isPaid: false,
+            isDisabled: false
+          });
+        }
+      }
+
+      // Sort by date (newest first)
+      options.sort((a, b) => {
+        const dateA = supplier.grnOptions.find(g => g.grnNumber === a.value)?.grnDate || '';
+        const dateB = supplier.grnOptions.find(g => g.grnNumber === b.value)?.grnDate || '';
+        return new Date(dateB) - new Date(dateA);
+      });
+
+      setSupplierGrnOptions(options);
+    };
+
+    if (supplier?.grnOptions?.length > 0) {
+      calculateGrnOptions();
+    } else {
+      setSupplierGrnOptions([]);
+    }
+  }, [supplier?.grnOptions, paidGrnNumbers, supplier?.discounts, fetchGrnReturnStocks]);
+
+  const allGrnOptions = [
+    PAST_PAYMENT_OPTION,
+    REPAIR_SERVICE_OPTION,
+    ...supplierGrnOptions
+  ];
+
+  const selectedGrnOption = grnNumber
+    ? allGrnOptions.find(opt => opt.value === grnNumber)
+    : null;
+  
+  const isSpecialPayment = grnNumber === '__PAST_PAYMENT__' || grnNumber === '__REPAIR_SERVICE__';
+  
 
   useEffect(() => {
     const fetchReturnedValue = async () => {
@@ -46,22 +198,26 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
     0
   );
   const pastcharges = supplier.pastPayments.reduce(
-    (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+    (sum, ppayments) => sum + parseFloat(ppayments.paymentCharge || 0),
     0
   );
   const discounts = supplier.discounts.reduce(
-    (sum, ppayments) => sum + (ppayments.discountCharge || 0),
+    (sum, ppayments) => sum + parseFloat(ppayments.discountCharge || 0),
+    0
+  );
+  const paymentHistory = supplier.paymentHistory.reduce(
+    (sum, ppayments) => sum + parseFloat(ppayments.currentPayment || 0),
     0
   );
   const repairServicecharges = supplier.repairService.reduce(
-    (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+    (sum, ppayments) => sum + parseFloat(ppayments.paymentCharge || 0),
     0
   );
 
-  const totalCost = totalitemCost + pastcharges + repairServicecharges - discounts;
-  const totalPayments = supplier.totalPayments || 0;
-  const totalAmountDue = totalCost - totalPayments - returnedProductsValue;
-  const remainingDue = totalAmountDue - (parseFloat(paymentAmount) || 0);
+  const totalCost = totalitemCost + pastcharges + repairServicecharges;
+  const totalPayments = paymentHistory || 0;
+  const totalAmountDue = (totalCost || 0) - (totalPayments || 0) - (returnedProductsValue || 0) - (discounts || 0);
+  const remainingDue = (totalAmountDue || 0) - (parseFloat(paymentAmount) || 0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -73,7 +229,11 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
       setError('Payment amount must be a positive number');
       return;
     }
-    if (payment > totalAmountDue) {
+    if (isNaN(payment)) {
+      setError('Invalid amount');
+      return;
+    }
+    if (!isSpecialPayment && payment > totalAmountDue) {
       setError('Payment amount cannot exceed amount due');
       return;
     }
@@ -86,7 +246,14 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
       const response = await fetch(`https://raxwo-management.onrender.com/api/suppliers/${supplier._id}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentAmount: payment, paymentMethod, assignedTo, returnedProductsValue }),
+        body: JSON.stringify({ 
+          paymentAmount: payment, 
+          paymentMethod, 
+          assignedTo, 
+          returnedProductsValue,
+          grnNumber: grnNumber,
+          description: isSpecialPayment ? description : undefined // Optional field
+        }),
       });
 
       if (!response.ok) {
@@ -103,8 +270,8 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
   };
 
   return (
-    <div className="payment-modal-overlay" onClick={closeModal}>
-      <div className={`payment-modal-content ${darkMode ? 'dark' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className="product-summary-modal-overlay-supplier-payment" onClick={closeModal}>
+      <div className={`product-summary-modal-content-supplier-payment ${darkMode ? 'dark' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="payment-modal-header">
           <h3 className="payment-modal-title">Record Payment for {supplier.supplierName}</h3>
           <button className="payment-modal-close-icon" onClick={closeModal}>
@@ -114,20 +281,32 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
         {success && <p className="success-message">{success}</p>}
         <form className="payment-form" onSubmit={handleSubmit}>
           <div>
+            <label className="payment-label">Total Cost | (Returned Products Cost) | (Discounts)</label>
+            <input
+              className="payment-display"
+              type="text"
+              value={`Rs. ${totalCost.toFixed(2)} (Rs. ${returnedProductsValue.toFixed(2)}) (Rs. ${discounts.toFixed(2)})`}
+              readOnly
+            />
+            <div className="grn-summary-box" style={{
+              marginTop: '2px',
+              padding: '10px',
+              backgroundColor: darkMode ? '#2d3748' : '#f8f9fa',
+              border: `1px solid ${darkMode ? '#4a5568' : '#e9ecef'}`,
+              borderRadius: '6px',
+              fontSize: '0.95rem'
+            }}>
+              <div><strong>Items Cost:</strong> {totalitemCost.toFixed(2)}</div>
+              <div><strong>Repair Services Cost:</strong> Rs. {pastcharges.toFixed(2)}</div>
+              <div><strong>Past Payments:</strong> Rs. {repairServicecharges.toFixed(2)}</div>
+            </div>
+          </div>
+          <div style={{ position: 'relative' }}>
             <label className="payment-label">Total Amount Due</label>
             <input
               className="payment-display"
               type="text"
               value={`Rs. ${totalAmountDue.toFixed(2)}`}
-              readOnly
-            />
-          </div>
-          <div style={{ position: 'relative' }}>
-            <label className="payment-label">Credit for Returned Products</label>
-            <input
-              className="payment-display"
-              type="text"
-              value={`Rs. ${returnedProductsValue.toFixed(2)}`}
               readOnly
               style={{
                 backgroundColor: darkMode ? '#2d3748' : '#e3f2fd',
@@ -144,16 +323,147 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
               )}
             />
           </div>
+          {/* Searchable GRN Selector */}
+          {supplierGrnOptions.length > 0 && (
+            <div>
+              <label className="payment-label">Select GRN</label>
+              <Select
+                value={selectedGrnOption}
+                onChange={async (selectedOption) => {
+                  const selectedValue = selectedOption ? String(selectedOption.value) : '';
+                  setGrnNumber(selectedValue);
+                  setDescription(''); // Reset description when changing
+                  setGrnTotal(0);
+                  setGrnDiscounts(0);
+                  setGrnItems([]);
+                  setReturnedGrnItems([]);
+
+                  if (selectedValue === '__PAST_PAYMENT__' || selectedValue === '__REPAIR_SERVICE__') {
+                    // Unlock payment field — user can type anything
+                    setPaymentAmount('');
+                  }
+                  else if (selectedValue) {
+                    const grnOption = supplierGrnOptions.find(g => g.value === selectedValue);
+                    if (grnOption) {
+                      setGrnTotal(grnOption.totalAmount);
+                      setGrnReturnedValue(grnOption.returnedValue || 0);
+                      setGrnDiscounts(grnOption.totalDiscounts || 0);
+                      setPaymentAmount(grnOption.payableAmount >= 0 ? grnOption.payableAmount.toString() : '0');
+                      
+                      // Fetch items for display
+                      fetchGrnReturnStocks(selectedValue).then(({ items, returnStocks }) => {
+                        setGrnItems(items);
+                        setReturnedGrnItems(returnStocks);
+                      }).catch(err => console.error('Error fetching GRN items:', err));
+                    }
+                  } else {
+                    setPaymentAmount('');
+                  }
+                }}
+                options={allGrnOptions}
+                placeholder="Select GRN or Past Payment..."
+                isClearable
+                isSearchable
+                className={`react-select-container ${darkMode ? 'dark' : ''}`}
+                classNamePrefix="react-select"
+                styles={{
+                  control: (base, state) => ({
+                    ...base,
+                    backgroundColor: darkMode ? '#2d3748' : 'white',
+                    borderColor: state.isFocused ? (darkMode ? '#6c63ff' : '#007bff') : '#ccc',
+                    minHeight: '38px',
+                    fontSize: '14px',
+                  }),
+                  menu: (base) => ({
+                    ...base,
+                    backgroundColor: darkMode ? '#2d3748' : 'white',
+                    zIndex: 1000,
+                  }),
+                  option: (base, { isFocused, isSelected }) => ({
+                    ...base,
+                    backgroundColor: isSelected
+                      ? (darkMode ? '#6c63ff' : '#007bff')
+                      : isFocused
+                      ? (darkMode ? '#444' : '#e9ecef')
+                      : 'transparent',
+                    color: isSelected ? 'white' : darkMode ? 'white' : 'black',
+                  }),
+                  singleValue: (base) => ({
+                    ...base,
+                    color: darkMode ? 'white' : 'black',
+                  }),
+                }}
+              />
+            </div>
+          )}
+          {/* GRN Summary (Optional but helpful) */}
+          {grnNumber && !isSpecialPayment && (
+            <div className="grn-summary-box" style={{
+              marginTop: '2px',
+              padding: '10px',
+              backgroundColor: darkMode ? '#2d3748' : '#f8f9fa',
+              border: `1px solid ${darkMode ? '#4a5568' : '#e9ecef'}`,
+              borderRadius: '6px',
+              fontSize: '0.95rem'
+            }}>
+              <div><strong>GRN:</strong> {grnNumber}</div>
+              <div><strong>GRN Total:</strong> Rs. {grnTotal.toFixed(2)}</div>
+              <div><strong>Returned Value:</strong> Rs. {grnReturnedValue.toFixed(2)}</div>
+              <div><strong>Discounts:</strong> Rs. {grnDiscounts.toFixed(2)}</div>
+              <div><strong>Payable Amount:</strong> <span style={{ color: '#38a169', fontWeight: 'bold' }}>Rs. {(grnTotal - grnReturnedValue - grnDiscounts).toFixed(2)}</span></div>
+            </div>
+          )}
+          {/* GRN Items List */}
+          {grnItems.length > 0 && (
+            <div style={{ marginTop: '10px', maxHeight: '150px', overflowY: 'auto' }}>
+              <strong>Items in GRN:</strong>
+              <ul style={{ paddingLeft: '20px', marginTop: '6px', marginBottom: '0' }}>
+                {grnItems.map((item, i) => (
+                  <li key={i} style={{ fontSize: '0.9rem' }}>
+                    {item.itemName} × {item.quantity} {returnedGrnItems[item.itemCode] > 0 ? ` ( Returned ${returnedGrnItems[item.itemCode]} )` : ""}  @ Rs. {item.buyingPrice.toFixed(2)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Description for Past Payment */}
+          {isSpecialPayment && (
+            <div style={{ marginTop: '12px' }}>
+              <label className="payment-label">Description (Optional)</label>
+              <input
+                className="payment-input"
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={
+                  grnNumber === '__REPAIR_SERVICE__' 
+                    ? 'e.g., Screen replacement, battery fix' 
+                    : 'e.g., Advance payment, old debt'
+                }
+              />
+            </div>
+          )}
           <div>
             <label className="payment-label">Current Payment Amount</label>
             <input
               className="payment-input"
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
               value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
+              onChange={(e) => {
+                // Only allow manual edit if NO GRN is selected
+                if (isSpecialPayment) {
+                  setPaymentAmount(e.target.value);
+                }
+              }}
               placeholder="Enter payment amount"
+              readOnly={grnNumber && !isSpecialPayment} // 🔒 Locked only for real GRNs
+              style={{
+                backgroundColor: (grnNumber && !isSpecialPayment) 
+                  ? (darkMode ? '#2d3748' : '#f0f8ff') 
+                  : '',
+                cursor: (grnNumber && !isSpecialPayment) ? 'not-allowed' : 'text'
+              }}
             />
           </div>
           {/* Payment Method */}

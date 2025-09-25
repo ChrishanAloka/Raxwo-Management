@@ -90,6 +90,48 @@ const SupplierList = ({ darkMode }) => {
     }
   };
 
+  // ✅ NEW: Fetch per-GRN return stocks for a given GRN number
+  const fetchGrnReturnStocks = async (supplierId, grnNumber) => {
+    try {
+      // 1. Fetch items for this GRN
+      const response = await fetch(
+        `https://raxwo-management.onrender.com/api/suppliers/${supplierId}/items/grn/${encodeURIComponent(grnNumber)}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch GRN items');
+      
+      const items = await response.json();
+      if (!Array.isArray(items) || items.length === 0) return { items: [], returnStocks: {}, returnedValue: 0 };
+
+      // 2. Fetch return stock for each item
+      const returnStocks = {};
+      let returnedValue = 0;
+
+      for (const item of items) {
+        if (item.itemCode) {
+          try {
+            const prodRes = await fetch(`https://raxwo-management.onrender.com/api/products/${encodeURIComponent(item.itemCode)}`);
+            if (prodRes.ok) {
+              const product = await prodRes.json();
+              const returnedQty = product.returnstock || 0;
+              // Cap returned qty to not exceed GRN quantity (safety)
+              const actualReturned = Math.min(returnedQty, item.quantity || 0);
+              returnStocks[item.itemCode] = actualReturned;
+              returnedValue += actualReturned * (item.buyingPrice || 0);
+            }
+          } catch (err) {
+            console.warn(`Could not fetch return stock for ${item.itemCode}`);
+            returnStocks[item.itemCode] = 0;
+          }
+        }
+      }
+
+      return { items, returnStocks, returnedValue };
+    } catch (err) {
+      console.error('Error fetching GRN return stocks:', err);
+      return { items: [], returnStocks: {}, returnedValue: 0 };
+    }
+  };
+
   const refreshProducts = () => {
     fetchProducts();
     setTimeout(() => setNotification(''), 5000);
@@ -151,7 +193,8 @@ const SupplierList = ({ darkMode }) => {
   };
 
   const handlePay = (supplier) => {
-    setSelectedSupplier(supplier);
+    const grnOptions = getGrnOptionsFromSupplier(supplier, products);
+    setSelectedSupplier({ ...supplier, grnOptions }); 
     setShowPaymentModal(true);
     setShowActionMenu(null);
   };
@@ -310,27 +353,56 @@ const SupplierList = ({ darkMode }) => {
       if (!grnGroups[item.grnNumber]) {
         grnGroups[item.grnNumber] = {
           grnNumber: item.grnNumber,
-          grnDate: item.date, // Use the item's date as GRN date
+          grnDate: item.createdAt, // Use the item's date as GRN date
           totalAmount: 0,
-          itemCount: 0
+          itemCount: 0,
+          items: [] // Keep items for return calculation
         };
       }
 
       grnGroups[item.grnNumber].totalAmount += (item.buyingPrice || 0) * (item.quantity || 0);
       grnGroups[item.grnNumber].itemCount += item.quantity || 0;
+      grnGroups[item.grnNumber].items.push(item);
     });
 
     // Convert to sorted array (newest first)
     return Object.values(grnGroups)
       .sort((a, b) => new Date(b.grnDate) - new Date(a.grnDate)) // newest first
       .map(grn => {
+
+        // ✅ Calculate returns for this GRN (using global product returnstock)
+        let returnedValue = 0;
+        grn.items.forEach(item => {
+          if (item.itemCode) {
+            // Find product returnstock (you'll need products array)
+            const product = products.find(p => p.itemCode === item.itemCode);
+            if (product) {
+              const returnedQty = product.returnstock || 0;
+              const actualReturned = Math.min(returnedQty, item.quantity || 0);
+              returnedValue += actualReturned * (item.buyingPrice || 0);
+            }
+          }
+        });
+
+        // ✅ Calculate discounts for this GRN
+        const grnDiscounts = (supplier.discounts || []).filter(d =>
+          String(d.grnNumber) === grn.grnNumber
+        );
+        const totalDiscounts = grnDiscounts.reduce((sum, d) => sum + (d.discountCharge || 0), 0);
+
+        // ✅ Calculate payable amount
+        const payableAmount = Math.max(0, grn.totalAmount - returnedValue - totalDiscounts);
+
         const formattedDate = new Date(grn.grnDate).toLocaleDateString('en-GB'); // DD/MM/YYYY
-        const label = `${grn.grnNumber} | ${formattedDate} | Rs. ${grn.totalAmount.toFixed(2)}`;
+        const label = `${grn.grnNumber} | ${formattedDate} | Rs. ${grn.totalAmount.toFixed(2)} | Payable: Rs. ${payableAmount.toFixed(2)}`;
         return {
           value: grn.grnNumber,
           label: label,
           grnDate: grn.grnDate,
-          totalAmount: grn.totalAmount
+          totalAmount: grn.totalAmount,
+          payableAmount: payableAmount, // ✅ Include for PaymentForm
+          returnedValue: returnedValue,
+          totalDiscounts: totalDiscounts
         };
       });
   };
@@ -412,6 +484,9 @@ const SupplierList = ({ darkMode }) => {
       {showPaymentModal && selectedSupplier && (
         <PaymentForm
           supplier={selectedSupplier}
+          fetchGrnReturnStocks={(grnNumber) => 
+            fetchGrnReturnStocks(selectedSupplier._id, grnNumber)
+          }
           closeModal={() => {
             setShowPaymentModal(false);
             setSelectedSupplier(null);
@@ -459,7 +534,7 @@ const SupplierList = ({ darkMode }) => {
                 <Select
                   value={selectedItemCode ? { value: selectedItemCode, label: selectedItemCode } : null}
                   onChange={(selectedOption) => setSelectedItemCode(selectedOption ? selectedOption.value : '')}
-                  options={getGrnOptionsFromSupplier(selectedSupplier)}
+                  options={getGrnOptionsFromSupplier(selectedSupplier, products)}
                   placeholder="Select or search GRN..."
                   isClearable
                   isSearchable
@@ -565,14 +640,21 @@ const SupplierList = ({ darkMode }) => {
                     return sum + (item.buyingPrice || 0) * actualReturned;
                   }, 0);
 
-                  const adjustedTotal = originalTotal - returnedValue;
+                  // Inside fetchItemDetails, after setting itemDetails
+                  const grnDiscounts = (selectedSupplier.discounts || []).filter(d =>
+                    String(d.grnNumber) === selectedItemCode
+                  );
+                  const totalDiscounts = grnDiscounts.reduce((sum, d) => sum + (d.discountCharge || 0), 0);
+
+                  const adjustedTotal = originalTotal - returnedValue - totalDiscounts;
                   
                   return (
                     <>
                       <div className="grn-totals-summary">
                         <div><strong>GRN Total:</strong> Rs. {originalTotal.toFixed(2)}</div>
                         <div><strong>Returned Value:</strong> Rs. {returnedValue.toFixed(2)}</div>
-                        <div><strong>Adjusted Total:</strong> Rs. {adjustedTotal.toFixed(2)}</div>
+                        <div><strong>Discounts:</strong> Rs. {totalDiscounts.toFixed(2)}</div> {/* ✅ New */}
+                        <div><strong>Payable Amount:</strong> Rs. {adjustedTotal.toFixed(2)}</div> {/* ✅ Renamed */}
                       </div>
                   
                       <table className={`product-table-supplierfetch ${darkMode ? 'dark' : ''}`}>

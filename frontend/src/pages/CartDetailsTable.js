@@ -51,7 +51,8 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
         throw new Error(`Failed to fetch supplier items: ${response.statusText}`);
       }
       const data = await response.json();
-      setItems(data.items || []);
+      const itemsdata = data.items.sort((a) => new Date(a.createdAt));
+      setItems(itemsdata || []);
       setSupplierName(data.supplierName || '');
       setLoading(false);
     } catch (err) {
@@ -336,7 +337,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
             </tr>
           </thead>
           <tbody>
-            {ProductsForModal.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((item, index) => (
+            {ProductsForModal.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).map((item, index) => (
               <tr key={index}>
                 <td>{new Date(item.createdAt).toISOString().split("T")[0] || '-'}</td>
                 <td>{item.grnNumber || 'N/A'}</td>
@@ -394,12 +395,12 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                               <span>Edit</span>
                             </div>
                           </button>
-                          <button onClick={() => handleDelete(index)} className="p-delete-btn">
+                          {/* <button onClick={() => handleDelete(index)} className="p-delete-btn">
                             <div className="action-btn-content">
                               <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
                               <span>Delete</span>
                             </div>
-                          </button>
+                          </button> */}
                         </div>
                       </>
                     )}

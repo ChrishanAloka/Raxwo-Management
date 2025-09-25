@@ -19,6 +19,8 @@ const pastpaymentSchema = new mongoose.Schema({
 
 const paymentSchema = new mongoose.Schema({
   date: {type: Date, default: Date.now},
+  grnNumber: { type: String, required: false },
+  description: { type: String, required: false },
   uptodateCost: { type: String, required: true },
   currentPayment: { type: String, required: true },
   amountDue: { type: String, required: true },

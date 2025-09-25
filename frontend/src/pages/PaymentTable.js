@@ -862,7 +862,7 @@ const PaymentTable = ({ darkMode }) => {
 
     if (searchQuery.trim() !== '') {
       let subresult1 = payments.filter(product => {
-        const name = (product.date +product.invoiceNumber + product.items.itemName + product.cashierName + product.paymentMethod).toLowerCase()
+        const name = (product.invoiceNumber + product.items.itemName + product.cashierName + product.paymentMethod).toLowerCase()
         .trim()
         .replace(/\s+/g, '');
         

@@ -405,37 +405,44 @@ router.delete('/:id/items/:itemIndex', getSupplier, async (req, res) => {
 
 // POST: Record a payment for a supplier
 router.post('/:id/payments', getSupplier, async (req, res) => {
-  const { paymentAmount, paymentMethod, assignedTo, returnedProductsValue } = req.body;
+  const { paymentAmount, paymentMethod, assignedTo, returnedProductsValue, grnNumber, description  } = req.body;
 
   if (typeof paymentAmount !== 'number' || paymentAmount <= 0) {
     return res.status(400).json({ message: 'Payment amount must be a positive number' });
   }
 
-  // Calculate total cost and amount due
-  const totalitemCost = res.supplier.items.reduce(
-    (sum, item) => sum + (item.buyingPrice || 0) * (item.quantity || 0),
-    0
-  );
-  const pastcharges = res.supplier.pastPayments.reduce(
-    (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
-    0
-  );
-  const discounts= res.supplier.discounts.reduce(
-    (sum, ppayments) => sum + (ppayments.discountCharge || 0),
-    0
-  );
-  const repairServicecharges = res.supplier.repairService.reduce(
-    (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
-    0
-  );
 
-  const totalCost = totalitemCost + pastcharges + repairServicecharges - discounts;
-  const currentPayments = res.supplier.totalPayments || 0;
-  const amountDue = totalCost - currentPayments - returnedProductsValue;
+      // Calculate total cost and amount due
+    const totalitemCost = res.supplier.items.reduce(
+      (sum, item) => sum + (item.buyingPrice || 0) * (item.quantity || 0),
+      0
+    );
+    const pastcharges = res.supplier.pastPayments.reduce(
+      (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+      0
+    );
+    const discounts= res.supplier.discounts.reduce(
+      (sum, ppayments) => sum + (ppayments.discountCharge || 0),
+      0
+    );
+    const repairServicecharges = res.supplier.repairService.reduce(
+      (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+      0
+    );
+    const paymentHistory = res.supplier.paymentHistory.reduce(
+      (sum, ppayments) => sum + parseFloat(ppayments.currentPayment || 0),
+      0
+    );
 
-  if (paymentAmount > amountDue) {
-    return res.status(400).json({ message: 'Payment amount cannot exceed amount due' });
-  }
+    const totalCost = totalitemCost + pastcharges + repairServicecharges - discounts - returnedProductsValue;
+    const currentPayments = parseFloat(paymentHistory).toFixed(2) || 0;
+    amountDue = parseFloat(totalCost).toFixed(2) - parseFloat(currentPayments).toFixed(2);
+
+    if (paymentAmount > amountDue) {
+      return res.status(400).json({ message: 'Payment amount cannot exceed amount due' });
+    }
+  
+  
 
   const paymenthistory = {
     uptodateCost: amountDue || 0,
@@ -443,6 +450,8 @@ router.post('/:id/payments', getSupplier, async (req, res) => {
     amountDue: amountDue - paymentAmount,
     assignedTo,
     paymentMethod,
+    ...(grnNumber && { grnNumber }),      // Only add if exists
+    ...(description && { description })   // Only add if exists
   };
 
   res.supplier.paymentHistory.push(paymenthistory);
