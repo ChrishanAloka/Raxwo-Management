@@ -1,6 +1,6 @@
 ////////////supplier///////////
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../styles/Supplier.css';
 
 const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
@@ -9,6 +9,36 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
   const [assignedTo, setAssignedTo] = useState('');  
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState("");
+  const [returnedProductsValue, setReturnedProductsValue] = useState(0);
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    const fetchReturnedValue = async () => {
+      try {
+        const response = await fetch(`https://raxwo-management.onrender.com/api/suppliers/retitems/${encodeURIComponent(supplier.supplierName)}`);
+        if (!response.ok) throw new Error("Failed to fetch products");
+        const products = await response.json();
+        setProducts(Array.isArray(products) ? products : []);
+
+        // Calculate total returned value
+        const totalReturned = products.reduce((sum, product) => {
+          const returnstock = product.returnstock || 0;
+          const buyingPrice = product.buyingPrice || 0;
+          return sum + (returnstock * buyingPrice);
+        }, 0);
+
+        setReturnedProductsValue(totalReturned);
+      } catch (err) {
+        console.error("Error fetching returned products value:", err);
+        setReturnedProductsValue(0);
+        setProducts([]);
+      }
+    };
+
+    if (supplier?.supplierName) {
+      fetchReturnedValue();
+    }
+  }, [supplier?.supplierName]);
 
   // Calculate total cost and amount due
   const totalitemCost = supplier.items.reduce(
@@ -30,7 +60,7 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
 
   const totalCost = totalitemCost + pastcharges + repairServicecharges - discounts;
   const totalPayments = supplier.totalPayments || 0;
-  const totalAmountDue = totalCost - totalPayments;
+  const totalAmountDue = totalCost - totalPayments - returnedProductsValue;
   const remainingDue = totalAmountDue - (parseFloat(paymentAmount) || 0);
 
   const handleSubmit = async (e) => {
@@ -56,7 +86,7 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
       const response = await fetch(`https://raxwo-management.onrender.com/api/suppliers/${supplier._id}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentAmount: payment, paymentMethod, assignedTo }),
+        body: JSON.stringify({ paymentAmount: payment, paymentMethod, assignedTo, returnedProductsValue }),
       });
 
       if (!response.ok) {
@@ -90,6 +120,28 @@ const PaymentForm = ({ supplier, closeModal, refreshSuppliers, darkMode }) => {
               type="text"
               value={`Rs. ${totalAmountDue.toFixed(2)}`}
               readOnly
+            />
+          </div>
+          <div style={{ position: 'relative' }}>
+            <label className="payment-label">Credit for Returned Products</label>
+            <input
+              className="payment-display"
+              type="text"
+              value={`Rs. ${returnedProductsValue.toFixed(2)}`}
+              readOnly
+              style={{
+                backgroundColor: darkMode ? '#2d3748' : '#e3f2fd',
+                color: darkMode ? '#63b3ed' : '#1976d2',
+                fontWeight: 'bold',
+                cursor: 'help'
+              }}
+              title="Click to see breakdown"
+              onClick={() => alert(
+                products
+                  .filter(p => (p.returnstock || 0) > 0)
+                  .map(p => `${p.itemName}: ${p.returnstock} × Rs. ${p.buyingPrice} = Rs. ${(p.returnstock * p.buyingPrice).toFixed(2)}`)
+                  .join('\n') || 'No returned products'
+              )}
             />
           </div>
           <div>

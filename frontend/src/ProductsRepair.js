@@ -125,7 +125,7 @@ const ProductRepairList = ({ darkMode }) => {
   const paginatedProductsForModal = filteredProductsForModal.slice((productPage - 1) * productsPerPage, productPage * productsPerPage);
 
   // Filter and pagination logic
-  const statusFilters = ["All", "Pending", "In Progress", "Completed", "Cancelled"];
+  const statusFilters = ["All", "Pending", "In Progress", "Completed", "Cancelled", "Returned"];
   const isRepairPaid = (repair) => {
     if (!repair.additionalServices || repair.additionalServices.length === 0) return true;
     return repair.additionalServices.every(service => service.isPaid);
@@ -717,13 +717,13 @@ const ProductRepairList = ({ darkMode }) => {
 
       // Decrease quantity or remove item if quantity becomes zero
       if (item.quantity > 1) {
-        updatedCart[index] = { ...item, quantity: item.quantity - 1 };
+        updatedCart[index] = { ...item, quantity: item.quantity - 1, cost:(item.sellingPrice * (item.quantity - 1)) };
       } else {
         updatedCart.splice(index, 1);
       }
 
       // Calculate new cart total
-      const newCartTotal = updatedCart.reduce((total, cartItem) => total + (cartItem.cost || 0), 0);
+      const newCartTotal = updatedCart.reduce((total, cartItem) => total + ((cartItem.sellingPrice || 0) * (cartItem.quantity || 0)), 0);
       const totalAdditionalServicesAmount = selectedRepair.totalAdditionalServicesAmount || 0;
       const finalAmount = newCartTotal + (selectedRepair.repairCost || 0) - (selectedRepair.totalDiscountAmount || 0) + totalAdditionalServicesAmount;
       const removeditem = item.itemCode;
@@ -756,6 +756,87 @@ const ProductRepairList = ({ darkMode }) => {
       setMessage("Cart quantity updated successfully!");
     } catch (err) {
       // console.error("Error decreasing cart quantity:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReturnItem = async (index) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      // Get the item to return
+      const itemToReturn = selectedRepair.repairCart[index];
+      if (!itemToReturn) {
+        throw new Error("Item not found in cart");
+      }
+
+      // Create new repairCart (without the returned item)
+      const newRepairCart = [...selectedRepair.repairCart];
+      newRepairCart.splice(index, 1);
+
+      // Create new returnCart (with the returned item)
+      const newReturnCart = [
+        ...(selectedRepair.returnCart || []),
+        {
+          ...itemToReturn,
+          returnedAt: new Date().toISOString(),
+          returnedBy: localStorage.getItem('username') || 'system'
+        }
+      ];
+
+      const newReturnCartTotal = newReturnCart.reduce((total, item) => total + ((item.sellingPrice || 0) * (item.quantity || 0)), 0);
+
+
+      // Send update to backend
+      const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repairCart: newRepairCart,
+          returnCart: newReturnCart,
+          totalReturnCost: newReturnCartTotal, // ✅ ADD THIS
+          returnedItems: [itemToReturn],
+          changedBy: localStorage.getItem('username') || 'system'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to return item");
+      }
+
+      const updatedRepair = await response.json();
+
+      // Update local state
+      setRepairs(repairs.map((r) => (r._id === updatedRepair._id ? updatedRepair : r)));
+      setSelectedRepair(updatedRepair);
+
+
+      if (selectedRepair.repairStatus !== "Returned") {
+        const response2 = await fetch(`${API_URL}/${selectedRepair._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ repairStatus: "Returned" }),
+        });
+
+        if (!response2.ok) {
+          const errorData = await response2.json();
+          throw new Error(errorData.message || "Failed to update repair status");
+        }
+
+        const updatedRepair2 = await response2.json();
+
+        // Update local state
+        setRepairs(repairs.map((r) => (r._id === updatedRepair2._id ? updatedRepair2 : r)));
+        setSelectedRepair(updatedRepair2);
+      }
+
+      setMessage(`✅ Item "${itemToReturn.itemName}" returned successfully!`);
+    } catch (err) {
+      console.error("Error returning item:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -811,66 +892,7 @@ const ProductRepairList = ({ darkMode }) => {
       [name]: name === "discountAmount" ? parseFloat(value) || 0 : value
     });
   };
-    // Apply all service discounts
-    const handleApplyServiceDiscounts = async () => {
-      try {
-        if (services.length === 0) {
-          setError("No services added. Please add at least one service with a discount.");
-          return;
-        }
-  
-        // Calculate total discount amount
-        const totalDiscountAmount = services.reduce((total, service) => total + service.discountAmount, 0);
-  
-        // Calculate cart total and base total
-        const cartTotal = selectedRepair.repairCart.reduce((total, item) => total + item.cost, 0);
-        const baseTotal = cartTotal + (selectedRepair.repairCost || 0);
-  
-        // Ensure discount doesn't exceed total cost
-        if (totalDiscountAmount > baseTotal) {
-          setError("Total discount cannot exceed the total repair cost.");
-          return;
-        }
-  
-        // Calculate new total repair cost
-        const updatedTotalRepairCost = baseTotal - totalDiscountAmount;
-  
-        // Calculate final amount (including additional services)
-        const totalAdditionalServicesAmount = selectedRepair.totalAdditionalServicesAmount || 0;
-        const finalAmount = updatedTotalRepairCost + totalAdditionalServicesAmount;
-  
-        // console.log("Applying service discounts:", services);
-        // console.log("Total discount amount:", totalDiscountAmount);
-        // console.log("New total repair cost:", updatedTotalRepairCost);
-        // console.log("Final amount (including additional services):", finalAmount);
-  
-        const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            services: services,
-            totalDiscountAmount: totalDiscountAmount,
-            totalRepairCost: updatedTotalRepairCost,
-            finalAmount: finalAmount
-          }),
-        });
-  
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to apply service discounts");
-        }
-  
-        const updatedRepair = await response.json();
-        // console.log("Updated repair with service discounts:", updatedRepair);
-        setRepairs(repairs.map((r) => (r._id === updatedRepair._id ? updatedRepair : r)));
-        setSelectedRepair(updatedRepair);
-        setMessage("Service discounts applied successfully!");
-      } catch (err) {
-        console.error("Error applying service discounts:", err);
-        setError(err.message);
-      }
-    };
-  
+      
   
   // Add a new service to the list
   const handleAddService = async () => {
@@ -889,7 +911,7 @@ const ProductRepairList = ({ darkMode }) => {
       setServices(updatedServices);
       setNewService({ serviceName: "", discountAmount: 0, description: "" });
   
-      const cartTotal = selectedRepair.repairCart.reduce((total, item) => total + Math.max(0, parseFloat(item.cost || 0)), 0);
+      const cartTotal = selectedRepair.repairCart.reduce((total, item) => total + (Math.max(0, parseFloat(item.sellingPrice || 0)) * parseInt(item.quantity || 0)), 0);
       const baseTotal = cartTotal + Math.max(0, parseFloat(selectedRepair.repairCost || 0));
       const totalDiscountAmount = updatedServices.reduce((total, service) => total + Math.max(0, parseFloat(service.discountAmount || 0)), 0);
       const totalAdditionalServicesAmount = parseFloat(selectedRepair.totalAdditionalServicesAmount || 0); 
@@ -902,7 +924,6 @@ const ProductRepairList = ({ darkMode }) => {
         body: JSON.stringify({
           services: updatedServices,
           totalDiscountAmount,
-          totalRepairCost: updatedTotalRepairCost,
           finalAmount
         }),
       });
@@ -928,7 +949,7 @@ const ProductRepairList = ({ darkMode }) => {
       setServices(updatedServices);
   
       const totalDiscountAmount = updatedServices.reduce((total, service) => total + service.discountAmount, 0);
-      const cartTotal = selectedRepair.repairCart.reduce((total, item) => total + item.cost, 0);
+      const cartTotal = selectedRepair.repairCart.reduce((total, item) => total + ((item.sellingPrice || 0) * (item.quantity || 0)), 0);
       const baseTotal = cartTotal + (selectedRepair.repairCost || 0);
       const updatedTotalRepairCost = baseTotal - totalDiscountAmount;
       const totalAdditionalServicesAmount = selectedRepair.totalAdditionalServicesAmount || 0;
@@ -940,7 +961,6 @@ const ProductRepairList = ({ darkMode }) => {
         body: JSON.stringify({
           services: updatedServices,
           totalDiscountAmount,
-          totalRepairCost: updatedTotalRepairCost,
           finalAmount,
         }),
       });
@@ -1097,58 +1117,146 @@ const ProductRepairList = ({ darkMode }) => {
     }
   };
 
-  const handleApplyDiscount = async () => {
+  const handleRemoveAdditionalService = async (index) => {
     try {
-      const discountAmount = parseFloat(discount);
-      if (totalDiscountAmount > baseTotal) {
-        setError("Total discount cannot exceed the base repair cost.");
-        return;
-      }  
-      const updatedServices = [
-        ...services,
-        {
-          serviceName: "Quick Discount",
-          discountAmount,
-          description: "Quick discount applied"
-        }
-      ];
-  
-      const totalDiscountAmount = updatedServices.reduce((total, service) => total + service.discountAmount, 0);
-      const cartTotal = selectedRepair.repairCart.reduce((total, item) => total + item.cost, 0);
+      setLoading(true);
+      setError("");
+
+      // Create new array without the service at `index`
+      const updatedServices = [...additionalServices];
+      updatedServices.splice(index, 1);
+
+      // Recalculate totals
+      const cartTotal = selectedRepair.repairCart.reduce((total, item) => total + ((item.sellingPrice || 0) * (item.quantity || 0)), 0);
       const baseTotal = cartTotal + (selectedRepair.repairCost || 0);
+      const totalDiscountAmount = services.reduce((total, s) => total + (s.discountAmount || 0), 0);
       const updatedTotalRepairCost = baseTotal - totalDiscountAmount;
-      const totalAdditionalServicesAmount = selectedRepair.additionalServices
-      ? selectedRepair.additionalServices.reduce((total, service) => total + (service.isPaid ? 0 : parseFloat(service.serviceAmount || 0)), 0)
-      : 0;
-    const finalAmount = updatedTotalRepairCost + totalAdditionalServicesAmount;  
+      const totalAdditionalServicesAmount = updatedServices.reduce((total, s) => total + (s.isPaid ? 0 : Math.max(0, parseFloat(s.serviceAmount || 0))), 0);
+      const finalAmount = updatedTotalRepairCost + totalAdditionalServicesAmount;
+
+      // Send update to backend
       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          services: updatedServices,
-          totalDiscountAmount,
-          totalRepairCost: updatedTotalRepairCost,
-          finalAmount
+          additionalServices: updatedServices,
+          totalAdditionalServicesAmount,
+          finalAmount,
+          changedBy: localStorage.getItem('username') || 'system'
         }),
       });
-  
-      if (!response.ok) throw new Error("Failed to apply discount");
-  
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to remove service");
+      }
+
       const updatedRepair = await response.json();
-      setSelectedRepair(updatedRepair);
+
+      // Update local state
       setRepairs(repairs.map((r) => (r._id === updatedRepair._id ? updatedRepair : r)));
-      setServices(updatedRepair.services || []);
-      setDiscount(0);
-      setMessage("Discount applied and totals updated.");
+      setSelectedRepair(updatedRepair);
+      setAdditionalServices(updatedServices);
+
+      setMessage("Additional service removed successfully!");
     } catch (err) {
+      console.error("Error removing additional service:", err);
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
+
+  const handleReturnAdditionalService = async (index) => {
+    if (!window.confirm("Are you sure you want to return this paid service? This will refund the amount.")) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      // Get the service to return
+      const serviceToReturn = additionalServices[index];
+      if (!serviceToReturn) {
+        throw new Error("Service not found");
+      }
+
+      // Create new additionalServices (without the returned service)
+      const updatedAdditionalServices = [...additionalServices];
+      updatedAdditionalServices.splice(index, 1);
+
+      // Create new returnedadditionalServices (with the returned service)
+      const updatedReturnedServices = [
+        ...(selectedRepair.returnedadditionalServices || []),
+        {
+          ...serviceToReturn,
+          dateReturned: new Date().toISOString(), // Optional: track return date separately
+          returnedBy: localStorage.getItem('username') || 'system'
+        }
+      ];
+
+      const newrettotalAdditionalServicesAmount = updatedReturnedServices.reduce(
+        (total, s) => total + ( Math.max(0, parseFloat(s.serviceAmount || 0))), 0
+      );
+
+      // Send update to backend
+      const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          additionalServices: updatedAdditionalServices,
+          returnedadditionalServices: updatedReturnedServices,
+          rettotalAdditionalServicesAmount: newrettotalAdditionalServicesAmount,
+          changedBy: localStorage.getItem('username') || 'system'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to return service");
+      }
+
+      const updatedRepair = await response.json();
+
+      // Update local state
+      setRepairs(repairs.map((r) => (r._id === updatedRepair._id ? updatedRepair : r)));
+      setSelectedRepair(updatedRepair);
+      setAdditionalServices(updatedAdditionalServices);
+
+      if (selectedRepair.repairStatus !== "Returned") {
+        const response2 = await fetch(`${API_URL}/${selectedRepair._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ repairStatus: "Returned" }),
+        });
+
+        if (!response2.ok) {
+          const errorData = await response2.json();
+          throw new Error(errorData.message || "Failed to update repair status");
+        }
+
+        const updatedRepair2 = await response2.json();
+
+        // Update local state
+        setRepairs(repairs.map((r) => (r._id === updatedRepair2._id ? updatedRepair2 : r)));
+        setSelectedRepair(updatedRepair2);
+      }
+
+      setMessage(`✅ Service "${serviceToReturn.serviceName}" returned successfully!`);
+    } catch (err) {
+      console.error("Error returning additional service:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
     
   const calculateCartTotal = (cart) => {
     if (!cart || !Array.isArray(cart)) return "0.00";
     return cart
-      .reduce((total, item) => total + Math.max(0, parseFloat(item.cost || 0)), 0)
+      .reduce((total, item) => total + (Math.max(0, parseFloat(item.sellingPrice || 0)) * parseInt(item.quantity || 0)), 0)
       .toFixed(2);
   };
   const generatePDF = () => {
@@ -1255,7 +1363,7 @@ const ProductRepairList = ({ darkMode }) => {
             }
             .details strong, .totals strong {
               display: inline-block;
-              width: 150px;
+              width: 300px;
               color: #333;
             }
             table {
@@ -1352,11 +1460,41 @@ const ProductRepairList = ({ darkMode }) => {
                   .join("")}
               </tbody>
             </table>
+            ${ (repair.returnCart).length > 0 ? `
+              <div class="header">
+              Return Items
+              </div>
+              <table>
+              <thead>
+                <tr>
+                  <th>Item Name</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th>Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${repair.returnCart
+                  .map(
+                    (item) => `
+                      <tr>
+                        <td>${item.itemName}</td>
+                        <td>${item.category}</td>
+                        <td>${item.quantity}</td>
+                        <td>Rs. ${item.cost}</td>
+                      </tr>
+                    `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+            `: ''}
             <div class="details">
-              <p><strong>Product Description :</strong> ${repair.cartDescription}</p>
+              <p><strong>Product Description </strong> ${repair.cartDescription}</p>
             </div>
             <div class="totals">
-              <p><strong>Cart Total:</strong> Rs. ${calculateCartTotal(repair.repairCart)}</p>
+              <p><strong>Cart Total:</strong>: Rs. ${calculateCartTotal(repair.repairCart)}</p>
+              
               ${repair.services && repair.services.length > 0 ? `
               <div class="discounts">
                 <p><strong>Discounts:</strong></p>
@@ -1365,10 +1503,13 @@ const ProductRepairList = ({ darkMode }) => {
                     <li>${service.serviceName}: Rs. ${service.discountAmount} ${service.description ? `(${service.description})` : ''}</li>
                   `).join('')}
                 </ul>
-                <p><strong>Total Discount:</strong> Rs. ${repair.totalDiscountAmount || 0}</p>
+                <p><strong>Total Discount</strong>: Rs. ${repair.totalDiscountAmount || 0}</p>
               </div>
               ` : ''}
-              <p><strong>Total Repair Cost:</strong> Rs. ${repair.totalRepairCost || 0}</p>
+              <p><strong>Total Repair Cost</strong>: Rs. ${calculateCartTotal(repair.repairCart) - repair.totalDiscountAmount || 0}</p>
+              ${ (repair.totalReturnCost) > 0 ? `
+                <p><strong>Total Return Items Amount</strong>: Rs. ${repair.totalReturnCost || 0}</p>`:''}
+
               ${repair.additionalServices && repair.additionalServices.length > 0 ? `
               <div class="additional-services">
                 <p><strong>Additional Services:</strong></p>
@@ -1377,11 +1518,28 @@ const ProductRepairList = ({ darkMode }) => {
                     <li>${service.serviceName}: Rs. ${service.serviceAmount} ${service.description ? `(${service.description})` : ''}${repair.repairStatus !== "Pending" ? service.isPaid ? ' <span style="color: green;">[PAID]</span>' : ' <span style="color: red;">[UNPAID]</span>' : ''}</li>
                   `).join('')}
                 </ul>
-                <p><strong>Total Additional Services:</strong> Rs. ${repair.totalAdditionalServicesAmount || 0}</p>
+                <p><strong>Total Additional Services</strong>: Rs. ${repair.totalAdditionalServicesAmount || 0}</p>
               </div>
               ` : ''}
+
+              ${repair.rettotalAdditionalServicesAmount && (repair.returnedadditionalServices).length > 0 ? `
+              <div class="additional-services">
+                <p><strong>Returned Additional Services:</strong></p>
+                <ul style="list-style-type: none; padding-left: 20px; margin: 5px 0;">
+                  ${repair.returnedadditionalServices.map(service => `
+                    <li>${service.serviceName}: Rs. ${service.serviceAmount} ${service.description ? `(${service.description})` : ''}</li>
+                  `).join('')}
+                </ul>
+              </div>
+              ` : ''}
+
+              ${ (repair.rettotalAdditionalServicesAmount) > 0 ? `
+                <p><strong>Total Return Additional Services</strong>: Rs. ${repair.rettotalAdditionalServicesAmount || 0}</p>`:''}
               <p style="font-size: 16px; font-weight: bold; color: ${isPaid ? 'green' : 'red'}; border-top: 1px solid #ccc; padding-top: 10px;">
-                ${isPaid ? '✅ TO BE PAID TOTAL' : '❌ UNPAID TOTAL'}: Rs. ${repair.finalAmount || repair.totalRepairCost || 0}
+                ${isPaid ? '✅ PAID TOTAL' : '❌ UNPAID TOTAL'}: Rs. ${repair.finalAmount || repair.totalRepairCost || 0}
+              </p>
+              <p style="font-size: 16px; font-weight: bold; color: ${isPaid ? 'green' : 'red'}; border-top: 1px solid #ccc; padding-top: 10px;">
+                ${repair.rettotalAdditionalServicesAmount > 0 || repair.totalReturnCost > 0 ? `TOTAL RETURNED AMOUNT: Rs. ${repair.rettotalAdditionalServicesAmount + repair.totalReturnCost || 0}` : ''}
               </p>
             </div>
 
@@ -1994,7 +2152,7 @@ const ProductRepairList = ({ darkMode }) => {
         : item
     );
 
-    const cartTotal = updatedCart.reduce((sum, item) => sum + item.cost, 0);
+    const cartTotal = updatedCart.reduce((sum, item) => sum + (item.sellingPrice * item.quantity), 0);
     const baseTotal = cartTotal + (selectedRepair.repairCost || 0);
     const totalDiscountAmount = services.reduce((sum, s) => sum + s.discountAmount, 0);
     const totalAdditionalServicesAmount = selectedRepair.totalAdditionalServicesAmount || 0;
@@ -2652,6 +2810,7 @@ const ProductRepairList = ({ darkMode }) => {
                   <option value="In Progress">In Progress</option>
                   <option value="Completed">Completed</option>
                   <option value="Cancelled">Cancelled</option>
+                  <option value="Returned">Returned</option>
                 </select>
                 {loading && (
                   <div style={{
@@ -2918,7 +3077,7 @@ const ProductRepairList = ({ darkMode }) => {
                           )}
                         </td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
-                          {selectedRepair.repairStatus !== "Completed" && (
+                          {(selectedRepair.repairStatus !== "Completed" && selectedRepair.repairStatus !== "Returned") && (
                             <button
                               onClick={() => handleDecreaseCartQuantity(index)}
                               className="quantity-btn"
@@ -2938,6 +3097,27 @@ const ProductRepairList = ({ darkMode }) => {
                               -
                             </button>
                           )}
+                          {/* ✅ RETURN BUTTON — only show if status is "Completed" */}
+                          {(selectedRepair.repairStatus === "Completed" || selectedRepair.repairStatus === "Returned") && (
+                            <button
+                              onClick={() => handleReturnItem(index)}
+                              className="return-item-btn"
+                              disabled={loading}
+                              title="Return this item"
+                              style={{
+                                backgroundColor: "#ff9800",
+                                color: "white",
+                                border: "none",
+                                padding: "5px 10px",
+                                borderRadius: "3px",
+                                cursor: loading ? "not-allowed" : "pointer",
+                                opacity: loading ? 0.7 : 1,
+                                marginLeft: "5px"
+                              }}
+                            >
+                              ↩️ Return
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -2947,6 +3127,50 @@ const ProductRepairList = ({ darkMode }) => {
                 <p style={{ color: darkMode ? "#ccc" : "#666", fontStyle: "italic" }}>No items in cart.</p>
               )}            
             </div>
+            {/* ✅ RETURNED ITEMS */}
+            {selectedRepair.returnCart && selectedRepair.returnCart.length > 0 && (
+              <div style={{ marginTop: "30px" }}>
+                <h3 style={{
+                  fontSize: "18px",
+                  color: darkMode ? "#ddd" : "#ddd",
+                  marginBottom: "10px",
+                  borderBottom: `2px solid ${darkMode ? "#666" : "#ddd"}`,
+                  paddingBottom: "5px"
+                }}>
+                  Returned Items
+                </h3>
+                <table style={{ width: "100%", borderCollapse: "collapse", backgroundColor: darkMode ? "#444" : "#fff" }}>
+                  <thead>
+                    <tr style={{
+                      backgroundColor: darkMode ? "#555" : "#f2f2f2",
+                      color: darkMode ? "#fff" : "#333"
+                    }}>
+                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Item Name</th>
+                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Category</th>
+                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Qty</th>
+                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Sold Price</th>
+                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Returned At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedRepair.returnCart.map((item, idx) => (
+                      <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? (darkMode ? "#4a4a4a" : "#fafafa") : (darkMode ? "#444" : "#fff") }}>
+                        <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.itemName}</td>
+                        <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.category}</td>
+                        <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.quantity}</td>
+                        <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#ccc" : "#666" }}>
+                          {item.sellingPrice}
+                        </td>
+                        <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#ccc" : "#666" }}>
+                          {/* {item.returnedBy || 'system'} */}
+                          {new Date(item.returnedAt).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* ✅ NEW: Description Field After Cart */}
             {selectedRepair.repairStatus !== "Completed" ? (
@@ -3025,64 +3249,65 @@ const ProductRepairList = ({ darkMode }) => {
                 Total Repair Cost: <span style={{ color: darkMode ? "#fff" : "#fff" }}>Rs. {(selectedRepair.totalRepairCost || 0).toFixed(2)}</span>
               </p>
             </div>
-            {selectedRepair.repairStatus !== "Completed" && (
-              <div style={{ marginBottom: "20px" }}>
-                <h3 style={{
-                  fontSize: "18px",
-                  color: darkMode ? "#ddd" : "#555",
-                  marginBottom: "10px",
-                  borderBottom: `2px solid ${darkMode ? "#666" : "#ddd"}`,
-                  paddingBottom: "5px"
-                }}>
-                  Services & Discounts
-                </h3>
 
-                {/* Services List */}
-                {selectedRepair && selectedRepair.services && Array.isArray(selectedRepair.services) && selectedRepair.services.length > 0 ? (
-                  <div style={{ marginBottom: "15px" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", backgroundColor: darkMode ? "#444" : "#fff" }}>
-                      <thead>
-                        <tr style={{
-                          backgroundColor: darkMode ? "#555" : "#f2f2f2",
-                          color: darkMode ? "#fff" : "#333"
-                        }}>
-                          <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Service Name</th>
-                          <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Discount Amount</th>
-                          <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Description</th>
-                          <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Action</th>
+            <div style={{ marginBottom: "20px" }}>
+              <h3 style={{
+                fontSize: "18px",
+                color: darkMode ? "#ddd" : "#555",
+                marginBottom: "10px",
+                borderBottom: `2px solid ${darkMode ? "#666" : "#ddd"}`,
+                paddingBottom: "5px"
+              }}>
+                Discounts
+              </h3>
+
+              {/* Services List */}
+              {selectedRepair && selectedRepair.services && Array.isArray(selectedRepair.services) && selectedRepair.services.length > 0 ? (
+                <div style={{ marginBottom: "15px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", backgroundColor: darkMode ? "#444" : "#fff" }}>
+                    <thead>
+                      <tr style={{
+                        backgroundColor: darkMode ? "#555" : "#f2f2f2",
+                        color: darkMode ? "#fff" : "#333"
+                      }}>
+                        <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Service Name</th>
+                        <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Discount Amount</th>
+                        <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Description</th>
+                        <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedRepair.services.map((service, index) => (
+                        <tr key={index} style={{ backgroundColor: index % 2 === 0 ? (darkMode ? "#4a4a4a" : "#fafafa") : (darkMode ? "#444" : "#fff") }}>
+                          <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{service.serviceName}</td>
+                          <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>Rs. {service.discountAmount}</td>
+                          <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{service.description || "N/A"}</td>
+                          <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
+                            <button
+                              onClick={() => handleRemoveService(index)}  // ✅ Add this line
+                              style={{
+                                backgroundColor: "rgb(231, 76, 60)",
+                                color: "white",
+                                border: "none",
+                                padding: "5px 10px",
+                                borderRadius: "3px",
+                                cursor: "pointer"
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {selectedRepair.services.map((service, index) => (
-                          <tr key={index} style={{ backgroundColor: index % 2 === 0 ? (darkMode ? "#4a4a4a" : "#fafafa") : (darkMode ? "#444" : "#fff") }}>
-                            <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{service.serviceName}</td>
-                            <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>Rs. {service.discountAmount}</td>
-                            <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{service.description || "N/A"}</td>
-                            <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
-                              <button
-                                onClick={() => handleRemoveService(index)}  // ✅ Add this line
-                                style={{
-                                  backgroundColor: "rgb(231, 76, 60)",
-                                  color: "white",
-                                  border: "none",
-                                  padding: "5px 10px",
-                                  borderRadius: "3px",
-                                  cursor: "pointer"
-                                }}
-                              >
-                                Remove
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p style={{ color: darkMode ? "#ccc" : "#666", fontStyle: "italic", marginBottom: "15px" }}>No services or discounts added yet.</p>
-                )}
-
-                {/* Add New Service Form */}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p style={{ color: darkMode ? "#ccc" : "#666", fontStyle: "italic", marginBottom: "15px" }}>No Discounts added yet.</p>
+              )}
+              
+              {/* Add New Service Form */}
+              {selectedRepair.repairStatus !== "Completed" && (
                 <div style={{
                   backgroundColor: darkMode ? "#333" : "#f9f9f9",
                   padding: "15px",
@@ -3190,59 +3415,56 @@ const ProductRepairList = ({ darkMode }) => {
                     
                   </div>
                 </div>
-
-                {/* Legacy Discount (kept for backward compatibility)
-                <div style={{
-                  backgroundColor: darkMode ? "#333" : "#f9f9f9",
-                  padding: "15px",
-                  borderRadius: "5px"
-                }}>
-                  <h4 style={{
-                    margin: "0 0 10px 0",
-                    color: darkMode ? "#ddd" : "#333",
-                    fontSize: "16px"
-                  }}> */}
-                    {/* Quick Discount
-                  </h4>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <label style={{ color: darkMode ? "#ddd" : "#555" }}>
-                      Amount (Rs.):
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={discount}
-                      onChange={(e) => setDiscount(e.target.value)}
-                      className={`product-repair-list-input ${darkMode ? "dark" : ""}`}
-                      style={{
-                        width: "100px",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        border: "1px solid #ddd",
-                        backgroundColor: darkMode ? "#444" : "#fff",
-                        color: darkMode ? "#fff" : "#333"
-                      }}
-                    />
-                    <button
-                      onClick={handleApplyDiscount}
-                      style={{
-                        backgroundColor: "#f39c12",
-                        color: "white",
-                        border: "none",
-                        padding: "8px 15px",
-                        borderRadius: "4px",
-                        cursor: "pointer"
-                      }}
-                    >
-                      Apply Quick Discount
-                    </button>
-                  </div>
+              )}
+              {/* Legacy Discount (kept for backward compatibility)
+              <div style={{
+                backgroundColor: darkMode ? "#333" : "#f9f9f9",
+                padding: "15px",
+                borderRadius: "5px"
+              }}>
+                <h4 style={{
+                  margin: "0 0 10px 0",
+                  color: darkMode ? "#ddd" : "#333",
+                  fontSize: "16px"
+                }}> */}
+                {/* Quick Discount
+                </h4>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <label style={{ color: darkMode ? "#ddd" : "#555" }}>
+                    Amount (Rs.):
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                    className={`product-repair-list-input ${darkMode ? "dark" : ""}`}
+                    style={{
+                      width: "100px",
+                      padding: "8px",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd",
+                      backgroundColor: darkMode ? "#444" : "#fff",
+                      color: darkMode ? "#fff" : "#333"
+                    }}
+                  />
+                  <button
+                    onClick={handleApplyDiscount}
+                    style={{
+                      backgroundColor: "#f39c12",
+                      color: "white",
+                      border: "none",
+                      padding: "8px 15px",
+                      borderRadius: "4px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Apply Quick Discount
+                  </button>
                 </div>
-              </div>
-            )} */}
-
-             </div>
-            )}
+              </div>*/}
+            </div>
+            
 
             {/* Additional Services Section - Always visible, even for completed repairs */}
             <div style={{ marginBottom: "20px" }}>
@@ -3288,6 +3510,7 @@ const ProductRepairList = ({ darkMode }) => {
                           </td>
                           <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
                             {!service.isPaid && (
+                              <>
                               <button
                                 onClick={() => handlePayAdditionalService(index)}
                                 style={{
@@ -3301,6 +3524,38 @@ const ProductRepairList = ({ darkMode }) => {
                               >
                                 Mark as Paid
                               </button>
+                              
+                              <button
+                                  onClick={() => handleRemoveAdditionalService(index)}
+                                  style={{
+                                    backgroundColor: "#dc3545",
+                                    color: "white",
+                                    border: "none",
+                                    padding: "5px 10px",
+                                    borderRadius: "3px",
+                                    cursor: "pointer"
+                                  }}
+                                  title="Remove unpaid service"
+                              >
+                                  Remove
+                              </button>
+                              </>
+                            )}
+                            {service.isPaid && (
+                              <button
+                                onClick={() => handleReturnAdditionalService(index)}
+                                style={{
+                                  backgroundColor: "#ff9800",
+                                  color: "white",
+                                  border: "none",
+                                  padding: "5px 10px",
+                                  borderRadius: "3px",
+                                  cursor: "pointer"
+                                }}
+                                title="Return this paid service"
+                              >
+                                Return
+                              </button>
                             )}
                           </td>
                         </tr>
@@ -3312,8 +3567,8 @@ const ProductRepairList = ({ darkMode }) => {
                           Total Additional Services:
                         </td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", fontWeight: "bold", color: darkMode ? "#fff" : "#333" }}>
-  Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 : Math.max(0, parseFloat(service.serviceAmount || 0))), 0).toFixed(2)}
-</td>
+                          Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 : Math.max(0, parseFloat(service.serviceAmount || 0))), 0).toFixed(2)}
+                        </td>
                       </tr>
                     </tfoot>
                   </table>
@@ -3322,113 +3577,159 @@ const ProductRepairList = ({ darkMode }) => {
                 <p style={{ color: darkMode ? "#ccc" : "#666", fontStyle: "italic", marginBottom: "15px" }}>No additional services added yet.</p>
               )}
 
+              {/* ✅ RETURNED ADDITIONAL SERVICES */}
+              {selectedRepair.returnedadditionalServices && selectedRepair.returnedadditionalServices.length > 0 && (
+                <div style={{ marginBottom: "20px" }}>
+                  <h3 style={{
+                    fontSize: "18px",
+                    color: darkMode ? "#ddd" : "#555",
+                    marginBottom: "10px",
+                    borderBottom: `2px solid ${darkMode ? "#666" : "#ddd"}`,
+                    paddingBottom: "5px"
+                  }}>
+                    Returned Additional Services
+                  </h3>
+                  <table style={{ width: "100%", borderCollapse: "collapse", backgroundColor: darkMode ? "#444" : "#fff" }}>
+                    <thead>
+                      <tr style={{
+                        backgroundColor: darkMode ? "#555" : "#f2f2f2",
+                        color: darkMode ? "#fff" : "#333"
+                      }}>
+                        <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Service Name</th>
+                        <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Amount</th>
+                        <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Description</th>
+                        <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Returned At</th>
+                        {/* <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Returned By</th> */}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedRepair.returnedadditionalServices.map((service, idx) => (
+                        <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? (darkMode ? "#4a4a4a" : "#fafafa") : (darkMode ? "#444" : "#fff") }}>
+                          <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{service.serviceName}</td>
+                          <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>Rs. {service.serviceAmount}</td>
+                          <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{service.description || "N/A"}</td>
+                          <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#ccc" : "#666" }}>
+                            {new Date(service.dateAdded || service.dateReturned).toLocaleString()}
+                          </td>
+                          {/* <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#ccc" : "#666" }}>
+                            {service.returnedBy || 'system'}
+                          </td> */}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            
               {/* Add New Additional Service Form */}
-              <div style={{
-                backgroundColor: darkMode ? "#333" : "#f9f9f9",
-                padding: "15px",
-                borderRadius: "5px",
-                marginBottom: "15px"
-              }}>
-                <h4 style={{
-                  margin: "0 0 10px 0",
-                  color: darkMode ? "#ddd" : "#333",
-                  fontSize: "16px"
+              {selectedRepair.repairStatus !== "Completed" && (
+                <div style={{
+                  backgroundColor: darkMode ? "#333" : "#f9f9f9",
+                  padding: "15px",
+                  borderRadius: "5px",
+                  marginBottom: "15px"
                 }}>
-                  Add New Additional Service
-                </h4>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
-                  <div style={{ flex: "1 1 200px" }}>
-                    <label style={{
-                      display: "block",
-                      marginBottom: "5px",
-                      color: darkMode ? "#ccc" : "#555",
-                      fontSize: "14px"
-                    }}>
-                      Service Name:
-                    </label>
-                    <input
-                      type="text"
-                      name="serviceName"
-                      value={newAdditionalService.serviceName}
-                      onChange={handleNewAdditionalServiceChange}
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        border: "1px solid #ddd",
-                        backgroundColor: darkMode ? "#444" : "#fff",
-                        color: darkMode ? "#fff" : "#333"
-                      }}
-                      placeholder="e.g., Screen Protector"
-                    />
-                  </div>
-                  <div style={{ flex: "1 1 150px" }}>
-                    <label style={{
-                      display: "block",
-                      marginBottom: "5px",
-                      color: darkMode ? "#ccc" : "#555",
-                      fontSize: "14px"
-                    }}>
-                      Service Amount (Rs.):
-                    </label>
-                    <input
-                      type="number"
-                      name="serviceAmount"
-                      min="0"
-                      value={newAdditionalService.serviceAmount}
-                      onChange={handleNewAdditionalServiceChange}
-                      style={{
-                        width: "80%",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        border: "1px solid #ddd",
-                        backgroundColor: darkMode ? "#444" : "#fff",
-                        color: darkMode ? "#fff" : "#333"
-                      }}
-                    />
-                  </div>
-                  <div style={{ flex: "1 1 500px" }}>
-                    <label style={{
-                      display: "block",
-                      marginBottom: "5px",
-                      color: darkMode ? "#ccc" : "#555",
-                      fontSize: "14px"
-                    }}>
-                      Description (Optional):
-                    </label>
-                    <input
-                      type="text"
-                      name="description"
-                      value={newAdditionalService.description}
-                      onChange={handleNewAdditionalServiceChange}
-                      style={{
-                        width: "70%",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        border: "1px solid #ddd",
-                        backgroundColor: darkMode ? "#444" : "#fff",
-                        color: darkMode ? "#fff" : "#333"
-                      }}
-                      placeholder="e.g., Premium tempered glass"
-                    />
-                    <button
-                      onClick={handleAddAdditionalService}
-                      style={{
-                        backgroundColor: "#3498db",
-                        color: "white",
-                        border: "none",
-                        marginLeft: "15px",
-                        padding: "8px 15px",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        height: "36px"
-                      }}
-                    >
-                      Add Service
-                    </button>
+                  <h4 style={{
+                    margin: "0 0 10px 0",
+                    color: darkMode ? "#ddd" : "#333",
+                    fontSize: "16px"
+                  }}>
+                    Add New Additional Service
+                  </h4>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
+                    <div style={{ flex: "1 1 200px" }}>
+                      <label style={{
+                        display: "block",
+                        marginBottom: "5px",
+                        color: darkMode ? "#ccc" : "#555",
+                        fontSize: "14px"
+                      }}>
+                        Service Name:
+                      </label>
+                      <input
+                        type="text"
+                        name="serviceName"
+                        value={newAdditionalService.serviceName}
+                        onChange={handleNewAdditionalServiceChange}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ddd",
+                          backgroundColor: darkMode ? "#444" : "#fff",
+                          color: darkMode ? "#fff" : "#333"
+                        }}
+                        placeholder="e.g., Screen Protector"
+                      />
+                    </div>
+                    <div style={{ flex: "1 1 150px" }}>
+                      <label style={{
+                        display: "block",
+                        marginBottom: "5px",
+                        color: darkMode ? "#ccc" : "#555",
+                        fontSize: "14px"
+                      }}>
+                        Service Amount (Rs.):
+                      </label>
+                      <input
+                        type="number"
+                        name="serviceAmount"
+                        min="0"
+                        value={newAdditionalService.serviceAmount}
+                        onChange={handleNewAdditionalServiceChange}
+                        style={{
+                          width: "80%",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ddd",
+                          backgroundColor: darkMode ? "#444" : "#fff",
+                          color: darkMode ? "#fff" : "#333"
+                        }}
+                      />
+                    </div>
+                    <div style={{ flex: "1 1 500px" }}>
+                      <label style={{
+                        display: "block",
+                        marginBottom: "5px",
+                        color: darkMode ? "#ccc" : "#555",
+                        fontSize: "14px"
+                      }}>
+                        Description (Optional):
+                      </label>
+                      <input
+                        type="text"
+                        name="description"
+                        value={newAdditionalService.description}
+                        onChange={handleNewAdditionalServiceChange}
+                        style={{
+                          width: "70%",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ddd",
+                          backgroundColor: darkMode ? "#444" : "#fff",
+                          color: darkMode ? "#fff" : "#333"
+                        }}
+                        placeholder="e.g., Premium tempered glass"
+                      />
+                      <button
+                        onClick={handleAddAdditionalService}
+                        style={{
+                          backgroundColor: "#3498db",
+                          color: "white",
+                          border: "none",
+                          marginLeft: "15px",
+                          padding: "8px 15px",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          height: "36px"
+                        }}
+                      >
+                        Add Service
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Final Amount Display */}
               {(selectedRepair.totalRepairCost > 0 || additionalServices.length > 0) && (
@@ -3439,9 +3740,7 @@ const ProductRepairList = ({ darkMode }) => {
                   marginBottom: "15px",
                   textAlign: "right"
                 }}>
-
-
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{
                       fontWeight: "bold",
                       fontSize: "16px",
@@ -3464,16 +3763,52 @@ const ProductRepairList = ({ darkMode }) => {
                       fontSize: "16px",
                       color: darkMode ? "#fff" : "#333"
                     }}>
-  Final Amount:
-  </span>
+                      Total Additional Services:
+                    </span>
                     <span style={{
                       fontWeight: "bold",
                       fontSize: "16px",
                       color: darkMode ? "#fff" : "#333"
                     }}>
-Rs. {((selectedRepair.totalRepairCost || 0) +
-  (selectedRepair.additionalServices ? selectedRepair.additionalServices.reduce((total, service) => total + Math.max(0, parseFloat(service.serviceAmount || 0)), 0) : 0)
-).toFixed(2)}                    </span>
+                      Rs. {((selectedRepair.totalAdditionalServicesAmount || 0)
+                      ).toFixed(2)}                    
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{
+                      fontWeight: "bold",
+                      fontSize: "16px",
+                      color: darkMode ? "#fff" : "#333"
+                    }}>
+                      Total Discounts:
+                    </span>
+                    <span style={{
+                      fontWeight: "bold",
+                      fontSize: "16px",
+                      color: darkMode ? "#fff" : "#333"
+                    }}>
+                      Rs. {((selectedRepair.totalDiscountAmount || 0)
+                      ).toFixed(2)}                    
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{
+                      fontWeight: "bold",
+                      fontSize: "16px",
+                      color: darkMode ? "#fff" : "#333"
+                    }}>
+                       Final Amount:
+                    </span>
+                    <span style={{
+                      fontWeight: "bold",
+                      fontSize: "16px",
+                      color: darkMode ? "#fff" : "#333"
+                    }}>
+                      Rs. {((selectedRepair.totalRepairCost || 0) - (selectedRepair.totalDiscountAmount || 0) +
+                        (selectedRepair.totalAdditionalServicesAmount || 0)
+                      ).toFixed(2)}                    
+                    </span>
                   </div>
 
                   {additionalServices.length > 0 && (
@@ -3490,8 +3825,53 @@ Rs. {((selectedRepair.totalRepairCost || 0) +
                         fontSize: "16px",
                         color: darkMode ? "#fff" : "#333"
                       }}>
-Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 : Math.max(0, parseFloat(service.serviceAmount || 0))), 0).toFixed(2)}                      </span>
+                        Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 : Math.max(0, parseFloat(service.serviceAmount || 0))), 0).toFixed(2)}
+                      </span>
                     </div>
+                  )}
+
+                  {selectedRepair.repairStatus === "Returned" && (
+                    <>
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginTop: "10px",
+                      borderTop: `2px solid ${darkMode ? "#4a5568" : "#b3e0ff"}`,
+                      paddingTop: "10px"
+                    }}>
+                      <span style={{
+                        fontWeight: "bold",
+                        fontSize: "16px",
+                        color: darkMode ? "#fff" : "#f20000ff"
+                      }}>
+                        Total Return Item Cost:
+                      </span>
+                      <span style={{
+                        fontWeight: "bold",
+                        fontSize: "16px",
+                        color: darkMode ? "#fff" : "#f20000ff"
+                      }}>
+                        Rs. {((selectedRepair.totalReturnCost || 0)).toFixed(2)}                    
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px" }}>
+                      <span style={{
+                        fontWeight: "bold",
+                        fontSize: "16px",
+                        color: darkMode ? "#fff" : "#f20000ff"
+                      }}>
+                        Total Return Additional Services:
+                      </span>
+                      <span style={{
+                        fontWeight: "bold",
+                        fontSize: "16px",
+                        color: darkMode ? "#fff" : "#f20000ff"
+                      }}>
+                        Rs. {((selectedRepair.rettotalAdditionalServicesAmount || 0)).toFixed(2)}                    
+                      </span>
+                    </div>
+                    </>
                   )}
 
                   <div style={{
@@ -3502,31 +3882,31 @@ Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 :
                     borderTop: `2px solid ${darkMode ? "#4a5568" : "#b3e0ff"}`,
                     paddingTop: "10px"
                   }}>
-<span style={{
-  fontWeight: "bold",
-  fontSize: "18px",
-  color: darkMode ? "#63b3ed" : "#0366d6"
-}}>
-  AMOUNT TO PAID:
-</span>
-<span style={{
-  fontWeight: "bold",
-  fontSize: "18px",
-  color: darkMode ? "#63b3ed" : "#0366d6"
-}}>
-  Rs. {((selectedRepair.repairStatus === "Completed")
-    ? additionalServices.reduce((total, service) => total + (service.isPaid ? 0 : Math.max(0, parseFloat(service.serviceAmount || 0))), 0)
-    : (selectedRepair.totalRepairCost || 0) +
-      additionalServices.reduce((total, service) => total + (service.isPaid ? 0 : Math.max(0, parseFloat(service.serviceAmount || 0))), 0)
-  ).toFixed(2)}
-</span>
-</div>
+                    <span style={{
+                      fontWeight: "bold",
+                      fontSize: "18px",
+                      color: darkMode ? "#63b3ed" : "#0366d6"
+                    }}>
+                      AMOUNT TO PAID:
+                    </span>
+                    <span style={{
+                      fontWeight: "bold",
+                      fontSize: "18px",
+                      color: darkMode ? "#63b3ed" : "#0366d6"
+                    }}>
+                      Rs. {((selectedRepair.repairStatus === "Completed" || selectedRepair.repairStatus === "Returned")
+                        ? additionalServices.reduce((total, service) => total + (service.isPaid ? 0 : Math.max(0, parseFloat(service.serviceAmount || 0))), 0)
+                        : (selectedRepair.totalRepairCost || 0) - (selectedRepair.totalDiscountAmount || 0) +
+                          additionalServices.reduce((total, service) => total + (service.isPaid ? 0 : Math.max(0, parseFloat(service.serviceAmount || 0))), 0)
+                      ).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-              )}
+                )}
             </div>
 
             <div className="modal-buttons" style={{ display: "flex", justifyContent: "space-between", marginTop: "20px" }}>
-              {selectedRepair.repairStatus !== "Completed" && (
+              {selectedRepair.repairStatus !== "Completed" && selectedRepair.repairStatus !== "Returned" && (
                 <button
                   onClick={handleCompletePayment}
                   className={`a-p-submit-btn ${darkMode ? "dark" : ""}`}

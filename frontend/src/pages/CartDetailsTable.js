@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CartForm from './CartForm';
+import ReturnCartForm from './ReturnCartForm';
+
 import '../Products.css';
 import editicon from '../icon/edit.png';
 import viewicon from '../icon/clipboard.png'; 
@@ -21,7 +23,9 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editItem, setEditItem] = useState(null);
+  const [returnItem, setReturnItem] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 8;
@@ -30,6 +34,8 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   const [trackItemData, setTrackItemData] = useState(null);
   const [showTrackModal, setShowTrackModal] = useState(false);
   const [trackingLoading, setTrackingLoading] = useState(false);
+  const [returnStocks, setReturnStocks] = useState({});
+  const [productStocks, setProductStocks] = useState({});
 
   const fetchItems = async () => {
     setLoading(true);
@@ -54,9 +60,58 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     }
   };
 
+  const fetchReturnStock = async (itemCode) => {
+    try {
+      const response = await fetch(`${PRODUCT_API_URL}/${encodeURIComponent(itemCode)}`);
+      if (!response.ok) {
+        console.warn(`Product ${itemCode} not found`);
+        return 0;
+      }
+      const product = await response.json();
+      return product.returnstock || 0;
+    } catch (err) {
+      console.error(`Error fetching return stock for ${itemCode}:`, err);
+      return 0;
+    }
+  };
+
+  const fetchProductStock = async (itemCode) => {
+    try {
+      const response = await fetch(`${PRODUCT_API_URL}/${encodeURIComponent(itemCode)}`);
+      if (!response.ok) {
+        console.warn(`Product ${itemCode} not found`);
+        return 0;
+      }
+      const product = await response.json();
+      return product.stock || 0;
+    } catch (err) {
+      console.error(`Error fetching stock for ${itemCode}:`, err);
+      return 0;
+    }
+  };
+
   useEffect(() => {
     fetchItems();
   }, [supplierId]);
+
+  useEffect(() => {
+    const loadReturnStocks = async () => {
+      const stocks = {};
+      const avlstocks = {};
+      for (const item of items) {
+        if (item.itemCode) {
+          stocks[item.itemCode] = await fetchReturnStock(item.itemCode);
+          avlstocks[item.itemCode] = await fetchProductStock(item.itemCode);
+        }
+      }
+      setReturnStocks(stocks);
+      setProductStocks(avlstocks);
+    };
+
+    if (items.length > 0) {
+      loadReturnStocks();
+    }
+  }, [items]);
 
   const formatTrackDate = (dateString) => {
   if (!dateString) return 'N/A';
@@ -141,6 +196,12 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   const handleEdit = (item, index) => {
     setEditItem({ ...item, index });
     setShowEditModal(true);
+    setShowActionMenu(null);
+  };
+
+  const handleReturn = (item, index) => {
+    setReturnItem({ ...item, index });
+    setShowReturnModal(true);
     setShowActionMenu(null);
   };
 
@@ -268,6 +329,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
               <th>Item Name</th>
               <th>Category</th>
               <th>Stock</th>
+              <th>Returns / Avl Stocks</th>
               <th>Buying Price</th>
               {/* <th>Selling Price</th> */}
               <th>Action</th>
@@ -282,6 +344,21 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                 <td>{item.itemName || 'N/A'}</td>
                 <td>{item.category || 'N/A'}</td>
                 <td>{item.quantity || '0'}</td>
+                <td>
+                  <span style={{
+                    color: (returnStocks[item.itemCode] || 0) > 0 ? '#e74c3c' : 'inherit',
+                    fontWeight: 'bold' 
+                  }}>
+                    {returnStocks[item.itemCode] || 0}
+                  </span>
+                   <span> / </span>
+                  <span style={{
+                    color: (productStocks[item.itemCode] || 0) > 0 ? "#28a745" : "#e74c3c",
+                    fontWeight: 'bold' 
+                  }}>
+                    {productStocks[item.itemCode] || 0}
+                  </span>
+                </td>
                 <td>Rs. {item.buyingPrice || '0'}</td>
                 {/* <td>Rs. {item.sellingPrice || '0'}</td> */}
                 <td>
@@ -303,6 +380,12 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                             <div className="action-btn-content">
                               <img src={viewicon} alt="track" width="30" height="30" className="p-track-btn-icon" />
                               <span>Track Usage</span>
+                            </div>
+                          </button>
+                          <button onClick={() => handleReturn(item, index)} className="p-edit-btn">
+                            <div className="action-btn-content">
+                              <span className="p-edit-btn-icon" style={{width:"30", height:"30"}}>↩️ </span>
+                              <span> Return</span>
                             </div>
                           </button>
                           <button onClick={() => handleEdit(item, index)} className="p-edit-btn">
@@ -360,7 +443,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                       <td>{record.type}</td>
                       <td>{record.invoiceNo}</td>
                       <td>{record.customerName}</td>
-                      <td>{record.quantity}</td>
+                      <td>{record.retalert === "returned" ? `Returned: ${record.retquantity}` : `${record.quantity}`}</td>
                       <td>{record.date}</td>
                     </tr>
                   ))}
@@ -384,11 +467,23 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
             setShowEditModal(false);
             setEditItem(null);
             fetchItems();
-            refreshSuppliers();
           }}
           darkMode={darkMode}
         />
       )}
+      {showReturnModal && returnItem && (
+        <ReturnCartForm
+          supplier={{ _id: supplierId, supplierName:supplierName }}
+          item={returnItem}
+          closeModal={() => {
+            setShowReturnModal(false);
+            setReturnItem(null);
+            fetchItems();
+          }}
+          darkMode={darkMode}
+        />
+      )}
+      
     </div>
   );
 };

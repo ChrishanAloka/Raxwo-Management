@@ -47,6 +47,9 @@ const SupplierList = ({ darkMode }) => {
   const [notification, setNotification] = useState('');
   const [showEditSupplierModal, setShowEditSupplierModal] = useState(false);
 
+  const [grnReturnTotal, setGrnReturnTotal] = useState(0);
+  const [returnStocks, setReturnStocks] = useState({});
+
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -162,11 +165,48 @@ const SupplierList = ({ darkMode }) => {
     setShowItemDetailsModal(true);
   };
 
+  const fetchReturnStock = async (itemCode) => {
+    try {
+      const response = await fetch(`https://raxwo-management.onrender.com/api/products/${encodeURIComponent(itemCode)}`);
+      if (!response.ok) {
+        console.warn(`Product ${itemCode} not found`);
+        return 0;
+      }
+      const product = await response.json();
+      return product.returnstock || 0;
+    } catch (err) {
+      console.error(`Error fetching return stock for ${itemCode}:`, err);
+      return 0;
+    }
+  };
+
+  const calculateGrnReturnTotal = async (itemsInGrn) => {
+    let totalReturned = 0;
+    for (const item of itemsInGrn) {
+      if (item.itemCode) {
+        try {
+          const response = await fetch(`https://raxwo-management.onrender.com/api/products/${encodeURIComponent(item.itemCode)}`);
+          if (response.ok) {
+            const product = await response.json();
+            // Add the returnstock for this item
+            totalReturned += product.returnstock || 0;
+          }
+        } catch (err) {
+          console.warn(`Could not fetch return stock for ${item.itemCode}`);
+        }
+      }
+    }
+    setGrnReturnTotal(totalReturned);
+  };
+
   const fetchItemDetails = async () => {
     if (!selectedSupplier || !selectedItemCode) return;
 
     setLoading(true);
     setError(null);
+    setItemDetails([]);
+    setGrnReturnTotal(0); // reset
+    setReturnStocks({});
     try {
       const response = await fetch(
         `https://raxwo-management.onrender.com/api/suppliers/${selectedSupplier._id}/items/grn/${encodeURIComponent(selectedItemCode)}`
@@ -177,8 +217,26 @@ const SupplierList = ({ darkMode }) => {
       }
 
       const data = await response.json();
+      const items = Array.isArray(data) ? data : [];
 
-      setItemDetails(Array.isArray(data) ? data : []);
+       setItemDetails(items);
+
+       // ✅ Calculate total returned for this GRN
+      if (items.length > 0) {
+        calculateGrnReturnTotal(items);
+      }
+
+      // ✅ Fetch return stock for each unique itemCode in this GRN
+      if (items.length > 0) {
+        const stocks = {};
+        const uniqueItemCodes = [...new Set(items.map(item => item.itemCode).filter(Boolean))];
+        
+        for (const code of uniqueItemCodes) {
+          stocks[code] = await fetchReturnStock(code);
+        }
+        setReturnStocks(stocks);
+      }
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -217,27 +275,64 @@ const SupplierList = ({ darkMode }) => {
 
   const normalize = str => (str || '').toLowerCase();
 
-const filteredSuppliers = suppliers.filter(supplier => {
-  const query = normalize(searchQuery).trim();
-  if (!query) return true;
+  const filteredSuppliers = suppliers.filter(supplier => {
+    const query = normalize(searchQuery).trim();
+    if (!query) return true;
 
-  // Split query into individual words (e.g., "john tech" → ["john", "tech"])
-  const queryWords = query.split(' ').filter(word => word);
+    // Split query into individual words (e.g., "john tech" → ["john", "tech"])
+    const queryWords = query.split(' ').filter(word => word);
 
-  const supplierName = normalize(supplier.supplierName);
-  const businessName = normalize(supplier.businessName);
-  const phoneNumber = normalize(supplier.phoneNumber);
+    const supplierName = normalize(supplier.supplierName);
+    const businessName = normalize(supplier.businessName);
+    const phoneNumber = normalize(supplier.phoneNumber);
 
-  // Check if each query word matches *anywhere* in either field
-  return queryWords.every(word =>
-    supplierName.includes(word) ||
-    businessName.includes(word) ||
-    phoneNumber.includes(word)
-  );
-});
+    // Check if each query word matches *anywhere* in either field
+    return queryWords.every(word =>
+      supplierName.includes(word) ||
+      businessName.includes(word) ||
+      phoneNumber.includes(word)
+    );
+  }); 
 
   const handleClearSearch = () => {
     setSearchQuery('');
+  };
+
+  const getGrnOptionsFromSupplier = (supplier) => {
+    if (!supplier || !Array.isArray(supplier.items)) return [];
+
+    const grnGroups = {};
+
+    // Group items by grnNumber
+    supplier.items.forEach(item => {
+      if (!item.grnNumber) return; // Skip items without GRN
+
+      if (!grnGroups[item.grnNumber]) {
+        grnGroups[item.grnNumber] = {
+          grnNumber: item.grnNumber,
+          grnDate: item.date, // Use the item's date as GRN date
+          totalAmount: 0,
+          itemCount: 0
+        };
+      }
+
+      grnGroups[item.grnNumber].totalAmount += (item.buyingPrice || 0) * (item.quantity || 0);
+      grnGroups[item.grnNumber].itemCount += item.quantity || 0;
+    });
+
+    // Convert to sorted array (newest first)
+    return Object.values(grnGroups)
+      .sort((a, b) => new Date(b.grnDate) - new Date(a.grnDate)) // newest first
+      .map(grn => {
+        const formattedDate = new Date(grn.grnDate).toLocaleDateString('en-GB'); // DD/MM/YYYY
+        const label = `${grn.grnNumber} | ${formattedDate} | Rs. ${grn.totalAmount.toFixed(2)}`;
+        return {
+          value: grn.grnNumber,
+          label: label,
+          grnDate: grn.grnDate,
+          totalAmount: grn.totalAmount
+        };
+      });
   };
 
   return (
@@ -364,11 +459,7 @@ const filteredSuppliers = suppliers.filter(supplier => {
                 <Select
                   value={selectedItemCode ? { value: selectedItemCode, label: selectedItemCode } : null}
                   onChange={(selectedOption) => setSelectedItemCode(selectedOption ? selectedOption.value : '')}
-                  options={Array.from(new Set(
-                    selectedSupplier.items
-                      .filter(item => item.grnNumber)
-                      .map(item => item.grnNumber)
-                  )).map(grn => ({ value: grn, label: grn }))}
+                  options={getGrnOptionsFromSupplier(selectedSupplier)}
                   placeholder="Select or search GRN..."
                   isClearable
                   isSearchable
@@ -458,52 +549,115 @@ const filteredSuppliers = suppliers.filter(supplier => {
             </div>
             {loading ? (
               <p className="loading">Loading item details...</p>
-            ) : itemDetails.length > 0 ? (
-              <table className={`product-table-supplierfetch ${darkMode ? 'dark' : ''}`}>
-                <thead>
-                  <tr>
-                    <th>GRN</th>
-                    <th>Item Name</th>
-                    <th>Category</th>
-                    <th>Buying Price</th>
-                    {/* <th>Selling Price</th> */}
-                    <th>Stock</th>
-                    {/* <th>Supplier</th> */}
-                  </tr>
-                </thead>
-                <tbody>
-                  {itemDetails.map((product) => (
-                    <tr key={product._id}>
-                      <td>{product.grnNumber || 'N/A'}</td>
-                      <td className={`text-wrap ${darkMode ? 'dark' : ''}`} title={product.itemName}>{product.itemName}</td>
-                      <td>{product.category}</td>
-                      <td>Rs. {product.buyingPrice.toFixed(2)}</td>
-                      {/* <td>Rs. {product.sellingPrice.toFixed(2)}</td> */}
-                      <td>{product.quantity}</td>
-                      {/* <td>{product.supplierName || 'N/A'}</td> */}
-                    </tr>
-                  ))}
-                  <tr className="summary-total-row">
-                    <td><strong>Total</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td>
-                      <strong>
-                        Rs. {itemDetails
-                          .reduce((total, item) => total + (item.quantity * item.buyingPrice), 0)
-                          .toFixed(2)}
-                      </strong>
-                    </td>
-                    <td>
-                      <strong>
-                        {itemDetails
-                          .reduce((total, item) => total + item.quantity, 0)}
-                      </strong>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            ) : (
+            ) : itemDetails.length > 0 ? ( 
+              <>
+                {(() => {
+                  // Calculate original total (what was received)
+                  const originalTotal = itemDetails.reduce((sum, item) => {
+                    return sum + (item.buyingPrice || 0) * (item.quantity || 0);
+                  }, 0);
+
+                  // Calculate returned value (using returnStocks)
+                  const returnedValue = itemDetails.reduce((sum, item) => {
+                    const returnedQty = returnStocks[item.itemCode] || 0;
+                    // Cap returned quantity to not exceed original GRN quantity (optional safety)
+                    const actualReturned = Math.min(returnedQty, item.quantity || 0);
+                    return sum + (item.buyingPrice || 0) * actualReturned;
+                  }, 0);
+
+                  const adjustedTotal = originalTotal - returnedValue;
+                  
+                  return (
+                    <>
+                      <div className="grn-totals-summary">
+                        <div><strong>GRN Total:</strong> Rs. {originalTotal.toFixed(2)}</div>
+                        <div><strong>Returned Value:</strong> Rs. {returnedValue.toFixed(2)}</div>
+                        <div><strong>Adjusted Total:</strong> Rs. {adjustedTotal.toFixed(2)}</div>
+                      </div>
+                  
+                      <table className={`product-table-supplierfetch ${darkMode ? 'dark' : ''}`}>
+                        <thead>
+                          <tr>
+                            <th>GRN</th>
+                            <th>Item Name</th>
+                            <th>Category</th>
+                            
+                            {/* <th>Selling Price</th> */}
+                            <th>Stock</th>
+                            {/* <th>Supplier</th> */}
+                            <th>Ret.Stock</th>
+                            <th>Buying Price</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {itemDetails.map((product) => {
+                            const returnedQty = returnStocks[product.itemCode] || 0;
+                            const netQty = (product.quantity || 0) - returnedQty;
+                            return (
+                              <tr key={product._id}>
+                                <td>{product.grnNumber || 'N/A'}</td>
+                                <td className={`text-wrap ${darkMode ? 'dark' : ''}`} title={product.itemName}>{product.itemName}</td>
+                                <td>{product.category}</td>
+                                
+                                {/* <td>Rs. {product.sellingPrice.toFixed(2)}</td> */}
+                                <td>{product.quantity}</td>
+                                {/* <td>{product.supplierName || 'N/A'}</td> */}
+                                <td style={{ color: '#e74c3c', fontWeight: 'bold' }}>
+                                  {returnedQty}
+                                </td>
+                                <td>Rs. {product.buyingPrice.toFixed(2)}</td>
+                              </tr>
+                            );
+                          })}
+                          <tr className="summary-total-row">
+                            <td><strong>Sub Total</strong></td>
+                            <td></td>
+                            <td></td>
+                            
+                            <td>
+                              <strong>
+                                {itemDetails.reduce((sum, item) => sum + (item.quantity || 0), 0)}
+                              </strong>
+                            </td>
+                            <td>
+                              <strong style={{ color: '#e74c3c' }}>
+                                {itemDetails.reduce((sum, item) => sum + (returnStocks[item.itemCode] || 0), 0)}
+                              </strong>
+                            </td>
+                            <td>
+                              <strong>
+                                Rs. {itemDetails
+                                  .reduce((total, item) => total + (item.quantity * item.buyingPrice), 0)
+                                  .toFixed(2)}
+                              </strong>
+                            </td>
+                            
+                          </tr>
+                          <tr className="summary-total-row">
+                            <td colspan="5">
+                              <strong>Total Pay for </strong> 
+                              <strong style={{ color: adjustedTotal < 0 ? '#e74c3c' : '#28a745' }}>
+                                {itemDetails.reduce((sum, item) => {
+                                  const net = (item.quantity || 0) - (returnStocks[item.itemCode] || 0);
+                                  return sum + net;
+                                }, 0)}
+                              </strong>
+                              <strong> Items </strong> 
+                            </td>
+                            
+                            <td>
+                              <strong>
+                                Rs. {adjustedTotal.toFixed(2)}
+                              </strong>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </>
+                  );  
+                })()}
+            </>
+           ) : (
               <p className="no-products">No items found for the selected supplier and item code.</p>
             )}
           </div>

@@ -262,7 +262,7 @@ const fetchPaymentIncomes = async () => {
       const incomeEntries = jobs
         .filter(job =>
           BANK_PAYMENT_METHODS.includes(job.paymentMethod) &&
-          job.repairStatus === "Completed"
+          (job.repairStatus === "Completed" || job.repairStatus === "Returned")
         )
         .map(job => {
           const createdAt = new Date(job.createdAt);

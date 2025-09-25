@@ -1492,8 +1492,10 @@ input.dark:focus, select.dark:focus {
 .product-table-supplierfetch th:nth-child(4),
 .product-table-supplierfetch td:nth-child(4),
 .product-table-supplierfetch th:nth-child(5),
-.product-table-supplierfetch td:nth-child(5) {
-  width: 10%;
+.product-table-supplierfetch td:nth-child(5),
+.product-table-supplierfetch th:nth-child(6),
+.product-table-supplierfetch td:nth-child(6) {
+  width: 15%;
   white-space: nowrap; /* Keep price on one line */
 }
 

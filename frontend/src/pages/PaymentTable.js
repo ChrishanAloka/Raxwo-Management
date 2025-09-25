@@ -12,6 +12,7 @@ import '../styles/PaymentTable.css';
 import deleteIcon from "../icon/delete.png";
 import editicon from '../icon/edit.png';
 import EditPayment from '../EditPayment';
+import ReturnPayment from '../ReturnPayment';
 import { useMemo } from 'react'; // Make sure this is imported
 
 const API_URL = 'https://raxwo-management.onrender.com/api/payments';
@@ -23,6 +24,7 @@ const PaymentTable = ({ darkMode }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showPaymenteditModal, setShowPaymenteditModal] = useState(false);
+  const [showPaymentreturnModal, setShowPaymentreturnModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [showReportOptions, setShowReportOptions] = useState(false);
@@ -109,6 +111,11 @@ const PaymentTable = ({ darkMode }) => {
   const handleEdit = (payment) => {
     setSelectedPayment(payment);
     setShowPaymenteditModal(true);
+  };
+
+  const handleReturn = (payment) => {
+    setSelectedPayment(payment);
+    setShowPaymentreturnModal(true);
   };
 
   const generatePaymentBill = (paymentData) => {
@@ -1270,6 +1277,12 @@ const PaymentTable = ({ darkMode }) => {
                                 <span>Delete</span>
                               </div>
                             </button>
+                            <button onClick={() => handleReturn(payment)} className="p-edit-btn">
+                              <div className="action-btn-content">
+                                <span className="p-edit-btn-icon" style={{width:"30", height:"30"}}>↩️ </span>
+                                <span> Return</span>
+                              </div>
+                            </button>
                             <button 
                               onClick={() => generatePaymentBill(payment)}
                               className="p-edit-btn"
@@ -1332,15 +1345,25 @@ const PaymentTable = ({ darkMode }) => {
         </div>
       )}
       {showPaymenteditModal && selectedPayment && (
-              <EditPayment
-                payment={selectedPayment}
-                closeModal={() => {
-                  setShowPaymenteditModal(false);
-                  fetchPayments()
-                }}
-                darkMode={darkMode}
-              />
-            )}
+        <EditPayment
+          payment={selectedPayment}
+          closeModal={() => {
+            setShowPaymenteditModal(false);
+            fetchPayments()
+          }}
+          darkMode={darkMode}
+        />
+      )}
+      {showPaymentreturnModal && selectedPayment && (
+        <ReturnPayment
+          payment={selectedPayment}
+          closeModal={() => {
+            setShowPaymentreturnModal(false);
+            fetchPayments()
+          }}
+          darkMode={darkMode}
+        />
+      )}
     </div>
   );
 };

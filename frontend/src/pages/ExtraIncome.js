@@ -39,6 +39,8 @@ const ExtraIncome = ({ darkMode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [returningRecord, setReturningRecord] = useState(null);
+
   // Sample data for demo mode
   const sampleData = [
     {
@@ -89,6 +91,23 @@ const ExtraIncome = ({ darkMode }) => {
     fetchExtraIncomes();
   }, []);
 
+  useEffect(() => {
+    if (!returningRecord) return;
+
+    let total = 0;
+
+    if (returningRecord.returnAlert === "returned") {
+      total = parseFloat(returningRecord.serviceCharge) || 0;
+    } else {
+      total = parseFloat(returningRecord.amount) || 0;
+    }
+
+    setReturningRecord(prev => ({
+      ...prev,
+      totalAmount: total.toFixed(2)
+    }));
+  }, [returningRecord?.returnAlert, returningRecord?.serviceCharge, returningRecord?.amount]);
+
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -137,6 +156,80 @@ const ExtraIncome = ({ darkMode }) => {
       onUpdate();
     } catch (err) {
       console.error("Error adding extra income:", err);
+      setError(err.message);
+    }
+  };
+
+  const handleReturn = (record) => {
+    setReturningRecord({
+      ...record,
+      returnAlert: record.returnAlert || "",
+      serviceCharge: record.serviceCharge?.toString() || "0",
+      totalAmount: record.totalAmount?.toString() || record.amount?.toString() || "0",
+    });
+    setShowActionMenu(null);
+  };
+
+  const handleReturnSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const {
+        _id,
+        date,
+        time,
+        incomeType,
+        amount,
+        description,
+        assignedTo,
+        paymentMethod,
+        returnAlert,
+        serviceCharge,
+        totalAmount
+      } = returningRecord;
+
+      const combinedDateTime = new Date(`${date}T${time}`);
+
+      const payload = {
+        date: combinedDateTime,
+        incomeType,
+        amount: parseFloat(amount),
+        description,
+        assignedTo,
+        paymentMethod,
+        returnAlert,
+        serviceCharge: parseFloat(serviceCharge) || 0,
+        totalAmount: parseFloat(totalAmount),
+      };
+
+      const response = await fetch(`${API_URL}/${_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update return record");
+      }
+
+      const updatedRecord = await response.json();
+
+      setExtraIncomes(
+        extraIncomes.map((income) =>
+          income._id === _id
+            ? {
+                ...updatedRecord,
+                date: new Date(updatedRecord.date).toISOString().split("T")[0],
+                time: new Date(updatedRecord.date).toTimeString().slice(0, 5),
+              }
+            : income
+        )
+      );
+
+      setReturningRecord(null);
+      onUpdate();
+    } catch (err) {
+      console.error("Error updating return record:", err);
       setError(err.message);
     }
   };
@@ -496,6 +589,11 @@ const ExtraIncome = ({ darkMode }) => {
                               <span>Delete</span>
                             </div>
                           </button>
+                          <button onClick={() => handleReturn(record)} className="p-return-btn">
+                            <div className="action-btn-content">
+                              <span>Return</span>
+                            </div>
+                          </button>
                         </div>
                       </>
                     )}
@@ -716,6 +814,138 @@ const ExtraIncome = ({ darkMode }) => {
           </div>
         </div>
       )}
+
+      
+      {returningRecord && (
+        <div className={`m-a-modal-overlay ${darkMode ? "dark" : ""}`} onClick={() => setReturningRecord(null)}>
+          <div className={`m-a-modal-container ${darkMode ? "dark" : ""}`} onClick={(e) => e.stopPropagation()}>
+            <h3 className={`m-a-modal-title ${darkMode ? "dark" : ""}`}>Process Return</h3>
+            {error && <p className="error-message">{error}</p>}
+            <form onSubmit={handleReturnSubmit}>
+              <label className={`madd-label ${darkMode ? "dark" : ""}`}>Date</label>
+              <input
+                className={`madd-input ${darkMode ? "dark" : ""}`}
+                type="date"
+                value={returningRecord.date}
+                readOnly
+              />
+              <label className={`madd-label ${darkMode ? "dark" : ""}`}>Time</label>
+              <input
+                className={`madd-input ${darkMode ? "dark" : ""}`}
+                type="time"
+                value={returningRecord.time}
+                readOnly
+              />
+              <label className={`madd-label ${darkMode ? "dark" : ""}`}>Income Type</label>
+              <input
+                className={`madd-input ${darkMode ? "dark" : ""}`}
+                type="text"
+                value={returningRecord.incomeType}
+                readOnly
+              />
+              <label className={`madd-label ${darkMode ? "dark" : ""}`}>Original Amount</label>
+              <input
+                className={`madd-input ${darkMode ? "dark" : ""}`}
+                type="number"
+                value={returningRecord.amount}
+                readOnly
+                step="0.01"
+              />
+
+              {/* === RETURN ALERT DROPDOWN === */}
+              <label className={`madd-label ${darkMode ? "dark" : ""}`}>Return Alert:</label>
+              <select
+                className={`madd-input ${darkMode ? "dark" : ""}`}
+                value={returningRecord.returnAlert}
+                onChange={(e) => setReturningRecord({ ...returningRecord, returnAlert: e.target.value })}
+                style={{
+                  padding: "8px",
+                  borderRadius: "4px",
+                  border: "1px solid #ccc",
+                  backgroundColor: darkMode ? "#444" : "#fff",
+                  color: darkMode ? "#fff" : "#333",
+                  width: "100%",
+                }}
+              >
+                <option value="">Normal</option>
+                <option value="returned">Returned</option>
+              </select>
+              {/* === END RETURN ALERT === */}
+
+              {/* === SERVICE CHARGE INPUT === */}
+              <label className={`madd-label ${darkMode ? "dark" : ""}`}>Service Charge (Rs.):</label>
+              <input
+                className={`madd-input ${darkMode ? "dark" : ""}`}
+                type="text"
+                value={returningRecord.serviceCharge}
+                onChange={(e) => setReturningRecord({ ...returningRecord, serviceCharge: e.target.value })}
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+              />
+              {/* === END SERVICE CHARGE === */}
+
+              {/* === TOTAL AMOUNT (READONLY) === */}
+              <label className={`madd-label ${darkMode ? "dark" : ""}`}>Total Amount (Rs.):</label>
+              <input
+                className={`madd-input ${darkMode ? "dark" : ""}`}
+                type="number"
+                value={returningRecord.totalAmount}
+                readOnly
+                step="0.01"
+              />
+              {/* === END TOTAL === */}
+
+              {/* === ASSIGNED TO & PAYMENT METHOD (Optional: make editable or readonly) === */}
+              {/* <label className={`madd-label ${darkMode ? "dark" : ""}`}>Assign To:</label>
+              <select
+                className={`madd-input ${darkMode ? "dark" : ""}`}
+                value={returningRecord.assignedTo || ""}
+                onChange={(e) => setReturningRecord({ ...returningRecord, assignedTo: e.target.value })}
+                style={{
+                  padding: "8px",
+                  borderRadius: "4px",
+                  border: "1px solid #ccc",
+                  backgroundColor: darkMode ? "#444" : "#fff",
+                  color: darkMode ? "#fff" : "#333",
+                  width: "100%",
+                }}
+              >
+                <option value="" disabled>Select Technician/Team</option>
+                <option value="Prabath">Prabath</option>
+                <option value="Nadeesh">Nadeesh</option>
+                <option value="Accessories">Accessories</option>
+                <option value="Genex-EX">Genex EX</option>
+                <option value="I-Device">I Device</option>
+              </select>
+
+              <label className={`madd-label ${darkMode ? "dark" : ""}`}>Payment Method:</label>
+              <select
+                className={`madd-input ${darkMode ? "dark" : ""}`}
+                value={returningRecord.paymentMethod}
+                onChange={(e) => setReturningRecord({ ...returningRecord, paymentMethod: e.target.value })}
+              >
+                <option value="">Select Payment Method</option>
+                <option value="Cash">Cash</option>
+                <option value="Card">Card</option>
+                <option value="Bank-Transfer">Bank Transfer</option>
+                <option value="Bank-Check">Bank Check</option>
+                <option value="Credit">Credit</option>
+                <option value="Refund">Refund</option>
+              </select> */}
+              {/* === END OPTIONAL FIELDS === */}
+
+              <div className="button-group">
+                <button type="submit" className="me-submit-btn">Save Return</button>
+                <button type="button" className="me-cancel-btn" onClick={() => setReturningRecord(null)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
 
       {showSummaryModal && (
         <div className="product-summary-modal-overlay">
