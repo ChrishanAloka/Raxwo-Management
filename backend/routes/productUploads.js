@@ -161,6 +161,7 @@ router.get('/', async (req, res) => {
       {
         $group: {
           _id: {
+            grnNumber: "$grnNumber",
             itemName: "$itemName",
             category: "$category",
             buyingPrice: "$buyingPrice"
@@ -192,6 +193,7 @@ router.get('/', async (req, res) => {
       {
         $group: {
           _id: {
+            grnNumber: "$grnNumber",
             itemName: "$itemName",
             category: "$category",
             buyingPrice: "$buyingPrice"
