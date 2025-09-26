@@ -824,96 +824,34 @@ const PaymentTable = ({ darkMode }) => {
   }
 
   const sortedAndFilteredPayments = useMemo(() => {
-    // Start with filtered list
-    // let result = payments.filter(payment =>
-    //   payment.items.some(item =>
-    //     normalize(item.itemName).includes(normalize(searchQuery)) ||
-    //     (payment.invoiceNumber || '').toString().includes(searchQuery.replace(/\s+/g, '')) ||
-    //     normalize(payment.cashierName).includes(normalize(searchQuery)) ||
-    //     normalize(payment.cashierId).includes(normalize(searchQuery)) ||
-    //     normalize(payment.paymentMethod).includes(normalize(searchQuery)) ||
-    //     normalize(new Date(payment.date).toLocaleDateString()).includes(normalize(searchQuery)) ||
-    //     normalize(new Date(payment.date).toLocaleTimeString()).includes(normalize(searchQuery))
-    //   )
-    // );
 
     let result = payments;
 
-    // Apply search filter only if query exists
-    // if (searchQuery.trim() !== '') {
-    //   result = payments.filter(payment => {
-    //     const searchableText = normalize(payment.items.itemName + ' ' + payment.invoiceNumber + ' ' + payment.cashierName + ' ' + payment.cashierId + ' ' + payment.paymentMethod);
-    //     const words = normalize(searchQuery).trim().split(/\s+/);
-
-    //     return words.every(word => {
-    //       const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    //       if (/^\d+$/.test(word)) {
-    //         // Numeric: require word boundaries (exact number match)
-    //         const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
-    //         return regex.test(searchableText);
-    //       } else {
-    //         // Text: allow partial substring match
-    //         const regex = new RegExp(escapedWord, 'i');
-    //         return regex.test(searchableText);
-    //       }
-    //     });
-    //   });
-    // }
-
     if (searchQuery.trim() !== '') {
-      let subresult1 = payments.filter(product => {
-        const name = (product.invoiceNumber + product.items.itemName + product.cashierName + product.paymentMethod).toLowerCase()
-        .trim()
-        .replace(/\s+/g, '');
-        
+    const normalizedQuery = normalize(searchQuery);
 
-        // Split query into meaningful words, remove empty
-        const queryWords = searchQuery
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, '');
-        // .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
-        // .split(/\s+/)
-        // .filter(Boolean);
+    result = payments.filter(payment => {
+      // Combine all searchable fields properly
+      const invoice = normalize(payment.invoiceNumber || '');
+      const cashierName = normalize(payment.cashierName || '');
+      const cashierId = normalize(payment.cashierId || '');
+      const paymentMethod = normalize(payment.paymentMethod || '');
+      const dateStr = normalize(new Date(payment.date).toLocaleDateString());
+      const timeStr = normalize(new Date(payment.date).toLocaleTimeString());
 
-        // If no valid words, show all
-        if (queryWords.length === 0) return true;
+      // ✅ Correctly extract and join all item names
+      const itemNames = payment.items
+        .map(item => normalize(item.itemName || ''))
+        .join(' ');
 
-        // console.log("Search query", queryWords);
+      const fullText = [invoice, cashierName, cashierId, paymentMethod, dateStr, timeStr, itemNames]
+        .join(' ')
+        .toLowerCase();
 
-        return name.includes(queryWords);
-      }).sort((a, b) => a.date.localeCompare(b.date));
-
-      let subresult2 = payments.filter(product => {
-        const name = (product.date + product.invoiceNumber + product.items.itemName + product.cashierName + product.paymentMethod).toLowerCase()
-        .trim()
-        .replace(/\s+/g, '');
-        
-
-        // Split query into meaningful words, remove empty
-        const queryWords = searchQuery
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, '');
-        // .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
-        // .split(/\s+/)
-        // .filter(Boolean);
-
-        // If no valid words, show all
-        if (queryWords.length === 0) return true;
-
-        // console.log("Search query", queryWords);
-        
-        return fuzzyIncludes(name, queryWords);
-      }).sort((a, b) => a.date.localeCompare(b.date));
-
-      if (subresult1.length === 0) {
-        result = subresult2;
-      }
-      else{
-        result = subresult1;
-      }
-    }
+      // Use fuzzy or simple substring match
+      return fuzzyIncludes(fullText, normalizedQuery);
+    });
+  }
 
     // Apply payment method filter
     if (paymentMethodFilter) {
@@ -991,7 +929,7 @@ const PaymentTable = ({ darkMode }) => {
     }
 
     return result;
-  }, [payments, searchQuery, sortConfig]);
+  }, [payments, searchQuery, paymentMethodFilter, sortConfig]);
 
   const handleClearSearch = () => {
     setSearchQuery('');
@@ -1071,6 +1009,17 @@ const PaymentTable = ({ darkMode }) => {
         <p className="no-products">No payments found.</p>
       ) : (
         <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+          <colgroup>
+            <col style={{ width: '8%' }} />   {/* Date */}
+            <col style={{ width: '8%' }} />   {/* Time */}
+            <col style={{ width: '10%' }} />  {/* Invoice No. */}
+            <col style={{ width: '38%' }} />  {/* Item Name ← main focus */}
+            <col style={{ width: '12%' }} />  {/* Payment Method ← treated as "category" */}
+            <col style={{ width: '10%' }} />  {/* Cashier Name */}
+            <col style={{ width: '8%' }} />   {/* Discount */}
+            <col style={{ width: '10%' }} />  {/* Total Amount */}
+            <col style={{ width: '6%' }} />   {/* Action (buttons) */}
+          </colgroup>
           <thead>
             <tr>
               <th onClick={() => handleSort('date')} style={{ cursor: 'pointer', userSelect: 'none' }}>
@@ -1097,7 +1046,7 @@ const PaymentTable = ({ darkMode }) => {
                   </span>
                 )}
               </th>
-              <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+              <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'normal', wordBreak: 'break-word'  }}>
                 Item Name
                 {sortConfig.key === 'itemName' && (
                   <span style={{ marginLeft: '6px' }}>
@@ -1221,14 +1170,14 @@ const PaymentTable = ({ darkMode }) => {
                   </span>
                 )}
               </th>
-              <th onClick={() => handleSort('cashierId')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+              {/* <th onClick={() => handleSort('cashierId')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                 Cashier ID
                 {sortConfig.key === 'cashierId' && (
                   <span style={{ marginLeft: '6px' }}>
                     {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
                   </span>
                 )}
-              </th>
+              </th> */}
               <th>Action</th>
             </tr>
           </thead>
@@ -1238,7 +1187,7 @@ const PaymentTable = ({ darkMode }) => {
                   <td>{new Date(payment.date).toLocaleDateString()}</td>
                   <td>{new Date(payment.date).toLocaleTimeString()}</td>
                   <td>{payment.invoiceNumber}</td>
-                  <td>{/* Combine all item names */}
+                  <td style={{whiteSpace: 'normal', wordBreak: 'break-word'}}>{/* Combine all item names */}
                     {payment.items.map(item => item.itemName).join(', ')}
                   </td>
                   {/* <td> */}
@@ -1249,7 +1198,7 @@ const PaymentTable = ({ darkMode }) => {
                   <td>{payment.cashierName}</td>
                   <td>Rs. {(payment.discountApplied || 0).toFixed(2)}</td>
                   <td>Rs. {payment.totalAmount.toFixed(2)}</td>
-                  <td>{payment.cashierId}</td>
+                  {/* <td>{payment.cashierId}</td> */}
                   <td>
                     <div className="action-container">
                       <button

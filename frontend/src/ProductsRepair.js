@@ -99,25 +99,107 @@ const ProductRepairList = ({ darkMode }) => {
 
   const normalize = (str) => str.toLowerCase().replace(/\s+/g, ' ');
 
-  const filteredProductsForModal = productSearchQuery.trim() === ""
-    ? products
-    : products.filter(product => {
-        const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
-        const words = normalize(productSearchQuery).trim().split(/\s+/);
+  function fuzzyIncludes(haystack, needle) {
 
-        return words.every(word => {
-          const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          if (/^\d+$/.test(word)) {
-            // Numeric: require word boundaries (exact number match)
-            const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
-            return regex.test(searchableText);
-          } else {
-            // Text: allow partial substring match
-            const regex = new RegExp(escapedWord, 'i');
-            return regex.test(searchableText);
-          }
-        });
-      });
+  
+    // Remove non-alphanumeric and split needle into chars
+    const cleanHaystack = Array.from(haystack);
+    const cleanNeedle = Array.from(needle);
+
+    // console.log("Search query", cleanHaystack, cleanNeedle);
+
+    let j = 0; // pointer in haystack
+    for (let i = 0; i < cleanNeedle.length; i++) {
+      const char = cleanNeedle[i];
+      let found = false;
+      while (j < cleanHaystack.length) {
+        if (cleanHaystack[j] === char) {
+          found = true;
+          j++;
+          break;
+        }
+        j++;
+      }
+      if (!found) return false;
+    }
+    return true;
+  }
+
+  // const filteredProductsForModal = productSearchQuery.trim() === ""
+  //   ? products
+  //   : products.filter(product => {
+  //       const searchableText = normalize(product.itemName + ' ' + product.category + ' ' + product.itemCode);
+  //       const words = normalize(productSearchQuery).trim().split(/\s+/);
+
+  //       return words.every(word => {
+  //         const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  //         if (/^\d+$/.test(word)) {
+  //           // Numeric: require word boundaries (exact number match)
+  //           const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+  //           return regex.test(searchableText);
+  //         } else {
+  //           // Text: allow partial substring match
+  //           const regex = new RegExp(escapedWord, 'i');
+  //           return regex.test(searchableText);
+  //         }
+  //       });
+  //     });
+
+  const filteredProductsForModal = useMemo(() => {
+      let result = products;
+  
+      // Apply search filter only if query exists
+      if (productSearchQuery.trim() !== '') {
+        let subresult1 = products.filter(product => {
+          const name = (product.itemName + product.category).toLowerCase()
+          .trim()
+          .replace(/\s+/g, '');
+          
+  
+          // Split query into meaningful words, remove empty
+          const queryWords = productSearchQuery
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, '');
+
+          // If no valid words, show all
+          if (queryWords.length === 0) return true;
+  
+          return name.includes(queryWords);
+        }).sort((a, b) => a.itemName.localeCompare(b.itemName));
+  
+        let subresult2 = products.filter(product => {
+          const name = (product.itemName + product.category).toLowerCase()
+          .trim()
+          .replace(/\s+/g, '');
+          
+  
+          // Split query into meaningful words, remove empty
+          const queryWords = productSearchQuery
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, '');
+  
+          // If no valid words, show all
+          if (queryWords.length === 0) return true;
+  
+          // console.log("Search query", queryWords);
+          
+          return fuzzyIncludes(name, queryWords);
+        }).sort((a, b) => a.itemName.localeCompare(b.itemName));
+  
+        if (subresult1.length === 0) {
+          result = subresult2;
+        }
+        else{
+          result = subresult1;
+        }
+  
+      }
+  
+      return result;
+    }, [products, productSearchQuery]);
+
   // console.log("Current product search query:", productSearchQuery);
   // console.log("Current products in state:", products);  
   // console.log("Filtered products for modal:", filteredProductsForModal);

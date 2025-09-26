@@ -124,6 +124,7 @@ const ProductList = ({ darkMode }) => {
             stock: product.stock,
             buyingPrice: product.buyingPrice,
             sellingPrice: product.sellingPrice,
+            Supplier:product.Supplier,
             createdAt: product.createdAt,
             addedBackAt: product.addedBackAt
             // Add other fields as needed
@@ -465,7 +466,7 @@ const ProductList = ({ darkMode }) => {
       //   });
       // });
       let subresult1 = products.filter(product => {
-        const name = product.itemName.toLowerCase()
+        const name = (product.itemName + product.grnNumber + product.category + product.Supplier).toLowerCase()
         .trim()
         .replace(/\s+/g, '');
         
@@ -488,7 +489,7 @@ const ProductList = ({ darkMode }) => {
       }).sort((a, b) => a.itemName.localeCompare(b.itemName));
 
       let subresult2 = products.filter(product => {
-        const name = product.itemName.toLowerCase()
+        const name = (product.itemName + product.grnNumber + product.category + product.Supplier).toLowerCase()
         .trim()
         .replace(/\s+/g, '');
         
@@ -554,6 +555,10 @@ const ProductList = ({ darkMode }) => {
         let valueB = '';
 
         switch (sortConfig.key) {
+          case 'grn':
+            valueA = a.itemName || '';
+            valueB = b.itemName || '';
+            break;
           case 'itemName':
             valueA = a.itemName || '';
             valueB = b.itemName || '';
@@ -577,6 +582,10 @@ const ProductList = ({ darkMode }) => {
           case 'status':
             valueA = a.stock > 0 ? 1 : 0; // In Stock = 1, Out of Stock = 0
             valueB = b.stock > 0 ? 1 : 0;
+            break;
+          case 'supplier':
+            valueA = a.stock || 0;
+            valueB = b.stock || 0;
             break;
           default:
             return 0;
@@ -1256,9 +1265,28 @@ const ProductList = ({ darkMode }) => {
       ) : (
         <>
           <table className={`product-table ${darkMode ? 'dark' : ''}`}>
+            <colgroup>
+              <col style={{ width: '8%' }} />   {/* Date */}
+              <col style={{ width: '30%' }} />  {/* Item Name ← main focus */}
+              <col style={{ width: '16%' }} />  {/* Payment Method ← treated as "category" */}
+              <col style={{ width: '10%' }} />   {/* Time */}
+              <col style={{ width: '10%' }} />  {/* Invoice No. */}
+              
+              <col style={{ width: '8%' }} />  {/* Payment Method ← treated as "category" */}
+              <col style={{ width: '10%' }} />  {/* Cashier Name */}
+              <col style={{ width: '8%' }} />   {/* Discount */}
+            </colgroup>
             <thead>
               <tr>
                 {/* <th>GRN</th> */}
+                <th onClick={() => handleSort('grn')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Grn
+                  {sortConfig.key === 'grn' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
                 <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                   Item Name
                   {sortConfig.key === 'itemName' && (
@@ -1267,7 +1295,7 @@ const ProductList = ({ darkMode }) => {
                     </span>
                   )}
                 </th>
-                <th onClick={() => handleSort('category')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <th onClick={() => handleSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'normal', wordBreak: 'break-word' }}>
                   Category
                   {sortConfig.key === 'category' && (
                     <span style={{ marginLeft: '8px' }}>
@@ -1275,7 +1303,7 @@ const ProductList = ({ darkMode }) => {
                     </span>
                   )}
                 </th>
-                <th onClick={() => handleSort('buyingPrice')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <th onClick={() => handleSort('buyingPrice')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'normal', wordBreak: 'break-word'  }}>
                   Buying Price
                   {sortConfig.key === 'buyingPrice' && (
                     <span style={{ marginLeft: '8px' }}>
@@ -1300,9 +1328,17 @@ const ProductList = ({ darkMode }) => {
                   )}
                 </th>
                 {/* <th>Supplier</th> */}
-                <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                {/* <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                   Status
                   {sortConfig.key === 'status' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th> */}
+                <th onClick={() => handleSort('supplier')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Supplier
+                  {sortConfig.key === 'supplier' && (
                     <span style={{ marginLeft: '8px' }}>
                       {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
                     </span>
@@ -1319,11 +1355,16 @@ const ProductList = ({ darkMode }) => {
                     {/* <td>{product.itemCode || 'N/A'}</td> */}
                     <td>
                       <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
+                        {product.grnNumber} 
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold' , whiteSpace: 'normal', wordBreak: 'break-word' }}>
                         {product.itemName} 
                       </span>
                     </td>
                     <td>
-                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
+                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold' , whiteSpace: 'normal', wordBreak: 'break-word' }}>
                         {product.category} 
                       </span>
                     </td>
@@ -1343,9 +1384,14 @@ const ProductList = ({ darkMode }) => {
                       </span>
                     </td>
                     {/* <td>{product.supplierName || 'N/A'}</td> */}
-                    <td>
+                    {/* <td>
                       <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold' }}>
                         {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
+                      </span>
+                    </td> */}
+                    <td>
+                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold' }}>
+                        {product.Supplier === 'Unknown' ? 'SYSTEM' : product.Supplier }
                       </span>
                     </td>
                     {/* <td>{product.createdAt ? new Date(product.createdAt).toLocaleString() : 'N/A'}</td>

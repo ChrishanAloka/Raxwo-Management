@@ -302,7 +302,7 @@ const Payment = ({ darkMode }) => {
     }
 
     return result;
-  })([ showLowStockOnly, show0StockOnly, hide0StockOnly, hideLowStockOnly]);
+  })([ searchQuery, showLowStockOnly, show0StockOnly, hide0StockOnly, hideLowStockOnly]);
 
   const filteredCart = cart.filter((item) =>
     item.itemName.toLowerCase().includes(cartSearchQuery.toLowerCase())
