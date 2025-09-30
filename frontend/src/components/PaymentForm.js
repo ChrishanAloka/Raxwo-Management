@@ -63,98 +63,104 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
   const [supplierGrnOptions, setSupplierGrnOptions] = useState([]);
 
   useEffect(() => {
-    const calculateGrnOptions = async () => {
-      if (!supplier?.grnOptions) {
-        setSupplierGrnOptions([]);
-        return;
-      }
+  const calculateGrnOptions = async () => {
+    if (!supplier?.grnOptions?.length) {
+      setSupplierGrnOptions([]);
+      setGrnOptionsLoading(false);
+      return;
+    }
 
-      setGrnOptionsLoading(true);
+    setGrnOptionsLoading(true);
 
-      const options = [];
-      for (const grn of supplier.grnOptions) {
+    try {
+      // Step 1: Prepare all GRN numbers
+      const grnList = supplier.grnOptions;
+
+      // Step 2: Fetch all return data in parallel
+      const fetchPromises = grnList.map(grn => {
+        const grnNumber = String(grn.grnNumber || grn.value || '');
+        return fetchGrnReturnStocks(grnNumber)
+          .then(result => ({ grn, data: result, error: null }))
+          .catch(error => ({ grn, data: null, error }));
+      });
+
+      const results = await Promise.all(fetchPromises);
+
+      // Step 3: Build options
+      const options = results.map(({ grn, data, error }) => {
         const grnNumber = String(grn.grnNumber || grn.value || '');
         const isPaid = paidGrnNumbers.has(grnNumber);
         const status = isPaid ? '✅ Paid' : '⏳ Pending';
-        
-        // For unpaid GRNs, calculate payable amount
-        try {
-          const { items, returnedValue } = await fetchGrnReturnStocks(grnNumber);
-          
-          // Calculate GRN total
-          const total = items.reduce((sum, item) => 
-            sum + (item.quantity || 0) * (item.buyingPrice || 0), 0
-          );
 
-          // Calculate discounts
-          const grnDiscs = (supplier.discounts || []).filter(d =>
-            String(d.grnNumber) === grnNumber
-          );
-          const totalDiscs = grnDiscs.reduce((sum, d) => sum + (d.discountCharge || 0), 0);
+        // Format date
+        const formattedDate = grn.grnDate
+          ? new Date(grn.grnDate).toLocaleDateString('en-GB')
+          : '';
 
-          const payableAmount = Math.max(0, total - returnedValue - totalDiscs);
-
-          // Format date
-          const formattedDate = grn.grnDate 
-            ? new Date(grn.grnDate).toLocaleDateString('en-GB')
-            // (() => {
-            //     const [year, month, day] = grn.grnDate.split('-');
-            //     return year && month && day ? `${day}/${month}/${year}` : '';
-            //   })()
-            : '';
-
-          const label = `${grnNumber} | ${formattedDate} | Rs. ${total.toFixed(2)} | Payable: Rs. ${payableAmount.toFixed(2)} | ${status}`;
-
-          options.push({
+        if (error || !data) {
+          // Fallback if fetch failed
+          const fallbackTotal = grn.totalAmount || 0;
+          const label = `${grnNumber} | ${formattedDate} | Payable: Rs. ${fallbackTotal.toFixed(2)} | ${status} ${error ? '(⚠️)' : ''}`;
+          return {
             value: grnNumber,
-            label: label,
-            totalAmount: total,
-            payableAmount: payableAmount,
-            returnedValue: returnedValue,
-            totalDiscounts: totalDiscs,
+            label,
+            totalAmount: fallbackTotal,
+            payableAmount: fallbackTotal,
+            returnedValue: 0,
+            totalDiscounts: 0,
             isPaid: false,
-            isDisabled: false
-          });
-        } catch (err) {
-          console.error(`Error calculating payable for GRN ${grnNumber}:`, err);
-          // Fallback to basic calculation
-          const formattedDate = grn.grnDate 
-            ? new Date(grn.grnDate).toLocaleDateString('en-GB')
-            // (() => {
-            //     const [year, month, day] = grn.grnDate.split('-');
-            //     return year && month && day ? `${day}/${month}/${year}` : '';
-            //   })()
-            : '';
-          const label = `${grnNumber} | ${formattedDate} | Payable: Rs. ${grn.totalAmount?.toFixed(2) || '0.00'} | ${status}`;
-          options.push({
-            value: grnNumber,
-            label: label,
-            totalAmount: grn.totalAmount || 0,
-            payableAmount: grn.totalAmount || 0,
-            isPaid: false,
-            isDisabled: false
-          });
+            isDisabled: false,
+          };
         }
-      }
 
-      // Sort by date (newest first)
+        // Success path
+        const { items, returnedValue } = data;
+
+        // Calculate GRN total
+        const total = items.reduce((sum, item) =>
+          sum + (item.quantity || 0) * (item.buyingPrice || 0), 0
+        );
+
+        // Calculate discounts for this GRN
+        const grnDiscs = (supplier.discounts || []).filter(d =>
+          String(d.grnNumber) === grnNumber
+        );
+        const totalDiscs = grnDiscs.reduce((sum, d) => sum + (d.discountCharge || 0), 0);
+
+        const payableAmount = Math.max(0, total - returnedValue - totalDiscs);
+
+        const label = `${grnNumber} | ${formattedDate} | Rs. ${total.toFixed(2)} | Payable: Rs. ${payableAmount.toFixed(2)} | ${status}`;
+
+        return {
+          value: grnNumber,
+          label,
+          totalAmount: total,
+          payableAmount,
+          returnedValue,
+          totalDiscounts: totalDiscs,
+          isPaid: false,
+          isDisabled: false,
+        };
+      });
+
+      // Step 4: Sort by GRN date (newest first)
       options.sort((a, b) => {
-        const dateA = supplier.grnOptions.find(g => g.grnNumber === a.value)?.grnDate || '';
-        const dateB = supplier.grnOptions.find(g => g.grnNumber === b.value)?.grnDate || '';
+        const dateA = grnList.find(g => String(g.grnNumber || g.value) === a.value)?.grnDate || '';
+        const dateB = grnList.find(g => String(g.grnNumber || g.value) === b.value)?.grnDate || '';
         return new Date(dateB) - new Date(dateA);
       });
 
       setSupplierGrnOptions(options);
-      setGrnOptionsLoading(false);
-    };
-
-    if (supplier?.grnOptions?.length > 0) {
-      calculateGrnOptions();
-    } else {
+    } catch (err) {
+      console.error('Unexpected error during GRN option calculation:', err);
       setSupplierGrnOptions([]);
+    } finally {
       setGrnOptionsLoading(false);
     }
-  }, [supplier?.grnOptions, paidGrnNumbers, supplier?.discounts, fetchGrnReturnStocks]);
+  };
+
+  calculateGrnOptions();
+}, [supplier?.grnOptions, paidGrnNumbers, supplier?.discounts, fetchGrnReturnStocks]);
 
   const allGrnOptions = [
     PAST_PAYMENT_OPTION,
