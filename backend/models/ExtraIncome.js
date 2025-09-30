@@ -22,7 +22,7 @@ const extraIncomeSchema = new mongoose.Schema({
   },
   totalAmount: {
     type: Number,
-    required: true
+    required: false
   },
   description: {
     type: String,

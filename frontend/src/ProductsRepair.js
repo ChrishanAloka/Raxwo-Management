@@ -207,7 +207,7 @@ const ProductRepairList = ({ darkMode }) => {
   const paginatedProductsForModal = filteredProductsForModal.slice((productPage - 1) * productsPerPage, productPage * productsPerPage);
 
   // Filter and pagination logic
-  const statusFilters = ["All", "Pending", "In Progress", "Completed", "Cancelled", "Returned"];
+  const statusFilters = ["All", "Pending", "In Progress", "Completed", "Cancelled", "Returned", "Completed-Collected", "Cancelled-Collected", "Returned-Collected"];
   const isRepairPaid = (repair) => {
     if (!repair.additionalServices || repair.additionalServices.length === 0) return true;
     return repair.additionalServices.every(service => service.isPaid);
@@ -1618,7 +1618,7 @@ const ProductRepairList = ({ darkMode }) => {
               ${ (repair.rettotalAdditionalServicesAmount) > 0 ? `
                 <p><strong>Total Return Additional Services</strong>: Rs. ${repair.rettotalAdditionalServicesAmount || 0}</p>`:''}
               <p style="font-size: 16px; font-weight: bold; color: ${isPaid ? 'green' : 'red'}; border-top: 1px solid #ccc; padding-top: 10px;">
-                ${isPaid ? '✅ PAID TOTAL' : '❌ UNPAID TOTAL'}: Rs. ${repair.finalAmount || repair.totalRepairCost || 0}
+                ${isPaid ? '✅ PAID TOTAL' : '❌ UNPAID TOTAL'}: Rs. ${calculateCartTotal(repair.repairCart) - repair.totalDiscountAmount + repair.totalAdditionalServicesAmount || repair.totalRepairCost || 0}
               </p>
               <p style="font-size: 16px; font-weight: bold; color: ${isPaid ? 'green' : 'red'}; border-top: 1px solid #ccc; padding-top: 10px;">
                 ${repair.rettotalAdditionalServicesAmount > 0 || repair.totalReturnCost > 0 ? `TOTAL RETURNED AMOUNT: Rs. ${repair.rettotalAdditionalServicesAmount + repair.totalReturnCost || 0}` : ''}
@@ -2893,6 +2893,9 @@ const ProductRepairList = ({ darkMode }) => {
                   <option value="Completed">Completed</option>
                   <option value="Cancelled">Cancelled</option>
                   <option value="Returned">Returned</option>
+                  <option value="Completed-Collected">Completed Collected</option>
+                  <option value="Cancelled-Collected">Cancelled Collected</option>
+                  <option value="Returned-Collected">Returned Collected</option>
                 </select>
                 {loading && (
                   <div style={{
