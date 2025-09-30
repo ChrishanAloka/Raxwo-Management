@@ -20,6 +20,7 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
   const [grnDiscounts, setGrnDiscounts] = useState(0);
   const [grnItems, setGrnItems] = useState([]);
   const [returnedGrnItems, setReturnedGrnItems] = useState([]);
+  const [grnOptionsLoading, setGrnOptionsLoading] = useState(false);
 
   // Special options
   const PAST_PAYMENT_OPTION = {
@@ -67,6 +68,8 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
         setSupplierGrnOptions([]);
         return;
       }
+
+      setGrnOptionsLoading(true);
 
       const options = [];
       for (const grn of supplier.grnOptions) {
@@ -142,12 +145,14 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
       });
 
       setSupplierGrnOptions(options);
+      setGrnOptionsLoading(false);
     };
 
     if (supplier?.grnOptions?.length > 0) {
       calculateGrnOptions();
     } else {
       setSupplierGrnOptions([]);
+      setGrnOptionsLoading(false);
     }
   }, [supplier?.grnOptions, paidGrnNumbers, supplier?.discounts, fetchGrnReturnStocks]);
 
@@ -324,7 +329,7 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
             />
           </div>
           {/* Searchable GRN Selector */}
-          {supplierGrnOptions.length > 0 && (
+          {/* {supplierGrnOptions.length > 0 && ( */}
             <div>
               <label className="payment-label">Select GRN</label>
               <Select
@@ -361,9 +366,10 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
                   }
                 }}
                 options={allGrnOptions}
-                placeholder="Select GRN or Past Payment..."
+                placeholder={grnOptionsLoading ? "Loading GRNs..." : "Select GRN or Past Payment..."}
                 isClearable
                 isSearchable
+                isLoading={grnOptionsLoading}
                 className={`react-select-container ${darkMode ? 'dark' : ''}`}
                 classNamePrefix="react-select"
                 styles={{
@@ -395,7 +401,7 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
                 }}
               />
             </div>
-          )}
+          {/* )} */}
           {/* GRN Summary (Optional but helpful) */}
           {grnNumber && !isSpecialPayment && (
             <div className="grn-summary-box" style={{

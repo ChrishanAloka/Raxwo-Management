@@ -456,9 +456,9 @@ router.post('/:id/payments', getSupplier, async (req, res) => {
 
   res.supplier.paymentHistory.push(paymenthistory);
 
-  res.supplier.totalPayments = currentPayments + paymentAmount;
+  res.supplier.totalPayments = parseFloat(currentPayments) + parseFloat(paymentAmount);
 
-  try {
+try {
     const updatedSupplier = await res.supplier.save();
     res.status(200).json(updatedSupplier);
   } catch (err) {
