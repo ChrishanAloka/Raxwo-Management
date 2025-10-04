@@ -506,6 +506,7 @@ const Payment = ({ darkMode }) => {
                     <input
                       type="number"
                       min="1"
+                      onWheel={(e) => e.target.blur()}
                       value={item.quantity}
                       onChange={(e) => handleQuantityChange(index, e.target.value)}
                       className={darkMode ? 'dark' : ''}
@@ -516,6 +517,7 @@ const Payment = ({ darkMode }) => {
                       type="number"
                       step="0.01"
                       min="0"
+                      onWheel={(e) => e.target.blur()}
                       value={item.sellingPrice}
                       onChange={(e) => handlePriceChange(index, parseFloat(e.target.value))}
                       className={`price-input ${darkMode ? 'dark' : ''}`}
@@ -526,6 +528,7 @@ const Payment = ({ darkMode }) => {
                     <input
                       type="number"
                       min="0"
+                      onWheel={(e) => e.target.blur()}
                       value={item.discount}
                       onChange={(e) => applyDiscount(index, e.target.value)}
                       className={darkMode ? 'dark' : ''}

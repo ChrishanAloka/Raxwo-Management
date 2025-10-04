@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import signupImage from '../images/blue3.png';
+// import signupImage from '../images/blue3.png'; // commented out since image section is hidden
 import '../styles/CashierSignup.css';
 
 const UserSignup = ({ darkMode }) => {
@@ -12,8 +12,9 @@ const UserSignup = ({ darkMode }) => {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'cashier' // Default role
+    role: 'cashier'
   });
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -21,19 +22,75 @@ const UserSignup = ({ darkMode }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+
+    // Clear error when user types in the field
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: '' });
+    }
+  };
+
+  const validate = () => {
+    const newErrors = {};
+
+    // Username
+    if (!formData.username.trim()) {
+      newErrors.username = 'Username is required.';
+    } else if (formData.username.length < 3 || formData.username.length > 20) {
+      newErrors.username = 'Username must be 3–20 characters long.';
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(formData.username)) {
+      newErrors.username = 'Username can only contain letters, numbers, underscores, and hyphens.';
+    }
+
+    // Email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email) {
+      newErrors.email = 'Email is required.';
+    } else if (!emailRegex.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address.';
+    }
+
+    // Phone
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required.';
+    } else if (!/^\d+$/.test(formData.phone)) {
+      newErrors.phone = 'Phone number must contain only digits.';
+    } else if (formData.phone.length < 10 || formData.phone.length > 15) {
+      newErrors.phone = 'Phone number must be between 10 and 15 digits.';
+    }
+
+    // Password
+    if (!formData.password) {
+      newErrors.password = 'Password is required.';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters long.';
+    } else if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one letter and one number.';
+    }
+
+    // Confirm Password
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password.';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match.';
+    }
+
+    // Role
+    if (!formData.role) {
+      newErrors.role = 'Role is required.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setMessage('');
     setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match!');
-      setLoading(false);
-      return;
-    }
+    if (!validate()) return;
+
+    setLoading(true);
 
     try {
       const response = await axios.post('https://raxwo-management.onrender.com/api/auth/register', {
@@ -46,10 +103,18 @@ const UserSignup = ({ darkMode }) => {
       setMessage(`✅ ${formData.role.charAt(0).toUpperCase() + formData.role.slice(1)} registration successful!`);
       setTimeout(() => navigate('/cashier/login'), 1500);
     } catch (err) {
-      setError(err.response?.data?.msg || 'Registration failed.');
+      setError(err.response?.data?.msg || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Inline style for validation error messages
+  const errorStyle = {
+    color: '#e74c3c',
+    fontSize: '0.85rem',
+    marginTop: '4px',
+    marginLeft: '2px'
   };
 
   return (
@@ -71,6 +136,7 @@ const UserSignup = ({ darkMode }) => {
               onChange={handleChange}
               required
             />
+            {errors.username && <p style={errorStyle}>{errors.username}</p>}
           </div>
 
           <div className="form-field">
@@ -84,6 +150,7 @@ const UserSignup = ({ darkMode }) => {
               onChange={handleChange}
               required
             />
+            {errors.email && <p style={errorStyle}>{errors.email}</p>}
           </div>
 
           <div className="form-field">
@@ -97,6 +164,7 @@ const UserSignup = ({ darkMode }) => {
               onChange={handleChange}
               required
             />
+            {errors.phone && <p style={errorStyle}>{errors.phone}</p>}
           </div>
 
           <div className="form-field">
@@ -109,9 +177,10 @@ const UserSignup = ({ darkMode }) => {
               onChange={handleChange}
               required
             >
-              <option value="cashier" className='drop'>Cashier</option>
-              <option value="admin" className='drop'>Admin</option>
+              <option value="cashier">Cashier</option>
+              <option value="admin">Admin</option>
             </select>
+            {errors.role && <p style={errorStyle}>{errors.role}</p>}
           </div>
 
           <div className="form-field">
@@ -125,6 +194,7 @@ const UserSignup = ({ darkMode }) => {
               onChange={handleChange}
               required
             />
+            {errors.password && <p style={errorStyle}>{errors.password}</p>}
           </div>
 
           <div className="form-field">
@@ -138,6 +208,7 @@ const UserSignup = ({ darkMode }) => {
               onChange={handleChange}
               required
             />
+            {errors.confirmPassword && <p style={errorStyle}>{errors.confirmPassword}</p>}
           </div>
 
           <div className="button-group">
@@ -148,9 +219,6 @@ const UserSignup = ({ darkMode }) => {
           </div>
         </form>
       </div>
-      {/* <div className="usersignup-image-wrapper">
-        <img src={signupImage} className="usersignup-image" alt="company-logo" />
-      </div> */}
     </div>
   );
 };

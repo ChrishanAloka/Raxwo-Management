@@ -244,6 +244,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                 className={`edit-input ${darkMode ? "dark" : ""}`}
                 type="number"
                 value={formData.discountApplied}
+                onWheel={(e) => e.target.blur()}
                 readOnly
                 step="0.01"
               />
@@ -254,6 +255,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                 className={`edit-input ${darkMode ? "dark" : ""}`}
                 type="number"
                 value={formData.totalAmount}
+                onWheel={(e) => e.target.blur()}
                 readOnly
                 step="0.01"
               />

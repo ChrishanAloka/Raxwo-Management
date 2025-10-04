@@ -50,6 +50,7 @@ const SupplierList = ({ darkMode }) => {
   const [grnReturnTotal, setGrnReturnTotal] = useState(0);
   const [returnStocks, setReturnStocks] = useState({});
 
+  const userRole = localStorage.getItem('role');
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -814,24 +815,28 @@ const SupplierList = ({ darkMode }) => {
                               <span>Edit</span>
                             </div>
                           </button>
-                          <button onClick={() => handleDelete(supplier._id)} className="p-delete-btn">
-                            <div className="action-btn-content">
-                              <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
-                              <span>Delete</span>
-                            </div>
-                          </button>
+                          {userRole === 'admin' && (
+                            <button onClick={() => handleDelete(supplier._id)} className="p-delete-btn">
+                              <div className="action-btn-content">
+                                <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
+                                <span>Delete</span>
+                              </div>
+                            </button>
+                          )}
                           <button onClick={() => handleView(supplier._id)} className="p-view-btn">
                             <div className="action-btn-content">
                               <img src={viewicon} alt="view" width="30" height="30" className="p-view-btn-icon" />
                               <span>View</span>
                             </div>
                           </button>
-                          <button onClick={() => handlePay(supplier)} className="p-pay-btn">
-                            <div className="action-btn-content">
-                              <img src={payicon} alt="pay" width="30" height="30" className="p-pay-btn-icon" />
-                              <span>Pay</span>
-                            </div>
-                          </button>
+                          {userRole === 'admin' && (
+                            <button onClick={() => handlePay(supplier)} className="p-pay-btn">
+                              <div className="action-btn-content">
+                                <img src={payicon} alt="pay" width="30" height="30" className="p-pay-btn-icon" />
+                                <span>Pay</span>
+                              </div>
+                            </button>
+                          )}
                         </div>
                       </>
                     )}

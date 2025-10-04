@@ -35,7 +35,7 @@ const UserLogin = ({ darkMode }) => {
         if (res.data.user.role === 'admin') {
           navigate("/dashboard");
         } else {
-          navigate("/payment");
+          navigate("/");
         }
       }, 1500);
     } catch (err) {
@@ -81,9 +81,9 @@ const UserLogin = ({ darkMode }) => {
             </button>
           </div>
         </form>
-        <p className="forgot-password-link">
+        {/* <p className="forgot-password-link">
           <Link to="/forgot-password">Forgot Your Password?</Link>
-        </p>
+        </p> */}
         <p className={`register-link ${darkMode ? "dark" : ""}`}>
           Don't have an account? <Link to="/cashier/signup">Sign Up</Link>
         </p>

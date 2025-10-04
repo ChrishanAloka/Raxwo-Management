@@ -78,14 +78,14 @@ router.post('/', authMiddleware, async (req, res) => {
 // GET: Retrieve all payments (Protected route)
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    if(req.user.role === 'admin'){
+    // if(req.user.role === 'admin'){
     const payments = await Payment.find().populate('items.productId').sort({ createdAt: -1 });
     console.log('Fetched payments from backend:', payments); // Debug log
     res.json(payments);
-    }
-    else{
-      res.status(500).json({ message: "User is not an admin" });
-    }
+    // }
+    // else{
+    //   res.status(500).json({ message: "User is not an admin" });
+    // }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

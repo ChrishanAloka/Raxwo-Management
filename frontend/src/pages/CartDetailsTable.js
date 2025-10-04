@@ -155,7 +155,22 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
             date: repair.createdAt ? formatTrackDate(repair.createdAt) : "N/A",
           };
         });
-      console.log("Found ", repairsUsed);
+
+      const repairsReturned = repairsList
+        .filter((repair) =>
+          repair.returnCart?.some((cartItem) => cartItem.itemCode === itemCode)
+        )
+        .map((repair) => {
+          const cartItem = repair.returnCart.find((i) => i.itemCode === itemCode);
+          return {
+            type: "Repair Return",
+            invoiceNo: repair.repairInvoice || "N/A",
+            customerName: repair.customerName || "Unknown",
+            quantity: cartItem?.quantity || 0,
+            date: repair.createdAt ? formatTrackDate(repair.createdAt) : "N/A",
+          };
+        });
+      // console.log("Found ", repairsReturned);
       // --- Step 3: Fetch Payments and find usage by productId ---
       const paymentsRes = await fetch(
         `${PAYMENTS_API_URL}/track?itemCode=${encodeURIComponent(itemCode)}`
@@ -174,7 +189,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
       }));
 
       // Combine both lists
-      const usageRecords = [...repairsUsed, ...formattedPaymentsUsed].sort(
+      const usageRecords = [...repairsUsed, ...repairsReturned, ...formattedPaymentsUsed].sort(
         (a, b) => new Date(b.date) - new Date(a.date)
       );
 
@@ -389,12 +404,14 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                               <span> Return</span>
                             </div>
                           </button>
-                          <button onClick={() => handleEdit(item, index)} className="p-edit-btn">
-                            <div className="action-btn-content">
-                              <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
-                              <span>Edit</span>
-                            </div>
-                          </button>
+                          {item.quantity === (productStocks[item.itemCode] || 0) && (
+                            <button onClick={() => handleEdit(item, index)} className="p-edit-btn">
+                              <div className="action-btn-content">
+                                <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
+                                <span>Edit</span>
+                              </div>
+                            </button>
+                          )}
                           {/* <button onClick={() => handleDelete(index)} className="p-delete-btn">
                             <div className="action-btn-content">
                               <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />

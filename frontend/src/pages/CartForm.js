@@ -29,6 +29,8 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
   const [returnStocks, setReturnStocks] = useState({});
   const [productStocks, setProductStocks] = useState({});
 
+  const CART_FORM_STORAGE_KEY = 'cartFormDraft';
+
   const fetchNames = async () => {
     setLoading(true);
     setError('');
@@ -100,22 +102,75 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
         returnstock: item.returnstock?.toString() || '0',
       }]);
     } else {
-      setGrn('');
-      setItems([{
-        itemName: '',
-        category: '',
-        stock: '',
-        buyingPrice: '',
-        sellingPrice: '',
-        supplierName: supplier.supplierName || '',
-        returnstock: '0',
-      }]);
+      // Add mode: try to restore from localStorage
+      const savedDraft = localStorage.getItem(CART_FORM_STORAGE_KEY);
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          setGrn(parsed.grn || '');
+          setItems(parsed.items || [{
+            itemName: '',
+            category: '',
+            stock: '',
+            buyingPrice: '',
+            sellingPrice: '',
+            supplierName: supplier.supplierName || '',
+            returnstock: '0',
+          }]);
+        } catch (e) {
+          console.warn('Failed to parse saved cart draft', e);
+          // fallback to empty
+          setGrn('');
+          setItems([{
+            itemName: '',
+            category: '',
+            stock: '',
+            buyingPrice: '',
+            sellingPrice: '',
+            supplierName: supplier.supplierName || '',
+            returnstock: '0',
+          }]);
+        }
+      } else {
+        // Fresh add
+        setGrn('');
+        setItems([{
+          itemName: '',
+          category: '',
+          stock: '',
+          buyingPrice: '',
+          sellingPrice: '',
+          supplierName: supplier.supplierName || '',
+          returnstock: '0',
+        }]);
+      }
     }
     setMessage('');
     setError('');
     setIsSubmitted(false);
     fetchNames();
   }, [item, supplier]);
+
+  // Auto-save draft when adding (not editing)
+  useEffect(() => {
+    if (!item) {
+      // Only save if there's meaningful data
+      const hasData = grn.trim() || items.some(i => 
+        i.itemName.trim() || 
+        i.category.trim() || 
+        i.stock.trim() || 
+        i.buyingPrice.trim()
+      );
+
+      if (hasData) {
+        const draft = { grn, items };
+        localStorage.setItem(CART_FORM_STORAGE_KEY, JSON.stringify(draft));
+      } else {
+        // Clear if empty
+        localStorage.removeItem(CART_FORM_STORAGE_KEY);
+      }
+    }
+  }, [grn, items, item]); // Only runs when these change
 
   useEffect(() => {
     const loadReturnStocks = async () => {
@@ -140,6 +195,32 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
       loadReturnStocks();
     }
   }, [items, itemNames]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (!item) {
+        const hasData = grn.trim() || items.some(i => 
+          i.itemName.trim() || 
+          i.category.trim() || 
+          i.stock.trim() || 
+          i.buyingPrice.trim()
+        );
+        if (hasData) {
+          e.preventDefault();
+          e.returnValue = 'You have unsaved items. Are you sure you want to leave?';
+          return e.returnValue;
+        }
+      }
+    };
+
+    if (!item) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [grn, items, item]);
 
   const handleGrnChange = (e) => {
     setGrn(e.target.value);
@@ -313,6 +394,8 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
 
       setMessage('');
       setError('');
+      // Inside handleSubmit, after success:
+      localStorage.removeItem(CART_FORM_STORAGE_KEY); // ✅ Clear draft
       setTimeout(() => {
         closeModal();
       }, 1000);
@@ -329,6 +412,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
     setIsSubmitted(false);
     setMessage('');
     setError('');
+    // localStorage.removeItem(CART_FORM_STORAGE_KEY); // ✅ Clear draft
     closeModal();
   };
 
@@ -429,7 +513,33 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
   return (
     <div className="view-modal-select">
       <div className="modal-content-select">
-        <h2 className="modal-title">{item ? '✏️ Edit Item' : '🛒 Add Items To Cart'}</h2>
+        <div className={`supplier-info-header ${darkMode ? 'dark' : ''}`} style={{
+          backgroundColor: darkMode ? '#1F2A44' : '#f0f8ff',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          marginBottom: '16px',
+          border: darkMode ? '1px solid #374151' : '1px solid #d1e7ff',
+          textAlign: 'center'
+        }}>
+          <h3 style={{
+            margin: '0',
+            color: darkMode ? '#63b3ed' : '#0d6efd',
+            fontSize: '1.2rem'
+          }}>
+            {supplier.businessName || supplier.supplierName || 'Unknown Supplier'}
+          </h3>
+          {supplier.supplierName && supplier.businessName && supplier.supplierName !== supplier.businessName && (
+            <p style={{
+              margin: '4px 0 0',
+              color: darkMode ? '#a0aec0' : '#6c757d',
+              fontSize: '0.9rem'
+            }}>
+              ({supplier.supplierName})
+            </p>
+          )}
+          <h2 className="modal-title">{item ? '✏️ Edit Item' : '🛒 Add Items To Cart'}</h2>
+        </div>
+        
         {loading && <p className="loading">{item ? 'Updating' : 'Adding'} items...</p>}
         {error && <p className="error-message">{error}</p>}
         <form className="edit-product-form" onSubmit={handleSubmit}>

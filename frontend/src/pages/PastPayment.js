@@ -131,6 +131,7 @@ const CartForm = ({ supplier, closeModal, darkMode, refreshProducts }) => {
                 <input
                   className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
                   type="number"
+                  onWheel={(e) => e.target.blur()}
                   name="paymentCharge"
                   value={items.paymentCharge}
                   onChange={handleItemChange}

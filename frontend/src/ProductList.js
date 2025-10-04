@@ -81,12 +81,14 @@ const ProductList = ({ darkMode }) => {
 
   const [categorySearch, setCategorySearch] = useState('');
   const categoryFilterRef = useRef(null);
+
+  const userRole = localStorage.getItem('role');
   
-    const filteredCategoriesForSearch = categorySearch.trim() === ''
-    ? allCategories
-    : allCategories.filter(cat =>
-        cat.toLowerCase().includes(categorySearch.toLowerCase().trim())
-      );
+  const filteredCategoriesForSearch = categorySearch.trim() === ''
+  ? allCategories
+  : allCategories.filter(cat =>
+      cat.toLowerCase().includes(categorySearch.toLowerCase().trim())
+    );
 
   const handleClearAll = () => {
     setSearchQuery('');
@@ -227,6 +229,21 @@ const ProductList = ({ darkMode }) => {
           };
         });
 
+      const repairsReturned = repairsList
+        .filter((repair) =>
+          repair.returnCart?.some((cartItem) => cartItem.itemCode === itemCode)
+        )
+        .map((repair) => {
+          const cartItem = repair.returnCart.find((i) => i.itemCode === itemCode);
+          return {
+            type: "Repair Return",
+            invoiceNo: repair.repairInvoice || "N/A",
+            customerName: repair.customerName || "Unknown",
+            quantity: cartItem?.quantity || 0,
+            date: repair.createdAt ? formatTrackDate(repair.createdAt) : "N/A",
+          };
+        });
+
       // --- Fetch Payments ---
       const paymentsRes = await fetch(
         `${PAYMENTS_API_URL}/track?itemCode=${encodeURIComponent(itemCode)}`
@@ -245,7 +262,7 @@ const ProductList = ({ darkMode }) => {
       }));
 
       // Combine and sort by date (newest first)
-      const usageRecords = [...repairsUsed, ...formattedPaymentsUsed].sort(
+      const usageRecords = [...repairsUsed, ...repairsReturned, ...formattedPaymentsUsed].sort(
         (a, b) => new Date(b.date) - new Date(a.date)
       );
 
@@ -1432,34 +1449,38 @@ const ProductList = ({ darkMode }) => {
                                   <span>Track Usage</span>
                                 </div>
                               </button>
-                              <button onClick={() => handleEdit(product)} className="p-edit-btn">
-                                <div className="action-btn-content">
-                                  <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
-                                  <span>Edit</span>
-                                </div>
-                              </button>
                               {/* <button onClick={() => handleReturn(product)} className="p-return-btn">
                                 <div className="action-btn-content">
                                   <img src={returnicon} alt="return" width="30" height="30" className="p-return-btn-icon" />
                                   <span>Return</span>
                                 </div>
                               </button> */}
-                              <button onClick={() => handleBarcode(product)} className="p-barcode-btn">
+                              {/* <button onClick={() => handleBarcode(product)} className="p-barcode-btn">
                                 <div className="action-btn-content">
                                   <img src={barcodeicon} alt="barcode" width="30" height="30" className="p-barcode-btn-icon" />
                                   <span>Barcode</span>
                                 </div>
-                              </button>
-                              <button 
-                                onClick={() => handleAddProductClick(product)}
-                                className="p-delete-btn" 
-                                style={{ textDecoration: 'none', display: 'block', width: '100%', border: 'none', background: 'none', cursor: 'pointer' }}
-                              >
-                                <div className="action-btn-content">
-                                  <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
-                                  <span>Delete</span>
-                                </div>
-                              </button>
+                              </button> */}
+                              {userRole === 'admin' && (
+                                <>
+                                  <button onClick={() => handleEdit(product)} className="p-edit-btn">
+                                    <div className="action-btn-content">
+                                      <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
+                                      <span>Edit</span>
+                                    </div>
+                                  </button>
+                                  <button 
+                                    onClick={() => handleAddProductClick(product)}
+                                    className="p-delete-btn" 
+                                    style={{ textDecoration: 'none', display: 'block', width: '100%', border: 'none', background: 'none', cursor: 'pointer' }}
+                                  >
+                                    <div className="action-btn-content">
+                                      <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
+                                      <span>Delete</span>
+                                    </div>
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </>
                         )}

@@ -12,6 +12,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
     cashierName: "",
     cashierId: "",
     serviceCharge: "",
+    rettotalAmount: "",
   });
 
   // State for items with editable assignedTo AND retquantity
@@ -20,6 +21,8 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const [productStocks, setProductStocks] = useState({});
 
   // Initialize form and item assignments
   useEffect(() => {
@@ -35,24 +38,56 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
         rettotalAmount: payment.rettotalAmount?.toString() || "0",
       });
 
-      // Initialize item assignments with retquantity
       if (Array.isArray(payment.items)) {
-        setItemAssignments(
-          payment.items.map((item) => ({
-            productId:item.productId,
-            _id: item._id || item.itemId, // unique key
-            assignedTo: item.assignedTo || "", // editable
-            retquantity: item.retquantity || 0, // editable return quantity
-            givenQty: item.givenQty || 0,
-            itemName: item.itemName,
-            quantity: item.quantity,
-            price: item.price,
-            discount: item.discount,
-          }))
-        );
+        const initialAssignments = payment.items.map((item) => ({
+          productId: item.productId,
+          _id: item._id || item.itemId,
+          assignedTo: item.assignedTo || "",
+          retquantity: item.retquantity || 0,
+          givenQty: item.givenQty || 0,
+          itemName: item.itemName,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount,
+        }));
+
+        setItemAssignments(initialAssignments);
+
+        // ✅ Fetch live stock for each item
+        const loadStocks = async () => {
+          const stocks = {};
+          for (const item of initialAssignments) {
+            if (item.productId) {
+              console.log("Product id",item);
+              stocks[item.productId] = await fetchProductStock(item.productId);
+            }
+          }
+          setProductStocks(stocks);
+        };
+
+        loadStocks();
       }
+
     }
   }, [payment]);
+
+  const fetchProductStock = async (itemCode) => {
+    try {
+      // console.log("product ",itemCode._id);
+      const response = await fetch(`https://raxwo-management.onrender.com/api/products/productitem/${(itemCode._id)}`);
+      if (!response.ok) {
+        console.warn(`Product ${itemCode} not found`);
+        return 0;
+      }
+      const product = await response.json();
+     
+      return product.stock || 0;
+    } catch (err) {
+      console.error(`Error fetching stock for ${itemCode}:`, err);
+      return 0;
+    }
+  };
+  
 
   useEffect(() => {
     const serviceCharge = parseFloat(formData.serviceCharge) || 0;
@@ -90,7 +125,19 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
   const handleItemChange = (itemId, field, value) => {
     setItemAssignments((prev) =>
       prev.map((item) =>
-        item._id === itemId ? { ...item, [field]: value } : item
+      {
+        if (field === 'retquantity') {
+          const newRetQty = parseInt(value) || 0;
+          // ✅ If new return qty is 0, force givenQty to 0
+          if (newRetQty === 0) {
+            return { ...item, retquantity: newRetQty, givenQty: 0 };
+          }
+          return { ...item, retquantity: newRetQty };
+        }
+
+        // For other fields (e.g., assignedTo)
+        return { ...item, [field]: value };
+      }
       )
     );
   };
@@ -308,6 +355,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                           min="0"
                           max={item.quantity}
                           value={item.retquantity}
+                          onWheel={(e) => e.target.blur()}
                           onChange={(e) =>
                             handleItemChange(item._id, 'retquantity', parseInt(e.target.value) || 0)
                           }
@@ -317,16 +365,27 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                       <td>{item.price?.toFixed(2) || '0.00'}</td>
                       <td>{item.discount?.toFixed(2) || '0.00'}</td>
                       <td>
-                        <input
-                          type="number"
-                          min="0"
-                          value={item.givenQty || 0}
-                          disabled={item.retquantity <= 0} 
-                          onChange={(e) =>
-                            handleItemChange(item._id, 'givenQty', parseInt(e.target.value) || 0)
-                          }
-                          className={`edit-input small-input ${darkMode ? "dark" : ""}`}
-                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <input
+                            type="number"
+                            onWheel={(e) => e.target.blur()}
+                            min="0"
+                            max={productStocks[item.productId] || 0} // ✅ Enforce max
+                            value={item.givenQty || 0}
+                            disabled={item.retquantity <= 0}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 0;
+                              const maxAllowed = productStocks[item.productId] || 0;
+                              const clamped = Math.max(0, Math.min(val, maxAllowed));
+                              handleItemChange(item._id, 'givenQty', clamped);
+                            }}
+                            className={`edit-input small-input ${darkMode ? "dark" : ""}`}
+                            style={{ width: '70px', padding: '4px' }}
+                          />
+                          <span style={{ fontSize: '0.85rem', color: darkMode ? '#a0aec0' : '#666' }}>
+                            / {productStocks[item.productId] || 0}
+                          </span>
+                        </div>
                       </td>
                       {/* <td>
                         <select
@@ -375,6 +434,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                 className={`edit-input ${darkMode ? "dark" : ""}`}
                 type="number"
                 value={formData.rettotalAmount || "0"}
+                onWheel={(e) => e.target.blur()}
                 readOnly
                 step="0.01"
               />
@@ -389,6 +449,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                 className={`edit-input ${darkMode ? "dark" : ""}`}
                 type="number"
                 value={formData.discountApplied}
+                onWheel={(e) => e.target.blur()}
                 readOnly
                 step="0.01"
               />
@@ -399,6 +460,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                 className={`edit-input ${darkMode ? "dark" : ""}`}
                 type="number"
                 value={formData.totalAmount}
+                onWheel={(e) => e.target.blur()}
                 readOnly
                 step="0.01"
               />

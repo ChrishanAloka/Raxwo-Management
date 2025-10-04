@@ -10,6 +10,8 @@ import autoTable from "jspdf-autotable";
 import editicon from "../icon/edit.png";
 import deleteicon from "../icon/delete.png";
 import "../styles/ExtraIncome.css";
+import Select from 'react-select/creatable';
+import { components } from 'react-select';
 
 const API_URL = "https://raxwo-management.onrender.com/api/extra-income";
 
@@ -41,6 +43,10 @@ const ExtraIncome = ({ darkMode }) => {
 
   const [returningRecord, setReturningRecord] = useState(null);
 
+  const userRole = localStorage.getItem('role');
+
+  const [summaryIncomeTypeFilter, setSummaryIncomeTypeFilter] = useState('all');
+
   // Sample data for demo mode
   const sampleData = [
     {
@@ -60,6 +66,12 @@ const ExtraIncome = ({ darkMode }) => {
       description: "Supplier refund",
     },
   ];
+
+  // Helper: Get unique income types from existing records
+  const getUniqueIncomeTypes = () => {
+    const types = [...new Set(extraIncomes.map(income => income.incomeType))];
+    return types.map(type => ({ value: type, label: type }));
+  };
 
   // Fetch extra income records
   const fetchExtraIncomes = async () => {
@@ -306,11 +318,16 @@ const ExtraIncome = ({ darkMode }) => {
   };
 
   // Calculate monthly summary for chart
-  const calculateMonthlySummary = () => {
+  const calculateMonthlySummary = (incomeTypeFilter = 'all') => {
     const monthlyData = {};
     let totalAmount = 0;
 
-    extraIncomes.forEach((record) => {
+    const filteredForSummary = extraIncomes.filter(record => {
+      if (incomeTypeFilter === 'all') return true;
+      return record.incomeType === incomeTypeFilter;
+    });
+
+    filteredForSummary.forEach((record) => {
       const date = new Date(record.date);
       const monthYear = date.toLocaleString("default", { month: "long", year: "numeric" });
       if (!monthlyData[monthYear]) monthlyData[monthYear] = 0;
@@ -320,102 +337,108 @@ const ExtraIncome = ({ darkMode }) => {
 
     const months = Object.keys(monthlyData);
     const amounts = months.map((month) => monthlyData[month]);
-
     return { monthlyData, totalAmount, months, amounts };
   };
 
-  const { monthlyData, totalAmount, months, amounts } = calculateMonthlySummary();
+  const uniqueIncomeTypes = [...new Set(extraIncomes.map(r => r.incomeType))];
+
+  const currentSummary = calculateMonthlySummary(summaryIncomeTypeFilter);
+  const { totalAmount } = currentSummary;
 
   // Chart options for Highcharts
-  const chartOptions = {
-    chart: {
-      type: "column",
-      options3d: {
-        enabled: true,
-        alpha: 1,
-        beta: 0,
-        depth: 50,
-        viewDistance: 25,
-        frame: {
-          bottom: { size: 1, color: darkMode ? "rgba(251, 251, 251, 0.1)" : "whitesmoke" },
-          side: { size: 0 },
-          back: { size: 0 },
-        },
-      },
-      backgroundColor: darkMode ? "rgba(251, 251, 251, 0.1)" : "whitesmoke",
-      borderWidth: 0,
-    },
-    title: {
-      text: "Monthly Extra Income",
-      style: { color: darkMode ? "#ffffff" : "#000000", fontFamily: "'Inter', sans-serif", fontSize: "18px" },
-    },
-    xAxis: {
-      categories: months,
-      labels: {
-        style: {
-          color: darkMode ? "#ffffff" : "#000000",
-          fontFamily: "'Inter', sans-serif",
-          fontSize: "14px",
-        },
-      },
-      lineColor: darkMode ? "rgba(255, 255, 255, 0.2)" : "rgba(82, 82, 82, 0.2)",
-    },
-    yAxis: {
-      title: { text: null },
-      labels: {
-        style: {
-          color: darkMode ? "#ffffff" : "#000000",
-          fontFamily: "'Inter', sans-serif",
-          fontSize: "14px",
-        },
-        formatter: function () {
-          return Highcharts.numberFormat(this.value, 0);
-        },
-      },
-      gridLineColor: darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)",
-      lineColor: darkMode ? "rgba(255, 255, 255, 0.2)" : "rgba(82, 82, 82, 0.2)",
-      lineWidth: 1,
-      offset: 0,
-    },
-    plotOptions: {
-      column: {
-        depth: 25,
-        pointWidth: 20,
-        groupPadding: 0.2,
-        pointPadding: 0.05,
-        colorByPoint: true,
-        dataLabels: {
+  const chartOptions = React.useMemo(() => {
+    const { months, amounts } = calculateMonthlySummary(summaryIncomeTypeFilter);
+
+    return {
+      chart: {
+        type: "column",
+        options3d: {
           enabled: true,
-          format: "{y}",
+          alpha: 1,
+          beta: 0,
+          depth: 50,
+          viewDistance: 25,
+          frame: {
+            bottom: { size: 1, color: darkMode ? "rgba(251, 251, 251, 0.1)" : "whitesmoke" },
+            side: { size: 0 },
+            back: { size: 0 },
+          },
+        },
+        backgroundColor: darkMode ? "rgba(251, 251, 251, 0.1)" : "whitesmoke",
+        borderWidth: 0,
+      },
+      title: {
+        text: "Monthly Extra Income",
+        style: { color: darkMode ? "#ffffff" : "#000000", fontFamily: "'Inter', sans-serif", fontSize: "18px" },
+      },
+      xAxis: {
+        categories: months,
+        labels: {
           style: {
             color: darkMode ? "#ffffff" : "#000000",
             fontFamily: "'Inter', sans-serif",
-            fontSize: "12px",
-            textOutline: "none",
+            fontSize: "14px",
+          },
+        },
+        lineColor: darkMode ? "rgba(255, 255, 255, 0.2)" : "rgba(82, 82, 82, 0.2)",
+      },
+      yAxis: {
+        title: { text: null },
+        labels: {
+          style: {
+            color: darkMode ? "#ffffff" : "#000000",
+            fontFamily: "'Inter', sans-serif",
+            fontSize: "14px",
+          },
+          formatter: function () {
+            return Highcharts.numberFormat(this.value, 0);
+          },
+        },
+        gridLineColor: darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)",
+        lineColor: darkMode ? "rgba(255, 255, 255, 0.2)" : "rgba(82, 82, 82, 0.2)",
+        lineWidth: 1,
+        offset: 0,
+      },
+      plotOptions: {
+        column: {
+          depth: 25,
+          pointWidth: 20,
+          groupPadding: 0.2,
+          pointPadding: 0.05,
+          colorByPoint: true,
+          dataLabels: {
+            enabled: true,
+            format: "{y}",
+            style: {
+              color: darkMode ? "#ffffff" : "#000000",
+              fontFamily: "'Inter', sans-serif",
+              fontSize: "12px",
+              textOutline: "none",
+            },
           },
         },
       },
-    },
-    series: [
-      {
-        name: "Extra Income",
-        data: amounts,
-        colors: ["#1e90ff", "#ff4040", "#32cd32", "#ffcc00", "#ff69b4", "#8a2be2"],
+      series: [
+        {
+          name: "Extra Income",
+          data: amounts,
+          colors: ["#1e90ff", "#ff4040", "#32cd32", "#ffcc00", "#ff69b4", "#8a2be2"],
+        },
+      ],
+      legend: { enabled: false },
+      credits: { enabled: false },
+      tooltip: {
+        backgroundColor: darkMode ? "rgba(15, 23, 42, 0.9)" : "rgba(245, 245, 245, 0.9)",
+        style: {
+          color: darkMode ? "#ffffff" : "#000000",
+          fontFamily: "'Inter', sans-serif",
+        },
+        formatter: function () {
+          return `<b>${this.x}</b>: ${Highcharts.numberFormat(this.y, 2)}`;
+        },
       },
-    ],
-    legend: { enabled: false },
-    credits: { enabled: false },
-    tooltip: {
-      backgroundColor: darkMode ? "rgba(15, 23, 42, 0.9)" : "rgba(245, 245, 245, 0.9)",
-      style: {
-        color: darkMode ? "#ffffff" : "#000000",
-        fontFamily: "'Inter', sans-serif",
-      },
-      formatter: function () {
-        return `<b>${this.x}</b>: ${Highcharts.numberFormat(this.y, 2)}`;
-      },
-    },
-  };
+    };
+  }, [summaryIncomeTypeFilter, darkMode, extraIncomes]);
 
   // Generate Excel report
   const generateExcel = () => {
@@ -493,9 +516,11 @@ const ExtraIncome = ({ darkMode }) => {
           )}
         </div>
         <div className="filter-action-row">
-          <button onClick={() => setShowSummaryModal(true)} className="btn-summary">
-            <FontAwesomeIcon icon={faChartSimple} /> Summary
-          </button>
+          {userRole === 'admin' && (
+            <button onClick={() => setShowSummaryModal(true)} className="btn-summary">
+              <FontAwesomeIcon icon={faChartSimple} /> Summary
+            </button>
+          )}
           <button onClick={() => setShowAddModal(true)} className="btn-primary">
             <FontAwesomeIcon icon={faPlus} /> Add Extra Income
           </button>
@@ -583,14 +608,19 @@ const ExtraIncome = ({ darkMode }) => {
                               <span>Edit</span>
                             </div>
                           </button>
-                          <button onClick={() => handleDelete(record._id)} className="p-delete-btn">
-                            <div className="action-btn-content">
-                              <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
-                              <span>Delete</span>
-                            </div>
-                          </button>
+                          {userRole === 'admin' && (
+
+                            <button onClick={() => handleDelete(record._id)} className="p-delete-btn">
+                              <div className="action-btn-content">
+                                <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
+                                <span>Delete</span>
+                              </div>
+                            </button>
+                          
+                          )}
                           <button onClick={() => handleReturn(record)} className="p-return-btn">
                             <div className="action-btn-content">
+                              <span className="p-edit-btn-icon" style={{width:"30", height:"30"}}>↩️ </span>
                               <span>Return</span>
                             </div>
                           </button>
@@ -630,13 +660,46 @@ const ExtraIncome = ({ darkMode }) => {
                 required
               />
               <label className={`madd-label ${darkMode ? "dark" : ""}`}>Income Type</label>
-              <input
-                className={`madd-input ${darkMode ? "dark" : ""}`}
-                type="text"
-                name="incomeType"
-                value={formData.incomeType}
-                onChange={handleInputChange}
-                required
+              <Select
+                isClearable
+                options={getUniqueIncomeTypes()}
+                value={formData.incomeType ? { value: formData.incomeType, label: formData.incomeType } : null}
+                onChange={(selected) => setFormData({ ...formData, incomeType: selected ? selected.value : '' })}
+                placeholder="Select or create income type..."
+                classNamePrefix="react-select"
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    backgroundColor: darkMode ? '#333' : '#fff',
+                    borderColor: darkMode ? '#555' : '#ccc',
+                    color: darkMode ? '#fff' : '#333',
+                    minHeight: '40px',
+                  }),
+                  menu: (provided) => ({
+                    ...provided,
+                    backgroundColor: darkMode ? '#2d3748' : '#fff',
+                    zIndex: 1000,
+                  }),
+                  option: (provided, state) => ({
+                    ...provided,
+                    backgroundColor: state.isFocused
+                      ? (darkMode ? '#4a5568' : '#e2e8f0')
+                      : (darkMode ? '#2d3748' : '#fff'),
+                    color: darkMode ? '#fff' : '#000',
+                  }),
+                  singleValue: (provided) => ({
+                    ...provided,
+                    color: darkMode ? '#fff' : '#333',
+                  }),
+                  input: (provided) => ({
+                    ...provided,
+                    color: darkMode ? '#fff' : '#333',
+                  }),
+                  placeholder: (provided) => ({
+                    ...provided,
+                    color: darkMode ? '#a0aec0' : '#999',
+                  }),
+                }}
               />
               <label className={`madd-label ${darkMode ? "dark" : ""}`}>Amount</label>
               <input
@@ -645,6 +708,7 @@ const ExtraIncome = ({ darkMode }) => {
                 name="amount"
                 value={formData.amount}
                 onChange={handleInputChange}
+                onWheel={(e) => e.target.blur()}
                 min="0"
                 step="0.01"
                 required
@@ -735,13 +799,46 @@ const ExtraIncome = ({ darkMode }) => {
                 required
               />
               <label className={`madd-label ${darkMode ? "dark" : ""}`}>Income Type</label>
-              <input
-                className={`madd-input ${darkMode ? "dark" : ""}`}
-                type="text"
-                name="incomeType"
-                value={editingRecord.incomeType}
-                onChange={(e) => setEditingRecord({ ...editingRecord, incomeType: e.target.value })}
-                required
+              <Select
+                isClearable
+                options={getUniqueIncomeTypes()}
+                value={editingRecord.incomeType ? { value: editingRecord.incomeType, label: editingRecord.incomeType } : null}
+                onChange={(selected) => setEditingRecord({ ...editingRecord, incomeType: selected ? selected.value : '' })}
+                placeholder="Select or create income type..."
+                classNamePrefix="react-select"
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    backgroundColor: darkMode ? '#333' : '#fff',
+                    borderColor: darkMode ? '#555' : '#ccc',
+                    color: darkMode ? '#fff' : '#333',
+                    minHeight: '40px',
+                  }),
+                  menu: (provided) => ({
+                    ...provided,
+                    backgroundColor: darkMode ? '#2d3748' : '#fff',
+                    zIndex: 1000,
+                  }),
+                  option: (provided, state) => ({
+                    ...provided,
+                    backgroundColor: state.isFocused
+                      ? (darkMode ? '#4a5568' : '#e2e8f0')
+                      : (darkMode ? '#2d3748' : '#fff'),
+                    color: darkMode ? '#fff' : '#000',
+                  }),
+                  singleValue: (provided) => ({
+                    ...provided,
+                    color: darkMode ? '#fff' : '#333',
+                  }),
+                  input: (provided) => ({
+                    ...provided,
+                    color: darkMode ? '#fff' : '#333',
+                  }),
+                  placeholder: (provided) => ({
+                    ...provided,
+                    color: darkMode ? '#a0aec0' : '#999',
+                  }),
+                }}
               />
               <label className={`madd-label ${darkMode ? "dark" : ""}`}>Amount</label>
               <input
@@ -750,6 +847,7 @@ const ExtraIncome = ({ darkMode }) => {
                 name="amount"
                 value={editingRecord.amount}
                 onChange={(e) => setEditingRecord({ ...editingRecord, amount: e.target.value })}
+                onWheel={(e) => e.target.blur()}
                 min="0"
                 step="0.01"
                 required
@@ -847,6 +945,7 @@ const ExtraIncome = ({ darkMode }) => {
               <input
                 className={`madd-input ${darkMode ? "dark" : ""}`}
                 type="number"
+                onWheel={(e) => e.target.blur()}
                 value={returningRecord.amount}
                 readOnly
                 step="0.01"
@@ -890,6 +989,7 @@ const ExtraIncome = ({ darkMode }) => {
               <input
                 className={`madd-input ${darkMode ? "dark" : ""}`}
                 type="number"
+                onWheel={(e) => e.target.blur()}
                 value={returningRecord.totalAmount}
                 readOnly
                 step="0.01"
@@ -959,6 +1059,23 @@ const ExtraIncome = ({ darkMode }) => {
                 ✕
               </button>
             </div>
+
+            {/* Income Type Filter */}
+            <div className="summary-filter-section">
+              <label htmlFor="incomeTypeFilter">Filter by Income Type: </label>
+              <select
+                id="incomeTypeFilter"
+                value={summaryIncomeTypeFilter}
+                onChange={(e) => setSummaryIncomeTypeFilter(e.target.value)}
+                className={`summary-filter-select ${darkMode ? 'dark' : ''}`}
+              >
+                <option value="all">All Income Types</option>
+                {uniqueIncomeTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="product-summary-content">
               <div className="product-summary-card">
                 <div className="product-summary-icon product-summary-total-icon">💸</div>

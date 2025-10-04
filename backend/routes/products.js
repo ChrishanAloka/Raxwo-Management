@@ -749,6 +749,11 @@ router.get('/:id', getProduct, (req, res) => {
   res.json(res.product);
 });
 
+// GET: Get a single product by ID
+router.get('/productitem/:id', getProduct, (req, res) => {
+  res.json(res.product);
+});
+
 // POST: Create a new product
 router.post('/', async (req, res) => {
   try {

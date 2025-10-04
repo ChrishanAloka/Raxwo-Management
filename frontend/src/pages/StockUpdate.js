@@ -271,6 +271,7 @@ const StockUpdate = ({ darkMode }) => {
                   type="number"
                   value={newStock}
                   onChange={(e) => setNewStock(e.target.value)}
+                  onWheel={(e) => e.target.blur()}
                   min="0"
                   required
                   className={`stock-input ${darkMode ? 'dark' : ''}`}
@@ -284,6 +285,7 @@ const StockUpdate = ({ darkMode }) => {
               type="number"
               value={newBuyingPrice}
               onChange={(e) => setNewBuyingPrice(e.target.value)}
+              onWheel={(e) => e.target.blur()}
               min="0"
               step="0.01"
               required
@@ -296,6 +298,7 @@ const StockUpdate = ({ darkMode }) => {
               type="number"
               value={newSellingPrice}
               onChange={(e) => setNewSellingPrice(e.target.value)}
+              onWheel={(e) => e.target.blur()}
               min="0"
               step="0.01"
               required

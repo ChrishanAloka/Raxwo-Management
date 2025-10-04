@@ -69,6 +69,7 @@ const ReturnProductModal = ({ product, closeModal, darkMode}) => {
           type="number"
           value={returnQuantity}
           onChange={(e) => setReturnQuantity(e.target.value)}
+          onWheel={(e) => e.target.blur()}
         />
 
         <label className={`re-p-label ${darkMode ? "dark" : ""}`}>Return Type:</label>

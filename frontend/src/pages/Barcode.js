@@ -87,17 +87,18 @@ const BarcodeGenerator = ({ itemCode, itemName, sellingPrice, darkMode, onClose 
             <p>Rs. {sellingPrice.toFixed(2)}</p>
           </div>
         </div>
-        <div className="barcode-quantity">
+        {/* <div className="barcode-quantity">
           <label htmlFor="quantity">Quantity: </label>
           <input
             type="number"
+            onWheel={(e) => e.target.blur()}
             id="quantity"
             value={quantity}
             onChange={handleQuantityChange}
             min="1"
             className={darkMode ? 'dark' : ''}
           />
-        </div>
+        </div> */}
         <div className="barcode-actions">
           <button className={`barcode-download-btn ${darkMode ? 'dark' : ''}`} onClick={downloadPNG}>
             Download PNG

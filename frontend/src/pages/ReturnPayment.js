@@ -438,6 +438,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
                       min="1"
                       value={item.quantity}
                       onChange={(e) => handleQuantityChange(index, e.target.value)}
+                      onWheel={(e) => e.target.blur()}
                       className={darkMode ? "dark-mode" : ""}
                     />
                   </td>
@@ -447,6 +448,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
                       min="0"
                       step="0.01"
                       value={item.returnPrice}
+                      onWheel={(e) => e.target.blur()}
                       onChange={(e) => {
                         const updatedItems = [...returnItems];
                         updatedItems[index].returnPrice = parseFloat(e.target.value) || 0;

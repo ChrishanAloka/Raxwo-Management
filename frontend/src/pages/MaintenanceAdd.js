@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import '../styles/MaintenanceAdd.css';
+import Select from 'react-select/creatable';
+import { useEffect } from 'react';
 
 const API_URL = "https://raxwo-management.onrender.com/api/maintenance";
 
@@ -17,7 +19,24 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
 
+  const [serviceTypes, setServiceTypes] = useState([]);
+
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchServiceTypes = async () => {
+      try {
+        const response = await fetch(`${API_URL}`);
+        if (!response.ok) throw new Error('Failed to fetch records');
+        const records = await response.json();
+        const uniqueTypes = [...new Set(records.map(r => r.serviceType).filter(Boolean))];
+        setServiceTypes(uniqueTypes.map(type => ({ value: type, label: type })));
+      } catch (err) {
+        console.error('Error fetching service types:', err);
+      }
+    };
+    fetchServiceTypes();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -62,11 +81,46 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
             onChange={e => setTime(e.target.value)}
           />
           <label className={`madd-label ${darkMode ? "dark" : ""}`}>Service Type</label>
-          <input
-            className={`madd-input ${darkMode ? "dark" : ""}`}
-            type="text"
-            value={serviceType}
-            onChange={(e) => setServiceType(e.target.value)}
+          <Select
+            isClearable
+            options={serviceTypes}
+            value={serviceType ? { value: serviceType, label: serviceType } : null}
+            onChange={(selected) => setServiceType(selected ? selected.value : '')}
+            placeholder="Select or create service type..."
+            classNamePrefix="react-select"
+            styles={{
+              control: (provided) => ({
+                ...provided,
+                backgroundColor: darkMode ? '#333' : '#fff',
+                borderColor: darkMode ? '#555' : '#ccc',
+                color: darkMode ? '#fff' : '#333',
+                minHeight: '40px',
+              }),
+              menu: (provided) => ({
+                ...provided,
+                backgroundColor: darkMode ? '#2d3748' : '#fff',
+                zIndex: 1000,
+              }),
+              option: (provided, state) => ({
+                ...provided,
+                backgroundColor: state.isFocused
+                  ? (darkMode ? '#4a5568' : '#e2e8f0')
+                  : (darkMode ? '#2d3748' : '#fff'),
+                color: darkMode ? '#fff' : '#000',
+              }),
+              singleValue: (provided) => ({
+                ...provided,
+                color: darkMode ? '#fff' : '#333',
+              }),
+              input: (provided) => ({
+                ...provided,
+                color: darkMode ? '#fff' : '#333',
+              }),
+              placeholder: (provided) => ({
+                ...provided,
+                color: darkMode ? '#a0aec0' : '#999',
+              }),
+            }}
             required
           />
           <label className={`madd-label ${darkMode ? "dark" : ""}`}>Price</label>
@@ -74,6 +128,7 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
             className={`madd-input ${darkMode ? "dark" : ""}`}
             type="number"
             value={price}
+            onWheel={(e) => e.target.blur()}
             onChange={(e) => setPrice(e.target.value)}
             required
           />

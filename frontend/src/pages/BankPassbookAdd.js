@@ -110,6 +110,7 @@ const BankPassbookAdd = ({ onClose, onUpdate, darkMode }) => {
             min="0.01"
             className={`bp-add-input ${darkMode ? "dark" : ""}`}
             value={amount}
+            onWheel={(e) => e.target.blur()}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="Enter amount"
             required

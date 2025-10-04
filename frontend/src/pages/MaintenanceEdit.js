@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import '../styles/MaintenanceEdit.css';
+import Select from 'react-select/creatable';
 
 const API_URL = "https://raxwo-management.onrender.com/api/maintenance";
 
 const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
   const [editedRecord, setEditedRecord] = useState({ ...record });
   const [error, setError] = useState(null);
+  const [serviceTypes, setServiceTypes] = useState([]);
 
   useEffect(() => {
     // Helper to format time to HH:mm for input[type="time"]
@@ -35,6 +37,21 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
       assignedTo: prev.assignedTo || "",
     }));
   }, [record]);
+
+  useEffect(() => {
+    const fetchServiceTypes = async () => {
+      try {
+        const response = await fetch(`${API_URL}`);
+        if (!response.ok) throw new Error('Failed to fetch records');
+        const records = await response.json();
+        const uniqueTypes = [...new Set(records.map(r => r.serviceType).filter(Boolean))];
+        setServiceTypes(uniqueTypes.map(type => ({ value: type, label: type })));
+      } catch (err) {
+        console.error('Error fetching service types:', err);
+      }
+    };
+    fetchServiceTypes();
+  }, []);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -75,11 +92,46 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
             required
           />
           <label className={`me-lable ${darkMode ? "dark" : ""}`}>Service Type</label>
-          <input
-            type="text"
-            className={`me-input ${darkMode ? "dark" : ""}`}
-            value={editedRecord.serviceType}
-            onChange={(e) => setEditedRecord({ ...editedRecord, serviceType: e.target.value })}
+          <Select
+            isClearable
+            options={serviceTypes}
+            value={editedRecord.serviceType ? { value: editedRecord.serviceType, label: editedRecord.serviceType } : null}
+            onChange={(selected) => setEditedRecord({ ...editedRecord, serviceType: selected ? selected.value : '' })}
+            placeholder="Select or create service type..."
+            classNamePrefix="react-select"
+            styles={{
+              control: (provided) => ({
+                ...provided,
+                backgroundColor: darkMode ? '#333' : '#fff',
+                borderColor: darkMode ? '#555' : '#ccc',
+                color: darkMode ? '#fff' : '#333',
+                minHeight: '40px',
+              }),
+              menu: (provided) => ({
+                ...provided,
+                backgroundColor: darkMode ? '#2d3748' : '#fff',
+                zIndex: 1000,
+              }),
+              option: (provided, state) => ({
+                ...provided,
+                backgroundColor: state.isFocused
+                  ? (darkMode ? '#4a5568' : '#e2e8f0')
+                  : (darkMode ? '#2d3748' : '#fff'),
+                color: darkMode ? '#fff' : '#000',
+              }),
+              singleValue: (provided) => ({
+                ...provided,
+                color: darkMode ? '#fff' : '#333',
+              }),
+              input: (provided) => ({
+                ...provided,
+                color: darkMode ? '#fff' : '#333',
+              }),
+              placeholder: (provided) => ({
+                ...provided,
+                color: darkMode ? '#a0aec0' : '#999',
+              }),
+            }}
             required
           />
           <label className={`me-lable ${darkMode ? "dark" : ""}`}>Price</label>
@@ -87,6 +139,7 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
             type="number"
             className={`me-input ${darkMode ? "dark" : ""}`}
             value={editedRecord.price}
+            onWheel={(e) => e.target.blur()}
             onChange={(e) => setEditedRecord({ ...editedRecord, price: e.target.value })}
             required
           />

@@ -33,6 +33,8 @@ const PaymentTable = ({ darkMode }) => {
   const [showPaymentFilter, setShowPaymentFilter] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(null); // Track which header shows filter
 
+  const userRole = localStorage.getItem('role');
+
   useEffect(() => {
     fetchPayments();
   }, []);
@@ -962,10 +964,11 @@ const PaymentTable = ({ darkMode }) => {
           )}
         </div>
         <div className='filter-action-row'>
-
-        <button onClick={() => setShowModal(true)} className="btn-summary">
-          <FontAwesomeIcon icon={faChartSimple} /> Summary
-        </button>
+        {userRole === 'admin' && (
+          <button onClick={() => setShowModal(true)} className="btn-summary">
+            <FontAwesomeIcon icon={faChartSimple} /> Summary
+          </button>
+        )}
         <button onClick={() => setShowReportOptions(true)} className="btn-report">
           <FontAwesomeIcon icon={faFile} /> Reports
         </button>
@@ -1220,12 +1223,14 @@ const PaymentTable = ({ darkMode }) => {
                                 <span>Edit</span>
                               </div>
                             </button>
-                            <button onClick={() => handleDelete(payment._id)} className="p-delete-btn">
-                              <div className="action-btn-content">
-                                <img src={deleteIcon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
-                                <span>Delete</span>
-                              </div>
-                            </button>
+                            {userRole === 'admin' && (
+                              <button onClick={() => handleDelete(payment._id)} className="p-delete-btn">
+                                <div className="action-btn-content">
+                                  <img src={deleteIcon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
+                                  <span>Delete</span>
+                                </div>
+                              </button>
+                            )}
                             <button onClick={() => handleReturn(payment)} className="p-edit-btn">
                               <div className="action-btn-content">
                                 <span className="p-edit-btn-icon" style={{width:"30", height:"30"}}>↩️ </span>

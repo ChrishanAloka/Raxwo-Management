@@ -110,6 +110,7 @@ const BankPassbookEdit = ({ transaction, onClose, onUpdate, darkMode }) => {
             min="0.01"
             className={`bp-edit-input ${darkMode ? "dark" : ""}`}
             value={edited.amount}
+            onWheel={(e) => e.target.blur()}
             onChange={(e) => setEdited({ ...edited, amount: parseFloat(e.target.value) || 0 })}
             required
           />

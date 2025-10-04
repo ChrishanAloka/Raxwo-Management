@@ -27,6 +27,10 @@ const MaintenanceList = ({ darkMode }) => {
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(null);
 
+  const [summaryServiceTypeFilter, setSummaryServiceTypeFilter] = useState('all');
+
+  const userRole = localStorage.getItem('role');
+
   useEffect(() => {
     fetchMaintenanceRecords();
   }, []);
@@ -60,11 +64,16 @@ const MaintenanceList = ({ darkMode }) => {
     setShowActionMenu(null);
   };
 
-  const calculateMonthlySummary = () => {
+  const calculateMonthlySummary = (serviceTypeFilter = 'all') => {
     const monthlyData = {};
     let totalPrice = 0;
 
-    maintenanceRecords.forEach(record => {
+    const filteredForSummary = maintenanceRecords.filter(record => {
+      if (serviceTypeFilter === 'all') return true;
+      return record.serviceType === serviceTypeFilter;
+    });
+
+    filteredForSummary.forEach(record => {
       const date = new Date(record.date);
       const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
       if (!monthlyData[monthYear]) monthlyData[monthYear] = 0;
@@ -78,9 +87,12 @@ const MaintenanceList = ({ darkMode }) => {
     return { monthlyData, totalPrice, months, prices };
   };
 
-  const { monthlyData, totalPrice, months, prices } = calculateMonthlySummary();
+  const uniqueServiceTypes = [...new Set(maintenanceRecords.map(r => r.serviceType))];
 
-  const chartOptions = {
+  const summaryData = calculateMonthlySummary(summaryServiceTypeFilter);
+  const { totalPrice, months, prices } = summaryData;
+
+  const chartOptions = React.useMemo(() => ({
     chart: {
       type: "column",
       options3d: {
@@ -168,7 +180,7 @@ const MaintenanceList = ({ darkMode }) => {
         return `<b>${this.x}</b>: Rs. ${Highcharts.numberFormat(this.y, 2)}`;
       },
     },
-  };
+  }), [months, prices, darkMode]);
 
   const generateExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
@@ -338,12 +350,14 @@ const MaintenanceList = ({ darkMode }) => {
                               <span>Edit</span>
                             </div>
                           </button>
-                          <button onClick={() => handleDelete(record._id)} className="p-delete-btn">
-                            <div className="action-btn-content">
-                              <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
-                              <span>Delete</span>
-                            </div>
-                          </button>
+                          {userRole === 'admin' && (
+                            <button onClick={() => handleDelete(record._id)} className="p-delete-btn">
+                              <div className="action-btn-content">
+                                <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
+                                <span>Delete</span>
+                              </div>
+                            </button>
+                          )}
                         </div>
                       </>
                     )}
@@ -384,6 +398,23 @@ const MaintenanceList = ({ darkMode }) => {
                 ✕
               </button>
             </div>
+
+            {/* Service Type Filter Dropdown */}
+            <div className="summary-filter-section">
+              <label htmlFor="serviceTypeFilter">Filter by Service Type: </label>
+              <select
+                id="serviceTypeFilter"
+                value={summaryServiceTypeFilter}
+                onChange={(e) => setSummaryServiceTypeFilter(e.target.value)}
+                className={`summary-filter-select ${darkMode ? 'dark' : ''}`}
+              >
+                <option value="all">All Services</option>
+                {uniqueServiceTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="product-summary-content">
               <div className="product-summary-card">
                 <div className="product-summary-icon product-summary-total-icon">💸</div>

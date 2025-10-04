@@ -88,6 +88,7 @@ const SalaryEdit = ({ isOpen, onClose, salary, refreshSalaries, darkMode }) => {
               <input
                 className={`salary-add-input ${darkMode ? "dark" : ""}`}
                 type="number"
+                onWheel={(e) => e.target.blur()}
                 name="advance"
                 value={formData.advance}
                 onChange={handleChange}

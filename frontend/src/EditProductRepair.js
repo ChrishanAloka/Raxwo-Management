@@ -496,6 +496,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
                 name="checkingCharge"
                 value={formData.checkingCharge}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 min="0"
                 step="0.01"
                 placeholder="Enter checking charge (optional)"

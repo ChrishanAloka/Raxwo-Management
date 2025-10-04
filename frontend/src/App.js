@@ -149,7 +149,14 @@ const App = () => {
           <Route path="/admin/signup" element={<AdminSignup darkMode={darkMode} />} />
           <Route path="/forgot-password" element={<ForgotPassword darkMode={darkMode} />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
-          <Route path="/AllSummary" element={<AllSummary darkMode={darkMode} />} />
+          <Route 
+            path="/AllSummary" 
+            element={
+              <PrivateRoute>
+                <AllSummary darkMode={darkMode} />
+              </PrivateRoute>  
+            }
+          />
           <Route
             path="/extra-income"
             element={

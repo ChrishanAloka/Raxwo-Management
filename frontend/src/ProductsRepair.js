@@ -76,6 +76,8 @@ const ProductRepairList = ({ darkMode }) => {
   const [editingItemIndex, setEditingItemIndex] = useState(null);
   const [tempSellingPrice, setTempSellingPrice] = useState('');
 
+  const userRole = localStorage.getItem('role');
+
   const handleClearSearch = () => {
     setSearchTerm("");
   };
@@ -2567,18 +2569,23 @@ const ProductRepairList = ({ darkMode }) => {
                               </div>
                             </button>
                           )}
+                          
                           <button onClick={() => handleEdit(repair)} className="p-edit-btn">
                             <div className="action-btn-content">
                               <img src={edticon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
                               <span>Edit</span>
                             </div>
                           </button>
-                          <button onClick={() => handleDelete(repair._id)} className="p-delete-btn">
-                            <div className="action-btn-content">
-                              <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
-                              <span>Delete</span>
-                            </div>
-                          </button>
+                          {userRole === 'admin' && (
+                            <>
+                              <button onClick={() => handleDelete(repair._id)} className="p-delete-btn">
+                                <div className="action-btn-content">
+                                  <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
+                                  <span>Delete</span>
+                                </div>
+                              </button>
+                            </>
+                          )}
                           <button onClick={() => generateBill(repair)} className="p-bill-btn">
                             <div className="action-btn-content">
                               <img src={paymenticon} alt="bill" width="30" height="30" className="p-bill-btn-icon" />
@@ -2732,18 +2739,22 @@ const ProductRepairList = ({ darkMode }) => {
                               </div>
                             </button>
                           )}
-                          <button onClick={() => handleEdit(repair)} className="p-edit-btn">
-                            <div className="action-btn-content">
-                              <img src={edticon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
-                              <span>Edit</span>
-                            </div>
-                          </button>
-                          <button onClick={() => handleDelete(repair._id)} className="p-delete-btn">
-                            <div className="action-btn-content">
-                              <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
-                              <span>Delete</span>
-                            </div>
-                          </button>
+                          {userRole === 'admin' && (
+                            <>
+                              <button onClick={() => handleEdit(repair)} className="p-edit-btn">
+                                <div className="action-btn-content">
+                                  <img src={edticon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
+                                  <span>Edit</span>
+                                </div>
+                              </button>
+                              <button onClick={() => handleDelete(repair._id)} className="p-delete-btn">
+                                <div className="action-btn-content">
+                                  <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
+                                  <span>Delete</span>
+                                </div>
+                              </button>
+                            </>
+                          )}
                           <button onClick={() => generateBill(repair)} className="p-bill-btn">
                             <div className="action-btn-content">
                               <img src={paymenticon} alt="bill" width="30" height="30" className="p-bill-btn-icon" />
@@ -3093,7 +3104,7 @@ const ProductRepairList = ({ darkMode }) => {
                       color: darkMode ? "#fff" : "#333"
                     }}>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Item Name</th>
-                      {/* <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Assigned To</th> */}
+                      <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Assigned To</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Qty</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Selling Price</th>
                       <th style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", fontWeight: "bold" }}>Action</th>
@@ -3103,7 +3114,7 @@ const ProductRepairList = ({ darkMode }) => {
                     {selectedRepair.repairCart.map((item, index) => (
                       <tr key={index} style={{ backgroundColor: index % 2 === 0 ? (darkMode ? "#4a4a4a" : "#fafafa") : (darkMode ? "#444" : "#fff") }}>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.itemName} - {item.category}</td>
-                        {/* <td style={{ border: "1px solid #ddd", padding: "10px" }}>
+                        <td style={{ border: "1px solid #ddd", padding: "10px" }}>
                           <select
                             value={item.assignedTo || ""}
                             onChange={async (e) => await handleAssignItem(item.itemCode, e.target.value)}
@@ -3123,7 +3134,7 @@ const ProductRepairList = ({ darkMode }) => {
                             <option value="Genex-EX">Genex EX</option>
                             <option value="I-Device">I Device</option>
                           </select>
-                        </td> */}
+                        </td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{item.quantity}</td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
                           {selectedRepair.repairStatus !== "Completed" ? (
@@ -3132,6 +3143,7 @@ const ProductRepairList = ({ darkMode }) => {
                               step="0.01"
                               min="0"
                               defaultValue={item.sellingPrice || 0}
+                              onWheel={(e) => e.target.blur()}
                               onBlur={(e) => {
                                 const newValue = parseFloat(e.target.value);
                                 if (isNaN(newValue) || newValue === item.sellingPrice) return; // No change or invalid
@@ -3446,6 +3458,7 @@ const ProductRepairList = ({ darkMode }) => {
                         name="discountAmount"
                         min="0"
                         value={newService.discountAmount}
+                        onWheel={(e) => e.target.blur()}
                         onChange={handleNewServiceChange}
                         style={{
                           width: "100%",
@@ -3522,6 +3535,7 @@ const ProductRepairList = ({ darkMode }) => {
                     type="number"
                     min="0"
                     value={discount}
+                    onWheel={(e) => e.target.blur()}
                     onChange={(e) => setDiscount(e.target.value)}
                     className={`product-repair-list-input ${darkMode ? "dark" : ""}`}
                     style={{
@@ -3760,6 +3774,7 @@ const ProductRepairList = ({ darkMode }) => {
                         type="number"
                         name="serviceAmount"
                         min="0"
+                        onWheel={(e) => e.target.blur()}
                         value={newAdditionalService.serviceAmount}
                         onChange={handleNewAdditionalServiceChange}
                         style={{
@@ -4192,6 +4207,7 @@ const ProductRepairList = ({ darkMode }) => {
                             type="number"
                             step="0.01"
                             min="0"
+                            onWheel={(e) => e.target.blur()}
                             value={item.sellingPrice || ""}
                             onChange={(e) => {
                               const value = e.target.value === "" ? "" : parseFloat(e.target.value);
@@ -4282,6 +4298,7 @@ const ProductRepairList = ({ darkMode }) => {
                             min="0"
                             max={item.maxQuantity}
                             value={item.quantity}
+                            onWheel={(e) => e.target.blur()}
                             onChange={(e) => handleReturnFormChange(item.itemCode, e.target.value)}
                             className={`product-repair-list-input ${darkMode ? "dark" : ""}`}
                           />
