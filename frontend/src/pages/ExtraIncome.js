@@ -128,6 +128,11 @@ const ExtraIncome = ({ darkMode }) => {
 
   const token = localStorage.getItem('token');
 
+  const handleOpenAddModal = () => {
+    setPaymentBreakdown([{ method: "", amount: "" }]);
+    setShowAddModal(true);
+  };
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -178,6 +183,7 @@ const ExtraIncome = ({ darkMode }) => {
         assignedTo: "",
       });
       setShowAddModal(false);
+      setPaymentBreakdown([{ method: "", amount: "" }]);
       onUpdate();
     } catch (err) {
       console.error("Error adding extra income:", err);
@@ -557,7 +563,7 @@ const ExtraIncome = ({ darkMode }) => {
               <FontAwesomeIcon icon={faChartSimple} /> Summary
             </button>
           )}
-          <button onClick={() => setShowAddModal(true)} className="btn-primary">
+          <button onClick={handleOpenAddModal} className="btn-primary">
             <FontAwesomeIcon icon={faPlus} /> Add Extra Income
           </button>
           <button onClick={() => setShowReportOptions(true)} className="btn-report">

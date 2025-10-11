@@ -42,8 +42,21 @@ const BankPassbookList = ({ darkMode }) => {
   const [maintenanceExpenses, setMaintenanceExpenses] = useState([]);
   const [supplierPayments, setSupplierPayments] = useState([]);
 
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const token = localStorage.getItem('token');
 
+  const isWithinDateRange = (dateStr) => {
+    if (!startDate && !endDate) return true;
+    const transactionDate = new Date(dateStr);
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+
+    if (start && transactionDate < start) return false;
+    if (end && transactionDate > end) return false;
+    return true;
+  };
   // Fetch bank transactions
   const fetchBankTransactions = async () => {
     try {
@@ -407,12 +420,19 @@ const fetchSalaryAdvances = async () => {
 
   // Filtered transactions
   const normalize = (str) => (str || "").toLowerCase().replace(/\s+/g, "");
-  const filteredTransactions = allTransactions.filter((t) =>
-    normalize(t.date).includes(normalize(searchQuery)) ||
-    normalize(t.time).includes(normalize(searchQuery)) ||
-    normalize(t.description).includes(normalize(searchQuery)) ||
-    normalize(t.type).includes(normalize(searchQuery))
-  );
+  const filteredTransactions = allTransactions.filter((t) => {
+    // Date range filter
+    if (!isWithinDateRange(t.date)) return false;
+
+    // Search filter
+    const normalizedQuery = normalize(searchQuery);
+    return (
+      normalize(t.date).includes(normalizedQuery) ||
+      normalize(t.time).includes(normalizedQuery) ||
+      normalize(t.description).includes(normalizedQuery) ||
+      normalize(t.type).includes(normalizedQuery)
+    );
+  });
 
   // Delete transaction (only real ones, not repair incomes)
   const handleDelete = async (id) => {
@@ -450,6 +470,8 @@ const fetchSalaryAdvances = async () => {
     const monthlyData = {};
 
     allTransactions.forEach((t) => {
+      if (!isWithinDateRange(t.date)) return;
+
       const monthYear = new Date(t.date).toLocaleString("default", { month: "long", year: "numeric" });
       if (!monthlyData[monthYear]) monthlyData[monthYear] = { credit: 0, debit: 0 };
 
@@ -587,6 +609,26 @@ const fetchSalaryAdvances = async () => {
               <FontAwesomeIcon icon={faTimes} />
             </button>
           )}
+        </div>
+
+        {/* Date Range Filters */}
+        <div className="date-range-filters">
+          <span className="date-separator">From</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className={`date-input ${darkMode ? "dark" : ""}`}
+            placeholder="Start Date"
+          />
+          <span className="date-separator">to</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className={`date-input ${darkMode ? "dark" : ""}`}
+            placeholder="End Date"
+          />
         </div>
 
         <div className="filter-action-row">
