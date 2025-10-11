@@ -267,7 +267,7 @@ const ExtraIncome = ({ darkMode }) => {
 
     const existingBreakdown = record.paymentBreakdown && Array.isArray(record.paymentBreakdown) && record.paymentBreakdown.length > 0
     ? record.paymentBreakdown.map(p => ({ method: p.method, amount: p.amount.toString() }))
-    : [{ method: "", amount: "" }];
+    : [{ method: record.paymentMethod, amount: (record.totalPaid || record.amount || 0).toString() }];
 
     setPaymentBreakdown(existingBreakdown);
   };
@@ -854,8 +854,8 @@ const ExtraIncome = ({ darkMode }) => {
                         <option value="">Select Method</option>
                         <option value="Cash">Cash</option>
                         <option value="Card">Card</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="Bank Check">Bank Check</option>
+                        <option value="Bank-Transfer">Bank Transfer</option>
+                        <option value="Bank-Check">Bank Check</option>
                         <option value="Credit">Credit</option>
                       </select>
                       <input
@@ -1125,8 +1125,8 @@ const ExtraIncome = ({ darkMode }) => {
                         <option value="">Select Method</option>
                         <option value="Cash">Cash</option>
                         <option value="Card">Card</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="Bank Check">Bank Check</option>
+                        <option value="Bank-Transfer">Bank Transfer</option>
+                        <option value="Bank-Check">Bank Check</option>
                         <option value="Credit">Credit</option>
                       </select>
                       <input

@@ -1181,15 +1181,17 @@ const ProductRepairList = ({ darkMode }) => {
       return;
     }
 
+    
+    const finalAmountDue = (selectedRepair.totalRepairCost || 0) - (selectedRepair.totalDiscountAmount || 0) + (selectedRepair.totalAdditionalServicesAmount || 0);
+
     // ✅ VALIDATION: payment breakdown must be valid
     const validPayments = paymentBreakdown.filter(p => p.method && p.amount !== "" && parseFloat(p.amount) > 0);
-    if (validPayments.length === 0) {
+    if (validPayments.length === 0 && finalAmountDue !== 0) {
       setError("Please add at least one valid payment method and amount.");
       return;
     }
 
     const totalPaid = validPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-    const finalAmountDue = (selectedRepair.totalRepairCost || 0) - (selectedRepair.totalDiscountAmount || 0) + (selectedRepair.totalAdditionalServicesAmount || 0);
 
     // ✅ Allow overpayment (for change), but not underpayment
     if (totalPaid < finalAmountDue - 0.01) {
@@ -1213,6 +1215,8 @@ const ProductRepairList = ({ darkMode }) => {
 
     // ✅ Calculate change (only if overpaid)
     const changeGiven = totalPaid > finalAmountDue ? parseFloat((totalPaid - finalAmountDue).toFixed(2)) : 0;
+
+    const completedAt = new Date().toISOString();
 
     try {
       setLoading(true);
@@ -1252,6 +1256,7 @@ const ProductRepairList = ({ darkMode }) => {
           paymentBreakdown: paymentDetails,
           finalAmountPaid: totalPaid,
           changeGiven, // ✅ Save change only if > 0
+          completedAt,
           // Optional: keep paymentMethod for legacy
           // paymentMethod: validPayments[0]?.method
         }),
@@ -4487,6 +4492,15 @@ const ProductRepairList = ({ darkMode }) => {
               </div>
             )}
 
+            {selectedRepair.completedAt && (
+              <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
+                <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Completed At:</strong>
+                <span style={{ color: darkMode ? "#fff" : "#333" }}>
+                  {new Date(selectedRepair.completedAt).toLocaleString()}
+                </span>
+              </div>
+            )}
+
             {(selectedRepair.repairStatus === "In Progress" || selectedRepair.repairStatus === "Pending") && (
               <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)", marginTop: "10px" }}>
                 <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "10px" }}>
@@ -4539,8 +4553,8 @@ const ProductRepairList = ({ darkMode }) => {
                       <option value="">Select Method</option>
                       <option value="Cash">Cash</option>
                       <option value="Card">Card</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
-                      <option value="Bank Check">Bank Check</option>
+                      <option value="Bank-Transfer">Bank Transfer</option>
+                      <option value="Bank-Check">Bank Check</option>
                       <option value="Credit">Credit</option>
                     </select>
                     <input

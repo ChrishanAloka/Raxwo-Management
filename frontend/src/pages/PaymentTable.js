@@ -1081,7 +1081,7 @@ const PaymentTable = ({ darkMode }) => {
                   </span>
 
                   {/* Filter Button */}
-                  <span
+                  {/* <span
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowPaymentFilter(prev => !prev);
@@ -1090,7 +1090,7 @@ const PaymentTable = ({ darkMode }) => {
                     title="Filter by Payment Method"
                   >
                     {paymentMethodFilter === "" ? '☰' : '☰*'}
-                  </span>
+                  </span> */}
                 </div>
 
                 {/* Filter Dropdown */}
@@ -1197,7 +1197,11 @@ const PaymentTable = ({ darkMode }) => {
                     {/* Combine quantities */}
                     {/* {payment.items.map(item => item.quantity).join(', ')} */}
                   {/* </td> */}
-                  <td>{payment.paymentMethod}</td>
+                  <td>
+                    {Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0
+                      ? payment.paymentMethods.map(pm => `${pm.method}`).join(', ')
+                      : payment.paymentMethod || '—'}
+                  </td>
                   <td>{payment.cashierName}</td>
                   <td>Rs. {(payment.discountApplied || 0).toFixed(2)}</td>
                   <td>Rs. {payment.totalAmount.toFixed(2)}</td>
@@ -1223,14 +1227,14 @@ const PaymentTable = ({ darkMode }) => {
                                 <span>Edit</span>
                               </div>
                             </button>
-                            {/* {userRole === 'admin' && (
+                            {userRole === 'admin' && (
                               <button onClick={() => handleDelete(payment._id)} className="p-delete-btn">
                                 <div className="action-btn-content">
                                   <img src={deleteIcon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
                                   <span>Delete</span>
                                 </div>
                               </button>
-                            )} */}
+                            )}
                             <button onClick={() => handleReturn(payment)} className="p-edit-btn">
                               <div className="action-btn-content">
                                 <span className="p-edit-btn-icon" style={{width:"30", height:"30"}}>↩️ </span>

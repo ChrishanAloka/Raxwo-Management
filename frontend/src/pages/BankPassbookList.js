@@ -77,7 +77,8 @@ const fetchSupplierPayments = async () => {
         .filter(payment =>
           payment.currentPayment &&
           !isNaN(parseFloat(payment.currentPayment)) &&
-          parseFloat(payment.currentPayment) > 0
+          parseFloat(payment.currentPayment) > 0 &&
+          BANK_PAYMENT_METHODS.includes(payment.paymentMethod)
         )
         .forEach(payment => {
           const createdAt = new Date(payment.createdAt);
@@ -115,7 +116,8 @@ const fetchMaintenanceExpenses = async () => {
 
     const expenseEntries = records
       .filter(record =>  // Only bank transfers
-        record.price > 0                            // Valid amount
+        record.price > 0 &&
+        BANK_PAYMENT_METHODS.includes(record.paymentMethod)
       )
       .map(record => ({
         _id: `maintenance-${record._id}`,
@@ -174,82 +176,117 @@ const fetchSalaryAdvances = async () => {
 };
 
   // Fetch extra income (only bank-based payment methods)
-const fetchExtraIncome = async () => {
-  try {
-    const response = await fetch(EXTRA_INCOME_API_URL, {
-      headers: { "Authorization": `Bearer ${token}` },
-    });
-    if (!response.ok) throw new Error("Failed to load extra income");
-    const incomes = await response.json();
+  const fetchExtraIncome = async () => {
+    try {
+      const response = await fetch(EXTRA_INCOME_API_URL, {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to load extra income");
+      const incomes = await response.json();
 
-    const incomeEntries = incomes
-      .filter(income =>
-        BANK_PAYMENT_METHODS.includes(income.paymentMethod) &&
-        income.amount > 0 &&
-        income.status !== "Cancelled" // Optional: if status exists
-      )
-      .map(income => {
-        const createdAt = new Date(income.createdAt);
-        const date = createdAt.toISOString().split("T")[0];
-        const time = createdAt.toTimeString().slice(0, 5); // HH:MM
+      const incomeEntries = [];
+      incomes.forEach(income => {
+        // Handle split payments (paymentBreakdown)
+        const breakdowns = [];
+        // Handle split payments (paymentMethods)
+        if (Array.isArray(income.paymentBreakdown) && income.paymentBreakdown.length > 0) {
+          income.paymentBreakdown.forEach(pm => {
+            if (pm.method && pm.amount > 0) {
+              breakdowns.push({ method: pm.method, amount: pm.amount });
+            }
+          });
+        }
 
-        return {
-          _id: `extra-${income._id}`,
-          date,
-          time,
-          description: `Extra: ${income.incomeType || 'N/A'}`,
-          type: "Credit",
-          amount: income.amount,
-          paymentMethod: income.paymentMethod,
-          source: "extra", // Mark as extra income
-        };
+        else if (income.paymentMethod && income.totalAmount > 0) {
+          breakdowns.push({ method: income.paymentMethod, amount: income.totalAmount });
+        }
+
+        breakdowns.forEach((pb, idx) => {
+          if (
+            BANK_PAYMENT_METHODS.includes(pb.method) 
+            // && pb.amount > 0 && income.status !== "Cancelled"
+          ) {
+            const createdAt = new Date(income.date || income.createdAt);
+            const date = createdAt.toISOString().split("T")[0];
+            const time = createdAt.toTimeString().slice(0, 5);
+
+            incomeEntries.push({
+              _id: `extra-${income._id}-${idx}`,
+              date,
+              time,
+              description: `Extra: ${income.incomeType || 'N/A'}`,
+              type: "Credit",
+              amount: pb.amount,
+              paymentMethod: pb.method,
+              source: "extra",
+            });
+          }
+        });
       });
 
-    return incomeEntries;
-  } catch (err) {
-    console.warn("Could not fetch extra income:", err.message);
-    return [];
-  }
-};
+      return incomeEntries;
+    } catch (err) {
+      console.warn("Could not fetch extra income:", err.message);
+      return [];
+    }
+  };
 
   // Fetch payment-based incomes (bank methods only)
-const fetchPaymentIncomes = async () => {
-  try {
-    const response = await fetch(PAYMENTS_API_URL, {
-      headers: { "Authorization": `Bearer ${token}` },
-    });
-    if (!response.ok) throw new Error("Failed to load payments");
-    const payments = await response.json();
+  const fetchPaymentIncomes = async () => {
+    try {
+      const response = await fetch(PAYMENTS_API_URL, {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to load payments");
+      const payments = await response.json();
 
-    const incomeEntries = payments
-      .filter(payment =>
-        BANK_PAYMENT_METHODS.includes(payment.paymentMethod) &&
-        payment.status !== "Refund" && // Exclude refunds if field exists
-        payment.totalAmount > 0
-      )
-      .map(payment => {
-        const createdAt = new Date(payment.createdAt);
-        const date = createdAt.toISOString().split("T")[0];
-        const time = createdAt.toTimeString().slice(0, 5); // HH:MM
+      const incomeEntries = [];
+      payments.forEach(payment => {
 
-        return {
-          _id: `payment-${payment._id}`,
-          date,
-          time,
-          description: `Payment - ${payment.invoiceNumber || 'N/A'}`,
-          type: "Credit",
-          amount: payment.totalAmount,
-          paymentMethod: payment.paymentMethod,
-          source: "payment", // Mark as payment income
-        };
+        const methods = [];
+        // Handle split payments (paymentMethods)
+        if (Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0) {
+          payment.paymentMethods.forEach(pm => {
+            if (pm.method && pm.amount > 0) {
+              methods.push({ method: pm.method, amount: pm.amount });
+            }
+          });
+        }
+
+        else if (payment.paymentMethod && payment.totalAmount > 0) {
+          methods.push({ method: payment.paymentMethod, amount: payment.totalAmount });
+        }
+
+        methods.forEach((pm, idx) => {
+          if (
+            BANK_PAYMENT_METHODS.includes(pm.method) &&
+            pm.amount > 0 &&
+            payment.status !== "Refund"
+          ) {
+            const createdAt = new Date(payment.date || payment.createdAt);
+            const date = createdAt.toISOString().split("T")[0];
+            const time = createdAt.toTimeString().slice(0, 5);
+
+            incomeEntries.push({
+              _id: `payment-${payment._id}-${idx}`,
+              date,
+              time,
+              description: `Payment - ${payment.invoiceNumber || 'N/A'}`,
+              type: "Credit",
+              amount: pm.amount,
+              paymentMethod: pm.method,
+              source: "payment",
+            });
+          }
+        });
       });
 
-    return incomeEntries;
-  } catch (err) {
-    console.warn("Could not fetch payment incomes:", err.message);
-    return [];
-  }
-};
+      return incomeEntries;
+    } catch (err) {
+      console.warn("Could not fetch payment incomes:", err.message);
+      return [];
+    }
+  };
 
   const fetchRepairIncomes = async () => {
     try {
@@ -259,33 +296,54 @@ const fetchPaymentIncomes = async () => {
       if (!response.ok) throw new Error("Failed to load repair jobs");
       const jobs = await response.json();
 
-      const incomeEntries = jobs
-        .filter(job =>
-          BANK_PAYMENT_METHODS.includes(job.paymentMethod) &&
-          (job.repairStatus === "Completed" || job.repairStatus === "Returned")
-        )
-        .map(job => {
-          const createdAt = new Date(job.createdAt);
-          const date = createdAt.toISOString().split("T")[0];
-          const time = createdAt.toTimeString().slice(0, 5); // HH:MM
+      const incomeEntries = [];
+      jobs.forEach(job => {
+        // Skip if not completed/returned
+        // if (!["Completed", "Returned"].includes(job.repairStatus)) return;
+        const breakdowns  = [];
+        // Handle split payments (paymentMethods)
+        if (Array.isArray(job.paymentBreakdown) && job.paymentBreakdown.length > 0) {
+          job.paymentBreakdown.forEach(pm => {
+            if (pm.method && pm.amount > 0) {
+              breakdowns.push({ method: pm.method, amount: pm.amount });
+            }
+          });
+        }
 
-          const amount =
-            (job.totalRepairCost || 0) +
-            (job.totalAdditionalServicesAmount || 0) +
-            (job.checkingCharge || 0) -
-            (job.totalDiscountAmount || 0);
+        else if (job.paymentMethod && job.totalAmount > 0) {
+          breakdowns.push({ method: job.paymentMethod, amount: job.totalAmount });
+        }
 
-          return {
-            _id: `repair-${job._id}`,
-            date,
-            time,
-            description: `Repair: ${job.customerName || 'N/A'} - ${job.repairInvoice || 'N/A'}`,
-            type: "Credit",
-            amount,
-            paymentMethod: job.paymentMethod,
-            source: "repair", // Mark as auto-generated
-          };
+        breakdowns.forEach((pb, idx) => {
+          if (
+            BANK_PAYMENT_METHODS.includes(pb.method) &&
+            pb.amount > 0
+          ) {
+            const createdAt = new Date(job.completedAt || job.updatedAt);
+            const date = createdAt.toISOString().split("T")[0];
+            const time = createdAt.toTimeString().slice(0, 5);
+
+            // Calculate total amount if needed (for legacy)
+            const totalAmount = pb.amount || (
+              (job.totalRepairCost || 0) +
+              (job.totalAdditionalServicesAmount || 0) +
+              (job.checkingCharge || 0) -
+              (job.totalDiscountAmount || 0)
+            );
+
+            incomeEntries.push({
+              _id: `repair-${job._id}-${idx}`,
+              date,
+              time,
+              description: `Repair: ${job.customerName || 'N/A'} - ${job.repairInvoice || 'N/A'}`,
+              type: "Credit",
+              amount: pb.amount || totalAmount,
+              paymentMethod: pb.method,
+              source: "repair",
+            });
+          }
         });
+      });
 
       return incomeEntries;
     } catch (err) {

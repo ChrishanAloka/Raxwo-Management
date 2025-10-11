@@ -730,7 +730,8 @@ router.patch("/:id", authMiddleware, getRepair, async (req, res) => {
       "returnCost",
       "paymentBreakdown",
       "finalAmountPaid",
-      "changeGiven", // ✅ ADD THIS
+      "changeGiven",
+      "completedAt", // ✅ ADD THIS
     ];
 
     const updates = {};
