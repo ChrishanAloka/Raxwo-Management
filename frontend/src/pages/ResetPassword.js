@@ -20,7 +20,6 @@ const ResetPassword = () => {
       setError('Passwords do not match.');
       return;
     }
-
     try {
       const res = await axios.post(`https://raxwo-management.onrender.com/api/auth/reset-password/${token}`, { password });
       setMessage(res.data.msg || 'Password reset successfully!');

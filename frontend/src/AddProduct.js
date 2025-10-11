@@ -52,6 +52,8 @@ const AddProduct = ({ darkMode }) => {
     }
   };
 
+  const token = localStorage.getItem('token');
+  
   useEffect(() => {
 
     fetchDeletedProducts();
@@ -110,7 +112,8 @@ const AddProduct = ({ darkMode }) => {
 
     try {
       const response = await fetch(`${API_URL}/restore-all`, {
-        method: 'PATCH'
+        method: 'PATCH',
+        headers: {  'Authorization': `Bearer ${token}` },
       });
 
       if (!response.ok) throw new Error('Failed to restore all');
@@ -138,6 +141,7 @@ const AddProduct = ({ darkMode }) => {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           restoredBy: username

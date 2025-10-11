@@ -71,6 +71,14 @@ const productRepairSchema = new mongoose.Schema({
   totalAdditionalServicesAmount: { type: Number, required: false, default: 0 },
   rettotalAdditionalServicesAmount: { type: Number, required: false, default: 0 },
   finalAmount: { type: Number, required: false, default: 0 },
+  paymentBreakdown: [
+    {
+      method: { type: String, required: false },
+      amount: { type: Number, required: false }
+    }
+  ],
+  finalAmountPaid: { type: Number, default: 0 },
+  changeGiven: { type: Number, default: 0 }, // ✅ Must be present
   // Change history to track modifications
   changeHistory: [{
     field: { type: String, required: true },

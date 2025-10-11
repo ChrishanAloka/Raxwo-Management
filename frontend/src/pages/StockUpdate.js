@@ -136,6 +136,7 @@ const StockUpdate = ({ darkMode }) => {
       setLoading(false);
       return;
     }
+    const token = localStorage.getItem('token');
 
     try {
       let response;
@@ -145,7 +146,7 @@ const StockUpdate = ({ darkMode }) => {
         const computedStock = computeStockFromHistory(product);
         response = await fetch(`${API_URL}/${editProduct._id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
             itemCode: itemCode,
             itemName: itemName,
@@ -162,7 +163,7 @@ const StockUpdate = ({ darkMode }) => {
         // Create new stock update
         response = await fetch(`${API_URL}/update-stock/${itemCode}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" , "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
             newStock: Number(newStock),
             newBuyingPrice: Number(newBuyingPrice),

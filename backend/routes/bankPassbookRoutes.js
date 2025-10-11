@@ -2,8 +2,9 @@
 
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
 const BankPassbook = require('../models/BankPassbook');
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 /**
  * @route   GET /api/bank-passbook
@@ -40,7 +41,8 @@ router.post('/', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Type must be "Credit" or "Debit"' });
   }
 
-  if (isNaN(amount) || Number(amount) <= 0) {
+  const numericAmount = Number(amount);
+  if (isNaN(numericAmount) || numericAmount <= 0) {
     return res.status(400).json({ message: 'Amount must be a positive number' });
   }
 
@@ -50,11 +52,20 @@ router.post('/', authMiddleware, async (req, res) => {
       time,
       description,
       type,
-      amount,
-      addedBy: req.user?.id || 'system', // if using JWT with user
+      amount: numericAmount,
+      addedBy: req.user._id || 'system', // if using JWT with user
     });
 
     const saved = await newTransaction.save();
+
+    // ✅ LOG: Detailed create activity
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'BankPassbook',
+      description: `Added ${type} transaction: "${description}" for ${numericAmount} on ${date} at ${time}`
+    });
+    
     res.status(201).json(saved);
   } catch (err) {
     console.error('Error adding transaction:', err.message);
@@ -84,6 +95,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Amount must be a positive number' });
   }
 
+  const numericAmount = Number(amount);
+  if (isNaN(numericAmount) || numericAmount <= 0) {
+    return res.status(400).json({ message: 'Amount must be a positive number' });
+  }
+
   try {
     const updated = await BankPassbook.findByIdAndUpdate(
       id,
@@ -94,6 +110,14 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!updated) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
+
+    // ✅ LOG: Edit BankPassbook
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'BankPassbook',
+      description: `Updated ${type} transaction: "${description}" to amount ${numericAmount} on ${date} at ${time}`
+    });
 
     res.json(updated);
   } catch (err) {
@@ -116,6 +140,14 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
+
+    // ✅ LOG: Delete BankPassbook
+    await logActivity({
+      req,
+      action: 'delete',
+      resource: 'BankPassbook',
+      description: `Deleted ${deleted.type} transaction: "${deleted.description}" for ${deleted.amount} on ${deleted.date}`
+    });
 
     res.json({ message: 'Transaction deleted successfully' });
   } catch (err) {

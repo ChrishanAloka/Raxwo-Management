@@ -4,6 +4,8 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const logActivity = require('../utils/logActivity');
+const authMiddleware = require('../middleware/authMiddleware');
 
 const JWT_SECRET = process.env.JWT_SECRET || '12345';
 
@@ -59,12 +61,31 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ msg: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '5h' });
+    const token = jwt.sign({ id: user._id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '5h' });
     console.log('Generated Token:', token);
+
+    // ✅ LOG successful login
+    // Create a mock req object with user data for logging
+    const mockReq = {
+      user: {
+        _id: user._id,
+        username: user.username
+      }
+    };
+
+    await logActivity({
+      req: mockReq,
+      action: 'login',
+      resource: 'User',
+      description: `User "${user.username}" logged in`
+    });
+
+    console.log('Generated Token:', user);
     res.json({
       token,
       user: { id: user._id, username: user.username, email: user.email, role: user.role }
     });
+    
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -165,6 +186,15 @@ router.put('/users/:id', async (req, res) => {
     const { username, email, phone, role } = req.body;
     const user = await User.findByIdAndUpdate(req.params.id, { username, email, phone, role }, { new: true });
     if (!user) return res.status(404).json({ msg: "User not found" });
+
+    // ✅ LOG: Edit User
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'User',
+      description: `Updated user "${user.username}" (Email: ${user.email}) — Role: ${role || user.role}`
+    });
+
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -172,10 +202,20 @@ router.put('/users/:id', async (req, res) => {
 });
 
 // Delete user
-router.delete('/users/:id', async (req, res) => {
+router.delete('/users/:id', authMiddleware, async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) return res.status(404).json({ msg: "User not found" });
+
+    // ✅ LOG: Delete User
+    await logActivity({
+      req,
+      action: 'delete',
+      resource: 'User',
+      description: `Deleted user "${user.username}" (Email: ${user.email})`
+    });
+
+
     res.json({ msg: "User deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -6,6 +6,8 @@ const DeletedProductLog = require('../models/DeletedProductLog');
 const DeletedProduct = require('../models/DeletedProduct');
 const InactiveProduct = require('../models/InactiveProduct');
 const UploadedProduct = require('../models/UploadedProduct');
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 // Helper to normalize strings for space-insensitive search
 function normalize(str) {
@@ -367,7 +369,7 @@ router.get('/deleted/:id', async (req, res) => {
 });
 
 // DELETE: Permanently delete a product from deleted_products collection
-router.delete('/deleted/:id', async (req, res) => {
+router.delete('/deleted/:id', authMiddleware, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ message: 'Invalid product ID format' });
@@ -383,6 +385,13 @@ router.delete('/deleted/:id', async (req, res) => {
 
     // Remove from deleted_products collection
     await DeletedProduct.findByIdAndDelete(req.params.id);
+
+    await logActivity({
+      req,
+      action: 'Delete',
+      resource: 'Product',
+      description: `Permanently deleted product "${deletedProduct.itemName}" (Code: ${deletedProduct.itemCode}) from both collections`
+    });
 
     res.json({ message: 'Product permanently deleted from both collections' });
   } catch (err) {
@@ -422,7 +431,7 @@ async function getProduct(req, res, next) {
 }
 
 // PATCH: Soft delete a product (mark as deleted and copy to deleted_products collection)
-router.patch('/soft-delete/:id', getProduct, async (req, res) => {
+router.patch('/soft-delete/:id', authMiddleware, getProduct, async (req, res) => {
   try {
     console.log('Soft deleting product:', req.params.id);
     const changedBy = req.body.changedBy || req.query.changedBy || 'system';
@@ -451,6 +460,14 @@ router.patch('/soft-delete/:id', getProduct, async (req, res) => {
 
     // Save the updated product in original collection
     await res.product.save();
+
+    await logActivity({
+      req,
+      action: 'delete',
+      resource: 'Product',
+      description: `Soft-deleted product "${res.product.itemName}" (Code: ${res.product.itemCode}) and archived to deleted_products`
+    });
+    
     console.log('Product soft deleted successfully in original collection:', res.product.itemName);
 
     // Copy to deleted_products collection
@@ -500,63 +517,63 @@ router.patch('/soft-delete/:id', getProduct, async (req, res) => {
 });
 
 // POST: Log a product deletion (for tracking deletions from frontend)
-router.post('/deletion-log', async (req, res) => {
-  try {
-    const { 
-      productId, 
-      itemCode, 
-      itemName, 
-      category, 
-      Supplier, 
-      deletedBy, 
-      deletionType, 
-      changeHistory 
-    } = req.body;
+// router.post('/deletion-log', authMiddleware, async (req, res) => {
+//   try {
+//     const { 
+//       productId, 
+//       itemCode, 
+//       itemName, 
+//       category, 
+//       Supplier, 
+//       deletedBy, 
+//       deletionType, 
+//       changeHistory 
+//     } = req.body;
 
-    // Validate required fields
-    if (!itemCode || !itemName || !deletedBy || !deletionType) {
-      return res.status(400).json({ 
-        message: 'Missing required fields: itemCode, itemName, deletedBy, deletionType are required' 
-      });
-    }
+//     // Validate required fields
+//     if (!itemCode || !itemName || !deletedBy || !deletionType) {
+//       return res.status(400).json({ 
+//         message: 'Missing required fields: itemCode, itemName, deletedBy, deletionType are required' 
+//       });
+//     }
 
-    // Create deletion log
-    const deletionLog = new DeletedProductLog({
-      itemCode,
-      itemName,
-      category: category || 'Unknown',
-      Supplier: Supplier || 'Unknown',
-      deletedAt: new Date(),
-      deletedBy,
-      deletionType, // 'hard' or 'soft'
-      originalProductId: productId,
-      changeHistory: changeHistory || []
-    });
+//     // Create deletion log
+//     const deletionLog = new DeletedProductLog({
+//       itemCode,
+//       itemName,
+//       category: category || 'Unknown',
+//       Supplier: Supplier || 'Unknown',
+//       deletedAt: new Date(),
+//       deletedBy,
+//       deletionType, // 'hard' or 'soft'
+//       originalProductId: productId,
+//       changeHistory: changeHistory || []
+//     });
 
-    await deletionLog.save();
-    console.log('Deletion log created:', deletionLog.itemName, 'by', deletedBy, 'type:', deletionType);
+//     await deletionLog.save();
+//     console.log('Deletion log created:', deletionLog.itemName, 'by', deletedBy, 'type:', deletionType);
 
-    res.status(201).json({ 
-      message: 'Deletion logged successfully',
-      logId: deletionLog._id,
-      deletedProduct: {
-        itemCode,
-        itemName,
-        category,
-        Supplier,
-        deletedAt: deletionLog.deletedAt,
-        deletedBy,
-        deletionType
-      }
-    });
-  } catch (err) {
-    console.error('Error logging deletion:', err);
-    res.status(500).json({ message: err.message });
-  }
-});
+//     res.status(201).json({ 
+//       message: 'Deletion logged successfully',
+//       logId: deletionLog._id,
+//       deletedProduct: {
+//         itemCode,
+//         itemName,
+//         category,
+//         Supplier,
+//         deletedAt: deletionLog.deletedAt,
+//         deletedBy,
+//         deletionType
+//       }
+//     });
+//   } catch (err) {
+//     console.error('Error logging deletion:', err);
+//     res.status(500).json({ message: err.message });
+//   }
+// });
 
 // PUT: Inactivate a product (move to inactive_products collection)
-router.put('/inactivate/:id', async (req, res) => {
+router.put('/inactivate/:id', authMiddleware, async (req, res) => {
   try {
     const { username } = req.body;
     const product = await Product.findById(req.params.id);
@@ -573,6 +590,13 @@ router.put('/inactivate/:id', async (req, res) => {
 
     // Remove from active collection
     await product.deleteOne();
+
+    await logActivity({
+      req,
+      action: 'Delete',
+      resource: 'Product',
+      description: `Inactivated product "${product.itemName}" (Code: ${product.itemCode}) and moved to inactive_products`
+    });
 
     res.json({ message: 'Product moved to inactive', inactiveProductId: inactive._id });
   } catch (err) {
@@ -591,7 +615,7 @@ router.get('/inactive', async (req, res) => {
 });
 
 // PUT: Toggle product visibility
-router.put('/toggle-visibility/:id', async (req, res) => {
+router.put('/toggle-visibility/:id', authMiddleware, async (req, res) => {
   try {
     const { username } = req.body;
     const product = await Product.findById(req.params.id);
@@ -626,6 +650,14 @@ router.put('/toggle-visibility/:id', async (req, res) => {
     await product.save();
     
     const action = product.visible ? 'made visible' : 'hidden';
+
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Product',
+      description: `Product "${product.itemName}" (Code: ${product.itemCode}) ${action}`
+    });
+    
     res.json({ 
       message: `Product ${action} successfully`,
       visible: product.visible,
@@ -665,7 +697,7 @@ router.get('/deleted', async (req, res) => {
 });
 
 // Restores a single soft-deleted product
-router.patch('/:id/restoreProduct', async (req, res) => {
+router.patch('/:id/restoreProduct', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -687,6 +719,14 @@ router.patch('/:id/restoreProduct', async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
+    // ✅ LOG: Restore Product
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Product',
+      description: `Restored product "${product.itemName}" (Code: ${product.itemCode})`
+    });
+
     res.json({
       message: 'Product restored successfully',
       product
@@ -697,16 +737,27 @@ router.patch('/:id/restoreProduct', async (req, res) => {
   }
 });
 
-router.patch('/restore-all', async (req, res) => {
+router.patch('/restore-all', authMiddleware, async (req, res) => {
   try {
-    await Product.updateMany(
+    const result = await Product.updateMany(
       { deleted: true },
       { 
         deleted: false, 
         visible: true,
-        restoredAt: new Date()
+        restoredAt: new Date(),
+        restoredBy: req.user.username // ✅ from JWT
       }
     );
+
+    // ✅ LOG: Bulk restore
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Product',
+      description: `Restored ${result.modifiedCount} products in bulk`
+    });
+
+
     res.json({ message: 'All products restored' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -714,7 +765,7 @@ router.patch('/restore-all', async (req, res) => {
 });
 
 // PATCH /api/products/:id/delete
-router.patch('/:id/deleteProduct', async (req, res) => {
+router.patch('/:id/deleteProduct', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { deletedBy } = req.body;
@@ -733,6 +784,14 @@ router.patch('/:id/deleteProduct', async (req, res) => {
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
+
+    // ✅ LOG: Soft Delete Product
+    await logActivity({
+      req,
+      action: 'delete',
+      resource: 'Product',
+      description: `Soft-deleted product "${product.itemName}" (Code: ${product.itemCode})`
+    });
 
     res.json({
       message: 'Product deleted successfully',
@@ -755,7 +814,7 @@ router.get('/productitem/:id', getProduct, (req, res) => {
 });
 
 // POST: Create a new product
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const existingProduct = await Product.findOne({ itemCode: req.body.itemCode });
     if (existingProduct) {
@@ -796,6 +855,16 @@ router.post('/', async (req, res) => {
     });
 
     const newProduct = await product.save();
+
+    // ✅ DETAILED CREATE LOG
+    await logActivity({
+      req,
+      action: 'Create',
+      resource: 'Product',
+      description: `Created product "${newProduct.itemName}" (Code: ${newProduct.itemCode}) with stock=${newProduct.stock}, buying=${newProduct.buyingPrice}, selling=${newProduct.sellingPrice}, category="${newProduct.category}", supplier="${newProduct.Supplier}"`
+    });
+
+
     res.status(201).json(newProduct);
   } catch (err) {
     // Check for MongoDB duplicate key error (code 11000)
@@ -807,7 +876,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH: Update an existing product (partial update)
-router.patch('/:id', getProduct, async (req, res) => {
+router.patch('/:id', authMiddleware, getProduct, async (req, res) => {
   const updates = req.body;
   const changes = [];
   
@@ -840,6 +909,14 @@ router.patch('/:id', getProduct, async (req, res) => {
 
     try {
       await res.product.save();
+
+      await logActivity({
+        req,
+        action: 'Delete',
+        resource: 'Product',
+        description: `Soft-deleted product "${res.product.itemName}" (Code: ${res.product.itemCode})`
+      });
+      
       console.log('Product saved successfully with deleted flag');
       res.json({ message: 'Product marked as deleted' });
     } catch (err) {
@@ -873,6 +950,14 @@ router.patch('/:id', getProduct, async (req, res) => {
 
     try {
       await res.product.save();
+
+      await logActivity({
+        req,
+        action: 'edit',
+        resource: 'Product',
+        description: `Restored product "${res.product.itemName}" (Code: ${res.product.itemCode})`
+      });
+      
       res.json({ message: 'Product restored successfully' });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -899,6 +984,14 @@ router.patch('/:id', getProduct, async (req, res) => {
   }
   try {
     const updatedProduct = await res.product.save();
+
+    await logActivity({
+      req,
+      action: 'edit',
+      resource: 'Product',
+      description: `Updated product "${res.product.itemName}" (Code: ${res.product.itemCode}): ${changes.join(', ')}`
+    });
+    
     res.json(updatedProduct);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -906,7 +999,7 @@ router.patch('/:id', getProduct, async (req, res) => {
 });
 
 // PUT: Full update of a product by ID
-router.put('/:id', getProduct, async (req, res) => {
+router.put('/:id', authMiddleware, getProduct, async (req, res) => {
   // List of updatable fields
   const updatableFields = [
     'itemCode', 'itemName', 'category', 'buyingPrice', 'sellingPrice', 'stock', 'Supplier',
@@ -957,6 +1050,15 @@ router.put('/:id', getProduct, async (req, res) => {
 
   try {
     const updatedProduct = await res.product.save();
+
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Product',
+      description: `Fully updated product "${res.product.itemName}" (Code: ${res.product.itemCode}): ${changes.join(', ')}`
+    });
+
+
     res.json(updatedProduct);
   } catch (err) {
     if (err.code === 11000 && err.keyPattern && err.keyPattern.itemCode) {
@@ -967,7 +1069,7 @@ router.put('/:id', getProduct, async (req, res) => {
 });
 
 // DELETE: Remove a product
-router.delete('/:id', getProduct, async (req, res) => {
+router.delete('/:id', authMiddleware, getProduct, async (req, res) => {
   try {
     const changedBy = req.body.changedBy || req.query.changedBy || 'system';
     res.product.changeHistory = [
@@ -1004,6 +1106,14 @@ router.delete('/:id', getProduct, async (req, res) => {
 
     // DELETE: Remove from main collection
     await res.product.deleteOne();
+
+    await logActivity({
+      req,
+      action: 'Delete',
+      resource: 'Product',
+      description: `Hard deleted product "${res.product.itemName}" (Code: ${res.product.itemCode}) and archived to deletion log`
+    });
+
     res.json({ message: 'Deleted Product' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -1024,7 +1134,7 @@ router.get('/grnNumber/:grnNumber', async (req, res) => {
 });
 
 // PATCH: Restore a deleted product from deleted_products collection
-router.patch('/restore/:id', async (req, res) => {
+router.patch('/restore/:id', authMiddleware, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ message: 'Invalid product ID format' });
@@ -1069,6 +1179,13 @@ router.patch('/restore/:id', async (req, res) => {
     await DeletedProduct.findByIdAndDelete(req.params.id);
     console.log('Product removed from deleted_products collection');
 
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Product',
+      description: `Restored deleted product "${originalProduct.itemName}" (Code: ${originalProduct.itemCode}) from deleted_products collection`
+    });
+
     res.json({ 
       message: 'Product restored successfully',
       originalProductId: originalProduct._id
@@ -1080,7 +1197,7 @@ router.patch('/restore/:id', async (req, res) => {
 });
 
 // PATCH: Update stock and price of an existing product or create new
-router.post('/update-stock/*', async (req, res) => {
+router.post('/update-stock/*', authMiddleware ,async (req, res) => {
   try {
     const itemCode = req.params[0];
     if (!itemCode) {
@@ -1142,6 +1259,15 @@ router.post('/update-stock/*', async (req, res) => {
         });
     
     const updatedProduct = await product.save();
+
+    // ✅ DETAILED CREATE LOG
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'Product',
+      description: `Created product "${updatedProduct.itemName}" (Code: ${updatedProduct.itemCode}) with stock=${updatedProduct.stock}, buying=${updatedProduct.buyingPrice}, selling=${updatedProduct.sellingPrice}, category="${updatedProduct.category}", supplier="${updatedProduct.Supplier}"`
+    });
+    
     res.json({ message: "Stock updated successfully", updatedProduct });
   } catch (err) {
     // Check for MongoDB duplicate key error (code 11000)
@@ -1153,7 +1279,7 @@ router.post('/update-stock/*', async (req, res) => {
 });
 
 // PATCH: Update stock and price of an existing product or create new
-router.patch('/update-stockitem/*', async (req, res) => {
+router.patch('/update-stockitem/*', authMiddleware, async (req, res) => {
   try {
     const itemCode = req.params[0];
     if (!itemCode) {
@@ -1231,6 +1357,58 @@ router.patch('/update-stockitem/*', async (req, res) => {
       product.returnstock = parseInt(returnstock);
     
     const updatedProduct = await product.save();
+
+    const changes = [];
+    if (req.body.newStock != null) changes.push(`stock: ${product.stock - (req.body.returnstock || 0)} → ${req.body.newStock}`);
+    if (req.body.newBuyingPrice != null) changes.push(`buying: ${product.buyingPrice} → ${req.body.newBuyingPrice}`);
+    if (req.body.newSellingPrice != null) changes.push(`selling: ${product.sellingPrice} → ${req.body.newSellingPrice}`);
+
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Product',
+      description: `Updated stock/prices for "${product.itemName}" (Code: ${decodedItemCode}): ${changes.join(', ')}`
+    });
+    
+    res.json({ message: "Stock updated successfully", updatedProduct });
+  } catch (err) {
+    // Check for MongoDB duplicate key error (code 11000)
+    if (err.code === 11000 && err.keyPattern && err.keyPattern.decodedItemCode) {
+      return res.status(400).json({ message: "Item Code already exists. Please use a unique Item Code." });
+    }
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.patch('/update-damagedstockitem/*', authMiddleware, async (req, res) => {
+  try {
+    const itemCode = req.params[0];
+    if (!itemCode) {
+      return res.status(400).json({ message: 'Item code is required' });
+    }
+    const decodedItemCode = decodeURIComponent(itemCode);
+
+    const {  damagedstock } = req.body; 
+
+    let product = await Product.findOne({ itemCode: decodedItemCode });
+
+    const oldStock = product.stock;
+      
+      if (damagedstock > 0){
+        product.stock -= parseInt(damagedstock);
+      }
+
+      product.damagedstock += parseInt(damagedstock);
+    
+    const updatedProduct = await product.save();
+
+    // ✅ LOG: Edit Product (return stock update)
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Product',
+      description: `Updated return stock for "${product.itemName}" (Code: ${product.itemCode}): returnstock ${product.damagedstock}, stock ${oldStock} → ${updatedProduct.stock}`
+    });
     
     res.json({ message: "Stock updated successfully", updatedProduct });
   } catch (err) {
@@ -1243,7 +1421,7 @@ router.patch('/update-stockitem/*', async (req, res) => {
 });
 
 // PATCH: Update stock and price of an existing product or create new
-router.patch('/update-returnstockitem/*', async (req, res) => {
+router.patch('/update-returnstockitem/*', authMiddleware, async (req, res) => {
   try {
     const itemCode = req.params[0];
     if (!itemCode) {
@@ -1254,14 +1432,24 @@ router.patch('/update-returnstockitem/*', async (req, res) => {
     const {  returnstock } = req.body; 
 
     let product = await Product.findOne({ itemCode: decodedItemCode });
+
+    const oldStock = product.stock;
       
       if (returnstock > 0){
         product.stock -= parseInt(returnstock);
       }
 
-      product.returnstock = parseInt(returnstock);
+      product.returnstock += parseInt(returnstock);
     
     const updatedProduct = await product.save();
+
+    // ✅ LOG: Edit Product (return stock update)
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Product',
+      description: `Updated return stock for "${product.itemName}" (Code: ${product.itemCode}): returnstock ${product.returnstock}, stock ${oldStock} → ${updatedProduct.stock}`
+    });
     
     res.json({ message: "Stock updated successfully", updatedProduct });
   } catch (err) {
@@ -1274,7 +1462,7 @@ router.patch('/update-returnstockitem/*', async (req, res) => {
 });
 
 // PATCH: Process product return
-router.patch('/return/:id', async (req, res) => {
+router.patch('/return/:id', authMiddleware, async (req, res) => {
   try {
     const { returnQuantity, returnType } = req.body;
     const product = await Product.findById(req.params.id);
@@ -1310,6 +1498,14 @@ router.patch('/return/:id', async (req, res) => {
     }
 
     const updatedProduct = await product.save();
+
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Product',
+      description: `Processed return of ${quantity} units for "${product.itemName}" (Code: ${product.itemCode}), stock reduced from ${product.stock + quantity} to ${product.stock}`
+    });
+    
     res.json({ message: 'Product return processed', updatedProduct });
   } catch (err) {
     console.error('Error processing return:', err);
@@ -1318,64 +1514,64 @@ router.patch('/return/:id', async (req, res) => {
 });
 
 // ADMIN: Backfill stock changeHistory for all products
-router.post('/backfill-stock-history', async (req, res) => {
-  try {
-    const products = await Product.find();
-    let updatedCount = 0;
-    for (const product of products) {
-      let history = product.changeHistory || [];
-      let prevStock = null;
-      let newHistory = [];
-      // Find the initial stock value
-      if (history.length > 0 && history[0].field === 'creation' && history[0].newValue && history[0].newValue.stock !== undefined) {
-        prevStock = history[0].newValue.stock;
-      } else if (product.stock !== undefined) {
-        prevStock = product.stock;
-      }
-      for (let i = 0; i < history.length; i++) {
-        const log = history[i];
-        if (log.field === 'stock' && log.changeType !== 'update') {
-          // Convert old stock logs to 'update'
-          newHistory.push({ ...log, changeType: 'update' });
-          prevStock = log.newValue;
-        } else if (log.field === 'stock') {
-          newHistory.push(log);
-          prevStock = log.newValue;
-        } else {
-          newHistory.push(log);
-        }
-        // If the next log is not a stock change, but the stock value changed, add a synthetic log
-        if (i < history.length - 1 && history[i + 1].field !== 'stock' && product.stock !== prevStock) {
-          newHistory.push({
-            field: 'stock',
-            oldValue: prevStock,
-            newValue: product.stock,
-            changedBy: 'system-backfill',
-            changedAt: new Date(),
-            changeType: 'update'
-          });
-          prevStock = product.stock;
-        }
-      }
-      // If no stock change logs exist but stock changed from initial, add one
-      if (!history.some(log => log.field === 'stock') && prevStock !== product.stock) {
-        newHistory.push({
-          field: 'stock',
-          oldValue: prevStock,
-          newValue: product.stock,
-          changedBy: 'system-backfill',
-          changedAt: new Date(),
-          changeType: 'update'
-        });
-      }
-      product.changeHistory = newHistory;
-      await product.save();
-      updatedCount++;
-    }
-    res.json({ message: `Backfilled stock changeHistory for ${updatedCount} products.` });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+// router.post('/backfill-stock-history', authMiddleware, async (req, res) => {
+//   try {
+//     const products = await Product.find();
+//     let updatedCount = 0;
+//     for (const product of products) {
+//       let history = product.changeHistory || [];
+//       let prevStock = null;
+//       let newHistory = [];
+//       // Find the initial stock value
+//       if (history.length > 0 && history[0].field === 'creation' && history[0].newValue && history[0].newValue.stock !== undefined) {
+//         prevStock = history[0].newValue.stock;
+//       } else if (product.stock !== undefined) {
+//         prevStock = product.stock;
+//       }
+//       for (let i = 0; i < history.length; i++) {
+//         const log = history[i];
+//         if (log.field === 'stock' && log.changeType !== 'update') {
+//           // Convert old stock logs to 'update'
+//           newHistory.push({ ...log, changeType: 'update' });
+//           prevStock = log.newValue;
+//         } else if (log.field === 'stock') {
+//           newHistory.push(log);
+//           prevStock = log.newValue;
+//         } else {
+//           newHistory.push(log);
+//         }
+//         // If the next log is not a stock change, but the stock value changed, add a synthetic log
+//         if (i < history.length - 1 && history[i + 1].field !== 'stock' && product.stock !== prevStock) {
+//           newHistory.push({
+//             field: 'stock',
+//             oldValue: prevStock,
+//             newValue: product.stock,
+//             changedBy: 'system-backfill',
+//             changedAt: new Date(),
+//             changeType: 'update'
+//           });
+//           prevStock = product.stock;
+//         }
+//       }
+//       // If no stock change logs exist but stock changed from initial, add one
+//       if (!history.some(log => log.field === 'stock') && prevStock !== product.stock) {
+//         newHistory.push({
+//           field: 'stock',
+//           oldValue: prevStock,
+//           newValue: product.stock,
+//           changedBy: 'system-backfill',
+//           changedAt: new Date(),
+//           changeType: 'update'
+//         });
+//       }
+//       product.changeHistory = newHistory;
+//       await product.save();
+//       updatedCount++;
+//     }
+//     res.json({ message: `Backfilled stock changeHistory for ${updatedCount} products.` });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
 
 module.exports = router;

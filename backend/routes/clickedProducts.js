@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const ClickedProduct = require('../models/ClickedProduct');
 const Product = require('../models/Product');
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 // GET: Get all clicked products
 router.get('/', async (req, res) => {
@@ -17,7 +19,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST: Mark a product as clicked for Add Product
-router.post('/click/:id', async (req, res) => {
+router.post('/click/:id', authMiddleware, async (req, res) => {
   try {
     const productId = req.params.id;
     const clickedBy = req.body.clickedBy || 'system';
@@ -54,6 +56,14 @@ router.post('/click/:id', async (req, res) => {
     product.clickedBy = clickedBy;
     await product.save();
 
+    // ✅ LOG: Detailed edit activity
+    await logActivity({
+      req,
+      action: 'edit',
+      resource: 'Product',
+      description: `Marked product "${product.itemName}" (Code: ${product.itemCode}) as clicked for Add Product by ${clickedBy}`
+    });
+
     res.json({ 
       message: 'Product marked as clicked for Add Product',
       clickedProduct: clickedProduct
@@ -79,7 +89,7 @@ router.get('/available', async (req, res) => {
 });
 
 // DELETE: Remove clicked product record (for admin purposes)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const clickedProduct = await ClickedProduct.findById(req.params.id);
     if (!clickedProduct) {
@@ -94,6 +104,15 @@ router.delete('/:id', async (req, res) => {
     });
 
     await clickedProduct.deleteOne();
+
+    // ✅ LOG: Delete ClickedProduct
+    await logActivity({
+      req,
+      action: 'delete',
+      resource: 'ClickedProduct',
+      description: `Removed clicked product record for "${clickedProduct.itemName}" (Code: ${clickedProduct.itemCode}) and reset original product`
+    });
+    
     res.json({ message: 'Clicked product record removed' });
   } catch (err) {
     res.status(500).json({ message: err.message });

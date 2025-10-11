@@ -6,6 +6,7 @@ const API_URL = "https://raxwo-management.onrender.com/api/salaries";
 const EMPLOYEE_API_URL = "https://raxwo-management.onrender.com/api/salaries/employee";
 
 const SalaryAdd = ({ isOpen, onClose, refreshSalaries, darkMode }) => {
+  const today = new Date().toISOString().split('T')[0]; // "2024-06-15"
   const [salary, setSalary] = useState({
     employeeId: "",
     employeeName: "",
@@ -13,6 +14,7 @@ const SalaryAdd = ({ isOpen, onClose, refreshSalaries, darkMode }) => {
     remarks: "",
     paymentMethod: "",     // ← New
     assignedTo: "", 
+    date: today,
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -57,10 +59,17 @@ const SalaryAdd = ({ isOpen, onClose, refreshSalaries, darkMode }) => {
       return;
     }
 
+    const token = localStorage.getItem('token');
+
     try {
       await axios.post(API_URL, {
         ...salary,
         advance: Number(salary.advance),
+        date: salary.date,
+      }, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
       });
       setMessage("✅ Salary added successfully!");
       setTimeout(() => {
@@ -103,6 +112,15 @@ const SalaryAdd = ({ isOpen, onClose, refreshSalaries, darkMode }) => {
                 name="employeeName"
                 value={salary.employeeName}
                 readOnly
+              />
+              <label className={`add-salary-lbl ${darkMode ? "dark" : ""}`}>Date</label>
+              <input
+                className={`add-salary-input ${darkMode ? "dark" : ""}`}
+                type="date"
+                name="date"
+                value={salary.date}
+                onChange={handleChange}
+                required
               />
             </div>
             <div className="right-column">

@@ -46,10 +46,16 @@ const CashierAttendanceTable = ({ darkMode }) => {
     setUpdatedAttendance({ ...record });
     setShowActionMenu(null);
   };
-
+  const token = localStorage.getItem('token');
+  
   const handleUpdate = async () => {
+    
     try {
-      await axios.put(`${API_URL}/${editingRecord._id}`, updatedAttendance);
+      await axios.put(`${API_URL}/${editingRecord._id}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      } ,updatedAttendance);
       fetchAttendance();
       setEditingRecord(null);
     } catch (error) {
@@ -60,7 +66,11 @@ const CashierAttendanceTable = ({ darkMode }) => {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this attendance record?")) {
       try {
-        await axios.delete(`${API_URL}/${id}`);
+        await axios.delete(`${API_URL}/${id}`,{
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         fetchAttendance();
         setShowActionMenu(null);
       } catch (error) {

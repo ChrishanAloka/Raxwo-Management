@@ -1,8 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const Maintenance = require("../models/Maintenance");
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
     try {
         console.log("Incoming request body:", req.body); // Debugging
         
@@ -50,10 +52,18 @@ router.post("/", async (req, res) => {
             assignedTo,  
         });
 
-        await newMaintenance.save();
-        console.log("✅ Maintenance record saved:", newMaintenance);
+        const savedMaintenance = await newMaintenance.save();
+        console.log("✅ Maintenance record saved:", savedMaintenance);
+
+        // ✅ LOG: Create Maintenance
+        await logActivity({
+        req,
+        action: 'create',
+        resource: 'Maintenance',
+        description: `Created maintenance service #${savedMaintenance.no}: "${savedMaintenance.serviceType}" for ${savedMaintenance.price} on ${savedMaintenance.date} at ${savedMaintenance.time}${savedMaintenance.remarks ? ` (Remarks: "${savedMaintenance.remarks}")` : ''}`
+        });
         
-        res.status(201).json(newMaintenance);
+        res.status(201).json(savedMaintenance);
     } catch (error) {
         console.error("🔥 Error adding maintenance record:", error);
         res.status(500).json({ message: error.message });
@@ -84,7 +94,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Update Maintenance Record
-router.put("/:id", async (req, res) => {
+router.put("/:id", authMiddleware, async (req, res) => {
     try {
         
         const { serviceType, price, remarks, date, time, paymentMethod, assignedTo } = req.body;
@@ -118,6 +128,14 @@ router.put("/:id", async (req, res) => {
             { new: true }
         );
 
+        // ✅ LOG: Edit Maintenance
+        await logActivity({
+            req,
+            action: 'Edit',
+            resource: 'Maintenance',
+            description: `Updated maintenance service #${updatedMaintenance.no}: "${updatedMaintenance.serviceType}" to price ${updatedMaintenance.price} on ${updatedMaintenance.date}${updatedMaintenance.remarks ? ` (Remarks: "${updatedMaintenance.remarks}")` : ''}`
+        });
+
         res.status(200).json(updatedMaintenance);
     } catch (error) {
         console.error("Error updating maintenance record:", error);
@@ -126,9 +144,22 @@ router.put("/:id", async (req, res) => {
 });
 
 // Delete Maintenance Record
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authMiddleware, async (req, res) => {
     try {
+        const maintenance = await Maintenance.findById(req.params.id);
+        if (!maintenance) {
+        return res.status(404).json({ message: "Maintenance record not found" });
+        }
+        
         await Maintenance.findByIdAndDelete(req.params.id);
+        
+        await logActivity({
+            req,
+            action: 'delete',
+            resource: 'Maintenance',
+            description: `Deleted maintenance service #${maintenance.no}: "${maintenance.serviceType}" for ${maintenance.price} on ${maintenance.date}`
+        });
+        
         res.status(200).json({ message: "Deleted successfully" });
     } catch (error) {
         console.error("Error deleting maintenance record:", error);

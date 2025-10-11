@@ -50,6 +50,14 @@ const Payment = ({ darkMode }) => {
 
   const [categorySearch, setCategorySearch] = useState('');
 
+  const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+
+  const [paymentDate, setPaymentDate] = useState(today);  
+
+  const isCartFullyAssigned = () => {
+    return cart.length > 0 && cart.every(item => item.assignedTo && item.assignedTo.trim() !== "");
+  };
+
   const filteredCategoriesForSearch = categorySearch.trim() === ''
   ? allCategories
   : allCategories.filter(cat =>
@@ -453,7 +461,17 @@ const Payment = ({ darkMode }) => {
           </div>
         </div>
         {/* Customer Details Input Fields */}
+
         <div className="customer-details-input">
+
+          <input
+            type="date"
+            value={paymentDate}
+            onChange={(e) => setPaymentDate(e.target.value)}
+            className={`customer-input ${darkMode ? 'dark' : ''}`}
+            style={{ marginTop: '8px' }}
+          />
+          
           <input
             type="text"
             placeholder="Customer Name"
@@ -549,6 +567,7 @@ const Payment = ({ darkMode }) => {
                       }}
                       // className={`customer-input ${darkMode ? 'dark' : ''}`}
                       style={{ fontSize: '13px', padding: '4px 6px' }}
+                      required
                     >
                       <option value="" disabled>Select Technician</option>
                       <option value="Prabath">Prabath</option>
@@ -622,12 +641,22 @@ const Payment = ({ darkMode }) => {
               <option value="I-Device">I Device</option>
             </select>
           </div> */}
-
+          {cart.length > 0 && !isCartFullyAssigned() && (
+            <p className="error-message" style={{ textAlign: 'center', margin: '8px 0' }}>
+              ⚠️ Please assign all items to a technician before completing payment.
+            </p>
+          )}
           <div className="summary-row">
           <button
             className={`pay-btn ${darkMode ? 'dark' : ''}`}
             onClick={() => setShowPopup(true)}
-            disabled={cart.length === 0 || !cashierId || !cashierName || cashierId === 'N/A'}
+            disabled={
+              cart.length === 0 ||
+              !isCartFullyAssigned() || // ← ADD THIS
+              !cashierId ||
+              !cashierName ||
+              cashierId === 'N/A'
+            }
           >
             Complete Payment
           </button>
@@ -656,6 +685,7 @@ const Payment = ({ darkMode }) => {
             address={address}
             description={description}
             assignedTo={assignedTo}
+            paymentDate={paymentDate}
           />
         )}
 

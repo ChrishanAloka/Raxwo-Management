@@ -5,6 +5,8 @@ const ReturnProductModal = ({ product, closeModal, darkMode}) => {
   const [returnQuantity, setReturnQuantity] = useState('');
   const [returnType, setReturnType] = useState('in-stock'); // Default: Return in stock
 
+  const token = localStorage.getItem('token');
+  
   const handleReturn = async () => {
     if (!returnQuantity || returnQuantity <= 0) {
       alert('Enter a valid return quantity');
@@ -23,7 +25,7 @@ const ReturnProductModal = ({ product, closeModal, darkMode}) => {
     try {
       const response = await fetch(`https://raxwo-management.onrender.com/api/products/return/${product._id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ returnQuantity, returnType }),
       });
 

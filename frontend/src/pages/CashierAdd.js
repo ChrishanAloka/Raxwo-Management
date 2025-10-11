@@ -24,8 +24,14 @@ const CashierAdd = ({ isOpen, onClose, refreshCashiers, darkMode }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    const token = localStorage.getItem('token');
     try {
-      await axios.post(API_URL, cashier);
+      await axios.post(API_URL, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      }, cashier);
       alert("Cashier added successfully");
       refreshCashiers();
       onClose();

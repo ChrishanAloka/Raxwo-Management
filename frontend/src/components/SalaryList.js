@@ -75,11 +75,15 @@ const SalaryList = ({ darkMode }) => {
       setLoading(false);
     }
   };
-
+  const token = localStorage.getItem('token');
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this salary?")) {
       try {
-        await axios.delete(`${API_URL}/${id}`);
+        await axios.delete(`${API_URL}/${id}`,{
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         setSalaries(salaries.filter((salary) => salary._id !== id));
         setShowActionMenu(null);
       } catch (err) {
@@ -140,8 +144,15 @@ const SalaryList = ({ darkMode }) => {
       alert("Please select a date range");
       return;
     }
+
+    // ✅ Add one day to endDate to make it inclusive
+    const end = new Date(endDate);
+    end.setDate(end.getDate() + 1); // Move to next day
+    const endDateInclusive = end.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+
     try {
-      const res = await axios.get(`${API_URL}/summary/${startDate}/${endDate}`);
+      const res = await axios.get(`${API_URL}/summary/${startDate}/${endDateInclusive}`);
+      console.log("Summery data ",res.data);
       setSummaryData(res.data);
       setShowSummary(true);
     } catch (err) {

@@ -39,8 +39,15 @@ const paymentSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     enum: ['Bank-Transfer', 'Cash', 'Card', 'Bank-Check', 'Credit', 'Refund'],
-    required: true
+    required: false
   },
+  // In your Payment schema
+  paymentMethods: [{
+    method: { type: String, required: true }, // "Cash", "Card", etc.
+    amount: { type: Number, required: true }
+  }],
+  totalPaid: { type: Number, required: true },
+  changeGiven: { type: Number, default: 0 },
   cashierId: {
     type: String,
     required: true

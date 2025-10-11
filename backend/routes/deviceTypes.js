@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const DeviceType = require("../models/DeviceType");
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 // GET: Get all device types
 router.get("/", async (req, res) => {
@@ -14,24 +16,30 @@ router.get("/", async (req, res) => {
 });
 
 // POST: Add a new device type
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
     const { type } = req.body;
     if (!type || !type.trim()) {
       return res.status(400).json({ message: "Device type is required" });
     }
 
-    // Check if type already exists
-    const existingType = await DeviceType.findOne({ type: type.trim() });
+    const trimmedType = type.trim();
+    const existingType = await DeviceType.findOne({ type: trimmedType });
     if (existingType) {
       return res.status(400).json({ message: "This device type already exists" });
     }
 
-    const deviceType = new DeviceType({
-      type: type.trim(),
+    const deviceType = new DeviceType({ type: trimmedType });
+    const newType = await deviceType.save();
+
+    // ✅ LOG: Create DeviceType
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'DeviceType',
+      description: `Created device type: "${trimmedType}"`
     });
 
-    const newType = await deviceType.save();
     res.status(201).json(newType);
   } catch (err) {
     console.error("POST /api/deviceTypes error:", err);

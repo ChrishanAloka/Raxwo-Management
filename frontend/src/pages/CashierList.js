@@ -40,11 +40,15 @@ const CashierList = ({ darkMode }) => {
       setLoading(false);
     }
   };
-
+  const token = localStorage.getItem('token');
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this cashier?")) {
       try {
-        await axios.delete(`${API_URL}/${id}`);
+        await axios.delete(`${API_URL}/${id}`,{
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         setCashiers(cashiers.filter((cashier) => cashier._id !== id));
         setShowActionMenu(null);
       } catch (err) {

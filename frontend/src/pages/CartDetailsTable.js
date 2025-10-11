@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import CartForm from './CartForm';
 import ReturnCartForm from './ReturnCartForm';
+import DamagedCartForm from './DamagedCartForm';
+
 
 import '../Products.css';
 import editicon from '../icon/edit.png';
@@ -24,8 +26,10 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   const [error, setError] = useState('');
   const [editItem, setEditItem] = useState(null);
   const [returnItem, setReturnItem] = useState(null);
+  const [damagedItem, setDamagedItem] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showDamagedModal, setShowDamagedModal] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 8;
@@ -35,6 +39,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   const [showTrackModal, setShowTrackModal] = useState(false);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [returnStocks, setReturnStocks] = useState({});
+  const [damagedStocks, setDamagedStocks] = useState({});
   const [productStocks, setProductStocks] = useState({});
 
   const fetchItems = async () => {
@@ -91,6 +96,21 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     }
   };
 
+  const fetchProductDamagedStock = async (itemCode) => {
+    try {
+      const response = await fetch(`${PRODUCT_API_URL}/${encodeURIComponent(itemCode)}`);
+      if (!response.ok) {
+        console.warn(`Product ${itemCode} not found`);
+        return 0;
+      }
+      const product = await response.json();
+      return product.damagedstock || 0;
+    } catch (err) {
+      console.error(`Error fetching stock for ${itemCode}:`, err);
+      return 0;
+    }
+  };
+
   useEffect(() => {
     fetchItems();
   }, [supplierId]);
@@ -99,13 +119,16 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     const loadReturnStocks = async () => {
       const stocks = {};
       const avlstocks = {};
+      const dmgstocks = {};
       for (const item of items) {
         if (item.itemCode) {
           stocks[item.itemCode] = await fetchReturnStock(item.itemCode);
           avlstocks[item.itemCode] = await fetchProductStock(item.itemCode);
+          dmgstocks[item.itemCode] = await fetchProductDamagedStock(item.itemCode);
         }
       }
       setReturnStocks(stocks);
+      setDamagedStocks(dmgstocks);
       setProductStocks(avlstocks);
     };
 
@@ -221,11 +244,22 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     setShowActionMenu(null);
   };
 
+  const handleDamaged = (item, index) => {
+    setDamagedItem({ ...item, index });
+    setShowDamagedModal(true);
+    setShowActionMenu(null);
+  };
+
+  const token = localStorage.getItem('token');
+
   const handleDelete = async (index) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         const response = await fetch(`${API_URL}/${supplierId}/items/${index}`, {
           method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
         if (!response.ok) {
           throw new Error('Failed to delete item');
@@ -243,7 +277,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     try {
       const response = await fetch(`${PRODUCT_API_URL}/update-stock/${item.itemCode}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
         body: JSON.stringify({
           newStock: item.quantity,
           newBuyingPrice: item.buyingPrice,
@@ -345,7 +379,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
               <th>Item Name</th>
               <th>Category</th>
               <th>Stock</th>
-              <th>Returns / Avl Stocks</th>
+              <th>Returns / Damaged / Avl Sto.</th>
               <th>Buying Price</th>
               {/* <th>Selling Price</th> */}
               <th>Action</th>
@@ -367,7 +401,14 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                   }}>
                     {returnStocks[item.itemCode] || 0}
                   </span>
-                   <span> / </span>
+                  <span> / </span>
+                  <span style={{
+                    color: (damagedStocks[item.itemCode] || 0) > 0 ? '#e74c3c' : 'inherit',
+                    fontWeight: 'bold' 
+                  }}>
+                    {damagedStocks[item.itemCode] || 0}
+                  </span>
+                  <span> / </span>
                   <span style={{
                     color: (productStocks[item.itemCode] || 0) > 0 ? "#28a745" : "#e74c3c",
                     fontWeight: 'bold' 
@@ -402,6 +443,12 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                             <div className="action-btn-content">
                               <span className="p-edit-btn-icon" style={{width:"30", height:"30"}}>↩️ </span>
                               <span> Return</span>
+                            </div>
+                          </button>
+                          <button onClick={() => handleDamaged(item, index)} className="p-edit-btn">
+                            <div className="action-btn-content">
+                              <span className="p-edit-btn-icon" style={{width:"30", height:"30"}}>⚠️ </span>
+                              <span> Damaged Items</span>
                             </div>
                           </button>
                           {item.quantity === (productStocks[item.itemCode] || 0) && (
@@ -496,6 +543,19 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
           closeModal={() => {
             setShowReturnModal(false);
             setReturnItem(null);
+            fetchItems();
+          }}
+          darkMode={darkMode}
+        />
+      )}
+
+      {showDamagedModal && damagedItem && (
+        <DamagedCartForm
+          supplier={{ _id: supplierId, supplierName:supplierName }}
+          item={damagedItem}
+          closeModal={() => {
+            setShowDamagedModal(false);
+            setDamagedItem(null);
             fetchItems();
           }}
           darkMode={darkMode}

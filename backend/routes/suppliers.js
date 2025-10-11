@@ -4,6 +4,8 @@ const router = express.Router();
 const Supplier = require('../models/Supplier');
 const GRN = require('../models/GRN');
 const Product = require('../models/Product');
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 // GET: Get all suppliers
 router.get('/', async (req, res) => {
@@ -62,7 +64,7 @@ router.get('/:id', getSupplier, (req, res) => {
 });
 
 // POST: Create a new supplier
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   console.log('POST /api/suppliers body:', req.body);
   const supplierData = {
     date: req.body.date,
@@ -87,6 +89,16 @@ router.post('/', async (req, res) => {
 
   try {
     const newSupplier = await supplier.save();
+
+    // ✅ LOG: Create Supplier
+    const name = newSupplier.businessName || newSupplier.supplierName || 'Unnamed Supplier';
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'Supplier',
+      description: `Created supplier "${name}" with ${newSupplier.items.length} initial items`
+    });
+    
     console.log('POST /api/suppliers changeHistory:', newSupplier.changeHistory);
     res.status(201).json(newSupplier);
   } catch (err) {
@@ -95,7 +107,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH: Update an existing supplier
-router.patch('/:id', getSupplier, async (req, res) => {
+router.patch('/:id', authMiddleware, getSupplier, async (req, res) => {
   console.log('PATCH /api/suppliers/:id body:', req.body);
   const updates = {};
   if (req.body.date != null) updates.date = req.body.date;
@@ -106,10 +118,17 @@ router.patch('/:id', getSupplier, async (req, res) => {
   if (req.body.address != null) updates.address = req.body.address;
   if (req.body.totalPayments != null) updates.totalPayments = req.body.totalPayments;
   if (req.body.items != null) updates.items = req.body.items;
+  
+  // Track field changes for logging
+  const changeDetails = [];
   // Log changes
   const changes = [];
   for (const [field, newValue] of Object.entries(updates)) {
     if (res.supplier[field] !== newValue) {
+      const oldVal = formatValue(res.supplier[field]);
+      const newVal = formatValue(newValue);
+      changeDetails.push(`${field}: ${oldVal} → ${newVal}`);
+
       changes.push({
         field,
         oldValue: res.supplier[field],
@@ -131,6 +150,18 @@ router.patch('/:id', getSupplier, async (req, res) => {
 
   try {
     const updatedSupplier = await res.supplier.save();
+
+    // ✅ LOG DETAILED ACTIVITY
+    if (changeDetails.length > 0) {
+      const supplierName = updatedSupplier.businessName || updatedSupplier.supplierName || 'Unnamed Supplier';
+      await logActivity({
+        req,
+        action: 'edit',
+        resource: 'Supplier',
+        description: `Updated supplier "${supplierName}": ${changeDetails.join('; ')}`
+      });
+    }
+
     console.log('PATCH /api/suppliers/:id changeHistory:', updatedSupplier.changeHistory);
     res.json(updatedSupplier);
   } catch (err) {
@@ -138,10 +169,44 @@ router.patch('/:id', getSupplier, async (req, res) => {
   }
 });
 
+// Helper to format values for logs
+function formatValue(val) {
+  if (val === null || val === undefined) return 'null';
+  
+  if (typeof val === 'number') {
+    return val.toFixed(2);
+  }
+
+  if (typeof val === 'object') {
+    if (Array.isArray(val)) {
+      // Format array of objects specially for paymentMethods
+      if (val.length > 0 && val[0] && typeof val[0] === 'object' && val[0].method !== undefined) {
+        return val.map(pm => `${pm.method}: ${pm.amount}`).join(', ');
+      }
+      // Fallback for other arrays
+      return `[${val.map(formatValue).join(', ')}]`;
+    }
+    // Handle plain objects (e.g., { method: "Cash", amount: 500 })
+    if (val.method !== undefined && val.amount !== undefined) {
+      return `${val.method}: ${val.amount}`;
+    }
+    // Generic object fallback (avoid [object Object])
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return '[object]';
+    }
+  }
+
+  // Fallback for strings, booleans, etc.
+  return String(val).substring(0, 50) + (String(val).length > 50 ? '...' : '');
+}
+
 // DELETE: Remove a supplier
-router.delete('/:id', getSupplier, async (req, res) => {
+router.delete('/:id', authMiddleware, getSupplier, async (req, res) => {
   console.log('DELETE /api/suppliers/:id body:', req.body);
   try {
+    const supplierName = res.supplier.businessName || res.supplier.supplierName || 'Unnamed Supplier';
     // Log delete
     res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
       field: 'deletion',
@@ -154,6 +219,16 @@ router.delete('/:id', getSupplier, async (req, res) => {
     await res.supplier.save();
     console.log('DELETE /api/suppliers/:id changeHistory:', res.supplier.changeHistory);
     await res.supplier.deleteOne();
+
+    // ✅ LOG: Delete Supplier
+    await logActivity({
+      req,
+      action: 'Delete',
+      resource: 'Supplier',
+      description: `Deleted supplier "${supplierName}" (ID: ${res.supplier._id})`
+    });
+
+
     res.json({ message: 'Supplier deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -161,7 +236,7 @@ router.delete('/:id', getSupplier, async (req, res) => {
 });
 
 // POST: Add an item to a supplier's cart
-router.post('/:id/items', getSupplier, async (req, res) => {
+router.post('/:id/items', authMiddleware, getSupplier, async (req, res) => {
 
   // Generate itemCode if missing
     const resitem = req.body;
@@ -194,37 +269,17 @@ router.post('/:id/items', getSupplier, async (req, res) => {
   };
 
   res.supplier.items.push(item);
-  // Log cart add
-  // res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
-  //   field: 'cart-add',
-  //   oldValue: null,
-  //   newValue: item,
-  //   changedBy: req.body.changedBy || 'system',
-  //   changedAt: new Date(),
-  //   changeType: 'cart'
-  // }];
-
-  // Also log to Product's changeHistory if product exists
-  // try {
-  //   const product = await Product.findOne({ itemCode: item.itemCode });
-  //   if (product) {
-  //     product.changeHistory = [...(product.changeHistory || []), {
-  //       field: 'cart',
-  //       oldValue: null,
-  //       newValue: item,
-  //       changedBy: req.body.changedBy || 'system',
-  //       changedAt: new Date(),
-  //       changeType: 'cart'
-  //     }];
-  //     await product.save();
-  //   }
-  // } catch (err) {
-  //   // Log but do not block supplier save
-  //   console.error('Error updating product changeHistory for cart add:', err);
-  // }
 
   try {
     const updatedSupplier = await res.supplier.save();
+
+    // ✅ LOG: Add item to supplier
+    await logActivity({
+      req,
+      action: 'edit',
+      resource: 'Supplier',
+      description: `Added item "${item.itemName}" (Code: ${item.itemCode}, Qty: ${item.quantity}, BuyingPrice: ${item.buyingPrice}) to supplier "${res.supplier.businessName || res.supplier.supplierName}"`
+    });
     
     // ✅ Send back the itemCode in response
     res.status(201).json({
@@ -237,7 +292,7 @@ router.post('/:id/items', getSupplier, async (req, res) => {
   }
 });
 
-router.post('/:id/pastpayments', getSupplier, async (req, res) => {
+router.post('/:id/pastpayments', authMiddleware, getSupplier, async (req, res) => {
   
   const item = {
     paymentdescription: req.body.paymentdescription || "Empty",
@@ -248,6 +303,14 @@ router.post('/:id/pastpayments', getSupplier, async (req, res) => {
 
   try {
     const updatedSupplier = await res.supplier.save();
+
+    // ✅ LOG: Add past payment
+    await logActivity({
+      req,
+      action: 'edit',
+      resource: 'Supplier',
+      description: `Added past payment of ${item.paymentCharge} to supplier "${res.supplier.businessName || res.supplier.supplierName}" - Description: "${item.paymentdescription}"`
+    });
     
     // ✅ Send back the itemCode in response
     res.status(201).json({
@@ -259,7 +322,7 @@ router.post('/:id/pastpayments', getSupplier, async (req, res) => {
   }
 });
 
-router.post('/:id/discounts', getSupplier, async (req, res) => {
+router.post('/:id/discounts', authMiddleware, getSupplier, async (req, res) => {
   
   const item = {
     grnNumber: req.body.grnNumber || "-",
@@ -271,6 +334,14 @@ router.post('/:id/discounts', getSupplier, async (req, res) => {
 
   try {
     const updatedSupplier = await res.supplier.save();
+
+    // ✅ LOG: Add discount
+    await logActivity({
+      req,
+      action: 'edit',
+      resource: 'Supplier',
+      description: `Added discount of ${item.discountCharge} to supplier "${res.supplier.businessName || res.supplier.supplierName}" - GRN: ${item.grnNumber}, Description: "${item.discountdescription}"`
+    });
     
     // ✅ Send back the itemCode in response
     res.status(201).json({
@@ -282,7 +353,7 @@ router.post('/:id/discounts', getSupplier, async (req, res) => {
   }
 });
 
-router.post('/:id/repairService', getSupplier, async (req, res) => {
+router.post('/:id/repairService', authMiddleware, getSupplier, async (req, res) => {
   
   const item = {
     jobNumber: req.body.jobNumber || "-",
@@ -297,6 +368,14 @@ router.post('/:id/repairService', getSupplier, async (req, res) => {
 
   try {
     const updatedSupplier = await res.supplier.save();
+
+    // ✅ LOG: Add repair service
+    await logActivity({
+      req,
+      action: 'edit',
+      resource: 'Supplier',
+      description: `Added repair service for "${item.repairDevice}" (Job: ${item.jobNumber}) to supplier "${res.supplier.businessName || res.supplier.supplierName}" - Charge: ${item.paymentCharge}, Issue: "${item.deviceIssue?.substring(0, 40)}${item.deviceIssue?.length > 40 ? '...' : ''}"`
+    });
     
     // ✅ Send back the itemCode in response
     res.status(201).json({
@@ -309,7 +388,7 @@ router.post('/:id/repairService', getSupplier, async (req, res) => {
 });
 
 // PATCH: Update an item in a supplier's cart by item ID
-router.patch('/:id/items/:itemid', getSupplier, async (req, res) => {
+router.patch('/:id/items/:itemid', authMiddleware, getSupplier, async (req, res) => {
   try {
     const itemId = req.params.itemid;
 
@@ -324,13 +403,47 @@ router.patch('/:id/items/:itemid', getSupplier, async (req, res) => {
     const oldItem = { ...item.toObject() };
 
     // Update fields if provided
-    if (req.body.itemCode != null) item.itemCode = req.body.itemCode;
-    if (req.body.itemName != null) item.itemName = req.body.itemName;
-    if (req.body.category != null) item.category = req.body.category;
-    if (req.body.quantity != null) item.quantity = req.body.quantity;
-    if (req.body.buyingPrice != null) item.buyingPrice = req.body.buyingPrice;
-    if (req.body.sellingPrice != null) item.sellingPrice = req.body.sellingPrice;
-    if (req.body.grnNumber != null) item.grnNumber = req.body.grnNumber; // only update if provided
+    // Track changes
+    const itemChanges = [];
+    if (req.body.itemCode != null && item.itemCode !== req.body.itemCode) {
+      itemChanges.push(`itemCode: ${item.itemCode} → ${req.body.itemCode}`);
+      item.itemCode = req.body.itemCode;
+    }
+    if (req.body.itemName != null && item.itemName !== req.body.itemName) {
+      itemChanges.push(`itemName: ${item.itemName} → ${req.body.itemName}`);
+      item.itemName = req.body.itemName;
+    }
+    if (req.body.category != null && item.category !== req.body.category) {
+      itemChanges.push(`category: ${item.category} → ${req.body.category}`);
+      item.category = req.body.category;
+    }
+    if (req.body.quantity != null && item.quantity !== req.body.quantity) {
+      itemChanges.push(`quantity: ${item.quantity} → ${req.body.quantity}`);
+      item.quantity = req.body.quantity;
+    }
+    if (req.body.buyingPrice != null && item.buyingPrice !== req.body.buyingPrice) {
+      itemChanges.push(`buyingPrice: ${item.buyingPrice} → ${req.body.buyingPrice}`);
+      item.buyingPrice = req.body.buyingPrice;
+    }
+    if (req.body.sellingPrice != null && item.sellingPrice !== req.body.sellingPrice) {
+      itemChanges.push(`sellingPrice: ${item.sellingPrice} → ${req.body.sellingPrice}`);
+      item.sellingPrice = req.body.sellingPrice;
+    }
+    if (req.body.grnNumber != null && item.grnNumber !== req.body.grnNumber) {
+      itemChanges.push(`grnNumber: ${item.grnNumber} → ${req.body.grnNumber}`);
+      item.grnNumber = req.body.grnNumber;
+    }
+
+    // if (itemChanges.length > 0) {
+    //   res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
+    //     field: 'cart-update',
+    //     oldValue: oldItem,
+    //     newValue: item.toObject(),
+    //     changedBy,
+    //     changedAt: new Date(),
+    //     changeType: 'cart'
+    //   }];
+    // }
 
     // Optional: Log cart update in supplier history
     // res.supplier.changeHistory = [...(res.supplier.changeHistory || []), {
@@ -363,6 +476,17 @@ router.patch('/:id/items/:itemid', getSupplier, async (req, res) => {
     // Save updated supplier
     const updatedSupplier = await res.supplier.save();
 
+    // ✅ LOG DETAILED ACTIVITY
+    if (itemChanges.length > 0) {
+      const supplierName = res.supplier.businessName || res.supplier.supplierName || 'Unnamed Supplier';
+      await logActivity({
+        req,
+        action: 'edit',
+        resource: 'Supplier',
+        description: `Updated cart item "${oldItem.itemName}" (Code: ${oldItem.itemCode}) for supplier "${supplierName}": ${itemChanges.join('; ')}`
+      });
+    }
+
     res.status(200).json({
       message: 'Item updated successfully',
       itemCode: item.itemCode,
@@ -376,7 +500,7 @@ router.patch('/:id/items/:itemid', getSupplier, async (req, res) => {
 });
 
 // DELETE: Remove an item from a supplier's cart
-router.delete('/:id/items/:itemIndex', getSupplier, async (req, res) => {
+router.delete('/:id/items/:itemIndex', authMiddleware, getSupplier, async (req, res) => {
   const itemIndex = parseInt(req.params.itemIndex);
   if (isNaN(itemIndex) || itemIndex < 0 || itemIndex >= res.supplier.items.length) {
     return res.status(400).json({ message: 'Invalid item index' });
@@ -397,6 +521,16 @@ router.delete('/:id/items/:itemIndex', getSupplier, async (req, res) => {
 
   try {
     const updatedSupplier = await res.supplier.save();
+
+    // ✅ LOG: Delete item from supplier cart
+    const supplierName = res.supplier.businessName || res.supplier.supplierName || 'Unnamed Supplier';
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Supplier',
+      description: `Removed item "${oldItem.itemName}" (Code: ${oldItem.itemCode}) from supplier "${supplierName}" cart`
+    });
+
     res.json(updatedSupplier);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -404,43 +538,43 @@ router.delete('/:id/items/:itemIndex', getSupplier, async (req, res) => {
 });
 
 // POST: Record a payment for a supplier
-router.post('/:id/payments', getSupplier, async (req, res) => {
-  const { paymentAmount, paymentMethod, assignedTo, returnedProductsValue, grnNumber, description  } = req.body;
+router.post('/:id/payments', authMiddleware, getSupplier, async (req, res) => {
+  const { paymentAmount, paymentMethod, assignedTo, returnedProductsValue, grnNumber, description, paymentDate} = req.body;
 
   if (typeof paymentAmount !== 'number' || paymentAmount <= 0) {
     return res.status(400).json({ message: 'Payment amount must be a positive number' });
   }
 
 
-      // Calculate total cost and amount due
-    const totalitemCost = res.supplier.items.reduce(
-      (sum, item) => sum + (item.buyingPrice || 0) * (item.quantity || 0),
-      0
-    );
-    const pastcharges = res.supplier.pastPayments.reduce(
-      (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
-      0
-    );
-    const discounts= res.supplier.discounts.reduce(
-      (sum, ppayments) => sum + (ppayments.discountCharge || 0),
-      0
-    );
-    const repairServicecharges = res.supplier.repairService.reduce(
-      (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
-      0
-    );
-    const paymentHistory = res.supplier.paymentHistory.reduce(
-      (sum, ppayments) => sum + parseFloat(ppayments.currentPayment || 0),
-      0
-    );
+  // Calculate total cost and amount due
+  const totalitemCost = res.supplier.items.reduce(
+    (sum, item) => sum + (item.buyingPrice || 0) * (item.quantity || 0),
+    0
+  );
+  const pastcharges = res.supplier.pastPayments.reduce(
+    (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+    0
+  );
+  const discounts= res.supplier.discounts.reduce(
+    (sum, ppayments) => sum + (ppayments.discountCharge || 0),
+    0
+  );
+  const repairServicecharges = res.supplier.repairService.reduce(
+    (sum, ppayments) => sum + (ppayments.paymentCharge || 0),
+    0
+  );
+  const paymentHistory = res.supplier.paymentHistory.reduce(
+    (sum, ppayments) => sum + parseFloat(ppayments.currentPayment || 0),
+    0
+  );
 
-    const totalCost = totalitemCost + pastcharges + repairServicecharges - discounts - returnedProductsValue;
-    const currentPayments = parseFloat(paymentHistory).toFixed(2) || 0;
-    amountDue = parseFloat(totalCost).toFixed(2) - parseFloat(currentPayments).toFixed(2);
+  const totalCost = totalitemCost + pastcharges + repairServicecharges - discounts - returnedProductsValue;
+  const currentPayments = parseFloat(paymentHistory).toFixed(2) || 0;
+  amountDue = parseFloat(totalCost).toFixed(2) - parseFloat(currentPayments).toFixed(2);
 
-    if (paymentAmount > amountDue) {
-      return res.status(400).json({ message: 'Payment amount cannot exceed amount due' });
-    }
+  if (paymentAmount > amountDue) {
+    return res.status(400).json({ message: 'Payment amount cannot exceed amount due' });
+  }
   
   
 
@@ -460,6 +594,16 @@ router.post('/:id/payments', getSupplier, async (req, res) => {
 
 try {
     const updatedSupplier = await res.supplier.save();
+
+    // ✅ LOG: Payment recorded
+    const supplierName = res.supplier.businessName || res.supplier.supplierName || 'Unnamed Supplier';
+    await logActivity({
+      req,
+      action: 'edit',
+      resource: 'Supplier',
+      description: `Recorded payment of ${paymentAmount} to supplier "${supplierName}" via ${paymentMethod}${grnNumber ? ` (GRN: ${grnNumber})` : ''}${description ? ` - ${description}` : ''}`
+    });
+    
     res.status(200).json(updatedSupplier);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -467,7 +611,7 @@ try {
 });
 
 // POST: Create a GRN for a supplier
-router.post('/:id/grns', getSupplier, async (req, res) => {
+router.post('/:id/grns', authMiddleware, getSupplier, async (req, res) => {
   try {
     const { items, totalAmount, grnNumber } = req.body;
     if (!Array.isArray(items) || items.length === 0) {
@@ -494,6 +638,16 @@ router.post('/:id/grns', getSupplier, async (req, res) => {
       grnNumber
     });
     const newGRN = await grn.save();
+
+    // ✅ LOG: GRN created
+    const supplierName = res.supplier.businessName || res.supplier.supplierName || 'Unnamed Supplier';
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'Supplier',
+      description: `Created GRN ${grnNumber} for supplier "${supplierName}" with ${items.length} items, total=${totalAmount}`
+    });
+
     res.status(201).json(newGRN);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -542,12 +696,23 @@ router.get('/:id/items/grn/:grnNumber', async (req, res) => {
 });
 
 // DELETE: Delete a GRN by its ID for a supplier
-router.delete('/:id/grns/:grnId', getSupplier, async (req, res) => {
+router.delete('/:id/grns/:grnId', authMiddleware, getSupplier, async (req, res) => {
   try {
     const grn = await GRN.findOneAndDelete({ _id: req.params.grnId, supplier: res.supplier._id });
     if (!grn) {
       return res.status(404).json({ message: 'GRN not found for this supplier' });
     }
+
+    // ✅ LOG: Delete GRN
+    const supplierName = res.supplier.businessName || res.supplier.supplierName || 'Unnamed Supplier';
+    await logActivity({
+      req,
+      action: 'Delete',
+      resource: 'GRN',
+      description: `Deleted GRN ${grn.grnNumber} for supplier "${supplierName}"`
+    });
+
+
     res.json({ message: 'GRN deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });

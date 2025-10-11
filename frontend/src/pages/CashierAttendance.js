@@ -46,9 +46,14 @@ const CashierAttendance = ({darkMode}) => {
   };
 
   const markAttendance = async () => {
+    const token = localStorage.getItem('token');
     try {
       const clientTime = getCurrentTime();
-      const res = await axios.post(API_URL, { cashierId, remarks, clientTime });
+      const res = await axios.post(API_URL, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      } ,{ cashierId, remarks, clientTime });
       setMessage(res.data.message);
       setRemarks("");
       setShowRemarks(false);

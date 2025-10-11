@@ -95,6 +95,8 @@ const ProductList = ({ darkMode }) => {
     setCurrentPage(1);
   };
 
+  const token = localStorage.getItem('token');
+
   // Fetch products with backend pagination and filtering
   const fetchProducts = () => {
     setLoading(true);
@@ -366,6 +368,7 @@ const ProductList = ({ darkMode }) => {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ deletedBy: username })
     });
@@ -826,6 +829,7 @@ const ProductList = ({ darkMode }) => {
     const uploadId = uuidv4();
     setExcelUploadId(uploadId);
     setExcelUploadFile(file);
+    const token = localStorage.getItem('token');
     try {
       // Read the Excel file and assign a unique ID to each record
       const data = await file.arrayBuffer();
@@ -839,7 +843,7 @@ const ProductList = ({ darkMode }) => {
       // Send to backend (as JSON array)
       const response = await fetch(`${API_URL}/bulk-upload`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json',"Authorization": `Bearer ${token}` },
         body: JSON.stringify({ products: recordsWithId, uploadId, uploadedBy: localStorage.getItem('username') || 'system' })
       });
       if (!response.ok) {
@@ -877,8 +881,9 @@ const ProductList = ({ darkMode }) => {
       // formData.append('uploadId', uuidv4());
     
       const response = await fetch('https://raxwo-management.onrender.com/api/product-uploads/bulk-upload',
- {
+      {
         method: 'POST',
+        headers: {  "Authorization": `Bearer ${token}` },
         body: formData
       });
       const result = await response.json();

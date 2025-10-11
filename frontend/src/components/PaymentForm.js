@@ -22,6 +22,10 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
   const [returnedGrnItems, setReturnedGrnItems] = useState([]);
   const [grnOptionsLoading, setGrnOptionsLoading] = useState(false);
 
+  const [selectedPayments, setSelectedPayments] = useState([]); 
+
+  const today = new Date().toISOString().split('T')[0];
+
   // Special options
   const PAST_PAYMENT_OPTION = {
     value: '__PAST_PAYMENT__',
@@ -63,104 +67,116 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
   const [supplierGrnOptions, setSupplierGrnOptions] = useState([]);
 
   useEffect(() => {
-  const calculateGrnOptions = async () => {
-    if (!supplier?.grnOptions?.length) {
-      setSupplierGrnOptions([]);
-      setGrnOptionsLoading(false);
-      return;
-    }
+    const calculateGrnOptions = async () => {
+      if (!supplier?.grnOptions?.length) {
+        setSupplierGrnOptions([]);
+        setGrnOptionsLoading(false);
+        return;
+      }
 
-    setGrnOptionsLoading(true);
+      setGrnOptionsLoading(true);
 
-    try {
-      // Step 1: Prepare all GRN numbers
-      const grnList = supplier.grnOptions;
+      try {
+        // Step 1: Prepare all GRN numbers
+        const grnList = supplier.grnOptions;
 
-      // Step 2: Fetch all return data in parallel
-      const fetchPromises = grnList.map(grn => {
-        const grnNumber = String(grn.grnNumber || grn.value || '');
-        return fetchGrnReturnStocks(grnNumber)
-          .then(result => ({ grn, data: result, error: null }))
-          .catch(error => ({ grn, data: null, error }));
-      });
+        // Step 2: Fetch all return data in parallel
+        const fetchPromises = grnList.map(grn => {
+          const grnNumber = String(grn.grnNumber || grn.value || '');
+          return fetchGrnReturnStocks(grnNumber)
+            .then(result => ({ grn, data: result, error: null }))
+            .catch(error => ({ grn, data: null, error }));
+        });
 
-      const results = await Promise.all(fetchPromises);
+        const results = await Promise.all(fetchPromises);
 
-      // Step 3: Build options
-      const options = results.map(({ grn, data, error }) => {
-        const grnNumber = String(grn.grnNumber || grn.value || '');
-        const isPaid = paidGrnNumbers.has(grnNumber);
-        const status = isPaid ? '✅ Paid' : '⏳ Pending';
+        // Step 3: Build options
+        const options = results.map(({ grn, data, error }) => {
+          const grnNumber = String(grn.grnNumber || grn.value || '');
+          const isPaid = paidGrnNumbers.has(grnNumber);
+          const status = isPaid ? '✅ Paid' : '⏳ Pending';
 
-        // Format date
-        const formattedDate = grn.grnDate
-          ? new Date(grn.grnDate).toLocaleDateString('en-GB')
-          : '';
+          // Format date
+          const formattedDate = grn.grnDate
+            ? new Date(grn.grnDate).toLocaleDateString('en-GB')
+            : '';
 
-        if (error || !data) {
-          // Fallback if fetch failed
-          const fallbackTotal = grn.totalAmount || 0;
-          const label = `${grnNumber} | ${formattedDate} | Payable: Rs. ${fallbackTotal.toFixed(2)} | ${status} ${error ? '(⚠️)' : ''}`;
+          if (error || !data) {
+            // Fallback if fetch failed
+            const fallbackTotal = grn.totalAmount || 0;
+            const label = `${grnNumber} | ${formattedDate} | Payable: Rs. ${fallbackTotal.toFixed(2)} | ${status} ${error ? '(⚠️)' : ''}`;
+            return {
+              value: grnNumber,
+              label,
+              totalAmount: fallbackTotal,
+              payableAmount: fallbackTotal,
+              returnedValue: 0,
+              totalDiscounts: 0,
+              isPaid: false,
+              isDisabled: false,
+            };
+          }
+
+          // Success path
+          const { items, returnedValue } = data;
+
+          // Calculate GRN total
+          const total = items.reduce((sum, item) =>
+            sum + (item.quantity || 0) * (item.buyingPrice || 0), 0
+          );
+
+          // Calculate discounts for this GRN
+          const grnDiscs = (supplier.discounts || []).filter(d =>
+            String(d.grnNumber) === grnNumber
+          );
+          const totalDiscs = grnDiscs.reduce((sum, d) => sum + (d.discountCharge || 0), 0);
+
+          const payableAmount = Math.max(0, total - returnedValue - totalDiscs);
+
+          const label = `${grnNumber} | ${formattedDate} | Rs. ${total.toFixed(2)} | Payable: Rs. ${payableAmount.toFixed(2)} | ${status}`;
+
           return {
             value: grnNumber,
             label,
-            totalAmount: fallbackTotal,
-            payableAmount: fallbackTotal,
-            returnedValue: 0,
-            totalDiscounts: 0,
+            totalAmount: total,
+            payableAmount,
+            returnedValue,
+            totalDiscounts: totalDiscs,
             isPaid: false,
             isDisabled: false,
           };
-        }
+        });
 
-        // Success path
-        const { items, returnedValue } = data;
+        // Step 4: Sort by GRN date (newest first)
+        options.sort((a, b) => {
+          const dateA = grnList.find(g => String(g.grnNumber || g.value) === a.value)?.grnDate || '';
+          const dateB = grnList.find(g => String(g.grnNumber || g.value) === b.value)?.grnDate || '';
+          return new Date(dateB) - new Date(dateA);
+        });
 
-        // Calculate GRN total
-        const total = items.reduce((sum, item) =>
-          sum + (item.quantity || 0) * (item.buyingPrice || 0), 0
-        );
+        setSupplierGrnOptions(options);
+      } catch (err) {
+        console.error('Unexpected error during GRN option calculation:', err);
+        setSupplierGrnOptions([]);
+      } finally {
+        setGrnOptionsLoading(false);
+      }
+    };
 
-        // Calculate discounts for this GRN
-        const grnDiscs = (supplier.discounts || []).filter(d =>
-          String(d.grnNumber) === grnNumber
-        );
-        const totalDiscs = grnDiscs.reduce((sum, d) => sum + (d.discountCharge || 0), 0);
+    calculateGrnOptions();
+  }, [supplier?.grnOptions, paidGrnNumbers, supplier?.discounts, fetchGrnReturnStocks]);
 
-        const payableAmount = Math.max(0, total - returnedValue - totalDiscs);
-
-        const label = `${grnNumber} | ${formattedDate} | Rs. ${total.toFixed(2)} | Payable: Rs. ${payableAmount.toFixed(2)} | ${status}`;
-
-        return {
-          value: grnNumber,
-          label,
-          totalAmount: total,
-          payableAmount,
-          returnedValue,
-          totalDiscounts: totalDiscs,
-          isPaid: false,
-          isDisabled: false,
-        };
-      });
-
-      // Step 4: Sort by GRN date (newest first)
-      options.sort((a, b) => {
-        const dateA = grnList.find(g => String(g.grnNumber || g.value) === a.value)?.grnDate || '';
-        const dateB = grnList.find(g => String(g.grnNumber || g.value) === b.value)?.grnDate || '';
-        return new Date(dateB) - new Date(dateA);
-      });
-
-      setSupplierGrnOptions(options);
-    } catch (err) {
-      console.error('Unexpected error during GRN option calculation:', err);
-      setSupplierGrnOptions([]);
-    } finally {
-      setGrnOptionsLoading(false);
-    }
+  const isSpecialOption = (option) => {
+    return option?.value === '__PAST_PAYMENT__' || option?.value === '__REPAIR_SERVICE__';
   };
 
-  calculateGrnOptions();
-}, [supplier?.grnOptions, paidGrnNumbers, supplier?.discounts, fetchGrnReturnStocks]);
+  const selectedGrnValues = React.useMemo(() => {
+    return new Set(
+      selectedPayments
+        .map(p => p.grnOption?.value)
+        .filter(val => val && !isSpecialOption({ value: val }))
+    );
+  }, [selectedPayments]);
 
   const allGrnOptions = [
     PAST_PAYMENT_OPTION,
@@ -235,46 +251,90 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
     setError(null);
     setSuccess("");
 
-    const payment = parseFloat(paymentAmount);
-    if (!payment || payment <= 0) {
-      setError('Payment amount must be a positive number');
-      return;
-    }
-    if (isNaN(payment)) {
-      setError('Invalid amount');
-      return;
-    }
-    if (!isSpecialPayment && payment > totalAmountDue) {
-      setError('Payment amount cannot exceed amount due');
-      return;
-    }
+    // const payment = parseFloat(paymentAmount);
+    // if (!payment || payment <= 0) {
+    //   setError('Payment amount must be a positive number');
+    //   return;
+    // }
+    // if (isNaN(payment)) {
+    //   setError('Invalid amount');
+    //   return;
+    // }
+    // if (!isSpecialPayment && payment > totalAmountDue) {
+    //   setError('Payment amount cannot exceed amount due');
+    //   return;
+    // }
     if (!paymentMethod) {
       setError('Please select a payment method');
       return;
     }
 
-    try {
-      const response = await fetch(`https://raxwo-management.onrender.com/api/suppliers/${supplier._id}/payments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          paymentAmount: payment, 
-          paymentMethod, 
-          assignedTo, 
-          returnedProductsValue,
-          grnNumber: grnNumber,
-          description: isSpecialPayment ? description : undefined // Optional field
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to record payment');
+    // Validate all payments
+    const validPayments = [];
+    for (const p of selectedPayments) {
+      if (!p.grnOption) {
+        setError('Please select a GRN or payment type for all entries');
+        return;
+      }
+      const amount = parseFloat(p.amount);
+      if (isNaN(amount) || amount <= 0) {
+        setError('All payment amounts must be positive numbers');
+        return;
       }
 
-      setSuccess(`Payment of Rs. ${payment.toFixed(2)} recorded successfully!`);
+      // For real GRNs, enforce payable limit
+      if (!isSpecialOption(p.grnOption)) {
+        if (amount > p.grnOption.payableAmount) {
+          setError(`Payment for GRN ${p.grnOption.value} exceeds payable amount.`);
+          return;
+        }
+      }
+
+      validPayments.push({
+        paymentAmount: amount,
+        grnNumber: p.grnOption.value,
+        description: isSpecialOption(p.grnOption) ? p.description : undefined,
+        paymentDate: p.paymentDate
+      });
+    }
+
+    if (validPayments.length === 0) {
+      setError('No valid payments to submit');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    
+    try {
+      // Submit each payment individually
+      for (const pay of validPayments) {
+        const response = await fetch(`https://raxwo-management.onrender.com/api/suppliers/${supplier._id}/payments`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json', 
+            "Authorization": `Bearer ${token}` 
+          },
+          body: JSON.stringify({ 
+            paymentAmount: pay.paymentAmount, 
+            paymentMethod, 
+            assignedTo, 
+            returnedProductsValue: 0, // or compute per GRN if needed
+            grnNumber: pay.grnNumber,
+            description: pay.description,
+            paymentDate: pay.paymentDate
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to record payment');
+        }
+      }
+
+      setSuccess(`Successfully recorded ${validPayments.length} payment(s)!`);
       await refreshSuppliers();
-      setTimeout(() => closeModal(), 1000);
+      closeModal();
+
     } catch (err) {
       setError(err.message);
     }
@@ -334,9 +394,191 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
               )}
             />
           </div>
+
+          <div style={{ margin: '16px 0' }}>
+            <button 
+              type="button" 
+              onClick={() => setSelectedPayments(prev => [...prev, { 
+                id: Date.now(), 
+                grnOption: null, 
+                amount: '', 
+                description: '',
+                grnItems: [], 
+                returnedGrnItems: {},
+                paymentDate: today,  
+              }])}
+
+              className="add-payment-btn"
+              style={{
+                backgroundColor: darkMode ? '#4a5568' : '#e2e8f0',
+                color: darkMode ? 'white' : 'black',
+                border: 'none',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              ➕ Add Payment
+            </button>
+          </div>
+
+          {selectedPayments.map((payment, index) => {
+            // Filter out already-selected GRNs (except for special types)
+            const availableOptions = allGrnOptions.map(opt => {
+              if (
+                opt.value !== '__PAST_PAYMENT__' &&
+                opt.value !== '__REPAIR_SERVICE__' &&
+                selectedGrnValues.has(opt.value) &&
+                opt.value !== payment.grnOption?.value // allow current selection
+              ) {
+                return { ...opt, isDisabled: true };
+              }
+              return opt;
+            });
+
+            return (
+              <div key={payment.id} className="payment-row">
+                <div className="payment-date-input">
+                  <label className="payment-label">Payment Date</label>
+                  <input
+                    type="date"
+                    value={payment.paymentDate}
+                    onChange={(e) => {
+                      const newPayments = [...selectedPayments];
+                      newPayments[index].paymentDate = e.target.value;
+                      setSelectedPayments(newPayments);
+                    }}
+                    className="payment-input"
+                    max={new Date().toISOString().split('T')[0]} // Optional: prevent future dates
+                  />
+                </div>
+                <Select
+                  value={payment.grnOption}
+                  onChange={async (selectedOption) => {
+                    const newPayments = [...selectedPayments];
+                    newPayments[index].grnOption = selectedOption;
+                    newPayments[index].amount = selectedOption?.payableAmount?.toString() || '';
+                    newPayments[index].description = '';
+
+                    // Reset items
+                    newPayments[index].grnItems = [];
+                    newPayments[index].returnedGrnItems = {};
+
+                    if (selectedOption && !isSpecialOption(selectedOption)) {
+                      try {
+                        const result = await fetchGrnReturnStocks(selectedOption.value);
+                        // result should have: { items, returnedValue, returnStocks? }
+                        // Assume `returnStocks` is an array like [{ itemCode, returnstock }, ...]
+                        
+                        const returnStockMap = {};
+                        if (Array.isArray(result.returnStocks)) {
+                          result.returnStocks.forEach(rs => {
+                            returnStockMap[rs.itemCode] = rs.returnstock || 0;
+                          });
+                        }
+
+                        newPayments[index].grnItems = result.items || [];
+                        newPayments[index].returnedGrnItems = returnStockMap;
+                      } catch (err) {
+                        console.error('Failed to fetch GRN items:', err);
+                        // Optionally show error per row
+                      }
+                    }
+                    setSelectedPayments(newPayments);
+                  }}
+                  options={availableOptions}
+                  placeholder={grnOptionsLoading ? "Loading GRNs..." : "Select GRN or Past Payment..."}
+                  isClearable
+                  isSearchable
+                />
+
+                {/* Show GRN summary if applicable */}
+                {payment.grnOption && !isSpecialOption(payment.grnOption) && (
+                  <div className="grn-summary-box" style={{
+                    marginTop: '2px',
+                    padding: '10px',
+                    backgroundColor: darkMode ? '#2d3748' : '#f8f9fa',
+                    border: `1px solid ${darkMode ? '#4a5568' : '#e9ecef'}`,
+                    borderRadius: '6px',
+                    fontSize: '0.95rem'
+                  }}>
+                    <div><strong>GRN:</strong> {payment.grnOption.value}</div>
+                    <div><strong>GRN Total:</strong> Rs. {payment.grnOption.totalAmount?.toFixed(2)}</div>
+                    <div><strong>Returned Value:</strong> Rs. {payment.grnOption.returnedValue?.toFixed(2)}</div>
+                    <div><strong>Discounts:</strong> Rs. {payment.grnOption.totalDiscounts?.toFixed(2)}</div>
+                    <div><strong>Payable Amount:</strong> <span style={{ color: '#38a169', fontWeight: 'bold' }}>Rs. {payment.grnOption.payableAmount?.toFixed(2)}</span></div>
+                  </div>
+                )}
+
+                {/* GRN Items List */}
+                {payment.grnItems.length > 0 && (
+                  <div style={{ 
+                    marginTop: '10px', 
+                    maxHeight: '150px', 
+                    overflowY: 'auto',
+                    fontSize: '0.9rem',
+                    padding: '8px',
+                    backgroundColor: darkMode ? '#2d3748' : '#f8fafc',
+                    border: `1px solid ${darkMode ? '#4a5568' : '#e9ecef'}`,
+                    borderRadius: '4px'
+                  }}>
+                    <strong>Items in GRN:</strong>
+                    <ul style={{ paddingLeft: '20px', marginTop: '6px', marginBottom: '0' }}>
+                      {payment.grnItems.map((item, i) => (
+                        <li key={i}>
+                          {item.itemName} × {item.quantity}
+                          {payment.returnedGrnItems[item.itemCode] > 0 && (
+                            <span> (Returned {payment.returnedGrnItems[item.itemCode]})</span>
+                          )} @ Rs. {item.buyingPrice.toFixed(2)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Amount input */}
+                <input
+                  type="text"
+                  value={payment.amount}
+                  onChange={(e) => {
+                    const newPayments = [...selectedPayments];
+                    newPayments[index].amount = e.target.value;
+                    setSelectedPayments(newPayments);
+                  }}
+                  readOnly={!isSpecialOption(payment.grnOption) && payment.grnOption?.payableAmount != null}
+                  placeholder="Enter amount"
+                />
+
+                {/* Description for special payments */}
+                {isSpecialOption(payment.grnOption) && (
+                  <input
+                    type="text"
+                    value={payment.description}
+                    onChange={(e) => {
+                      const newPayments = [...selectedPayments];
+                      newPayments[index].description = e.target.value;
+                      setSelectedPayments(newPayments);
+                    }}
+                    placeholder="Description..."
+                  />
+                )}
+
+                {/* Remove button */}
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedPayments(prev => prev.filter((_, i) => i !== index))}
+                  className="remove-btn"
+                >
+                  ❌
+                </button>
+              </div>
+            );
+          })}
           {/* Searchable GRN Selector */}
           {/* {supplierGrnOptions.length > 0 && ( */}
-            <div>
+
+            {/* <div>
               <label className="payment-label">Select GRN</label>
               <Select
                 value={selectedGrnOption}
@@ -406,10 +648,12 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
                   }),
                 }}
               />
-            </div>
+            </div> */}
+
           {/* )} */}
           {/* GRN Summary (Optional but helpful) */}
-          {grnNumber && !isSpecialPayment && (
+
+          {/* {grnNumber && !isSpecialPayment && (
             <div className="grn-summary-box" style={{
               marginTop: '2px',
               padding: '10px',
@@ -424,9 +668,10 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
               <div><strong>Discounts:</strong> Rs. {grnDiscounts.toFixed(2)}</div>
               <div><strong>Payable Amount:</strong> <span style={{ color: '#38a169', fontWeight: 'bold' }}>Rs. {(grnTotal - grnReturnedValue - grnDiscounts).toFixed(2)}</span></div>
             </div>
-          )}
+          )} */}
+
           {/* GRN Items List */}
-          {grnItems.length > 0 && (
+          {/* {grnItems.length > 0 && (
             <div style={{ marginTop: '10px', maxHeight: '150px', overflowY: 'auto' }}>
               <strong>Items in GRN:</strong>
               <ul style={{ paddingLeft: '20px', marginTop: '6px', marginBottom: '0' }}>
@@ -437,10 +682,11 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
                 ))}
               </ul>
             </div>
-          )}
+          )} */}
 
           {/* Description for Past Payment */}
-          {isSpecialPayment && (
+
+          {/* {isSpecialPayment && (
             <div style={{ marginTop: '12px' }}>
               <label className="payment-label">Description (Optional)</label>
               <input
@@ -455,8 +701,9 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
                 }
               />
             </div>
-          )}
-          <div>
+          )} */}
+
+          {/* <div>
             <label className="payment-label">Current Payment Amount</label>
             <input
               className="payment-input"
@@ -477,7 +724,8 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
                 cursor: (grnNumber && !isSpecialPayment) ? 'not-allowed' : 'text'
               }}
             />
-          </div>
+          </div> */}
+
           {/* Payment Method */}
           <div>
             <label className="payment-label">Payment Method</label>

@@ -21,10 +21,8 @@ const ExtraIncome = ({ darkMode }) => {
     date: "",
     time: "",
     incomeType: "",
-    amount: "",
     description: "",
     assignedTo:"",
-    paymentMethod: "",
   });
   // State for table data
   const [extraIncomes, setExtraIncomes] = useState([]);
@@ -46,6 +44,8 @@ const ExtraIncome = ({ darkMode }) => {
   const userRole = localStorage.getItem('role');
 
   const [summaryIncomeTypeFilter, setSummaryIncomeTypeFilter] = useState('all');
+
+  const [paymentBreakdown, setPaymentBreakdown] = useState([{ method: "", amount: "" }]);
 
   // Sample data for demo mode
   const sampleData = [
@@ -126,21 +126,36 @@ const ExtraIncome = ({ darkMode }) => {
     setFormData({ ...formData, [name]: value });
   };
 
+  const token = localStorage.getItem('token');
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // ✅ VALIDATION: Payment breakdown must be valid
+    const validPayments = paymentBreakdown.filter(p => p.method && p.amount !== "" && parseFloat(p.amount) > 0);
+    if (validPayments.length === 0) {
+      setError("Please add at least one valid payment method and amount.");
+      return;
+    }
+
+    const totalAmount = validPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    
     try {
       const payload = {
         date: `${formData.date}T${formData.time}:00.000Z`,
         incomeType: formData.incomeType,
-        amount: parseFloat(formData.amount),
+        amount: totalAmount,
         description: formData.description,
         assignedTo: formData.assignedTo,
-        paymentMethod: formData.paymentMethod,
+        paymentBreakdown: validPayments.map(p => ({
+          method: p.method,
+          amount: parseFloat(p.amount)
+        })),
       };
       const response = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
@@ -159,10 +174,8 @@ const ExtraIncome = ({ darkMode }) => {
         date: "",
         time: "",
         incomeType: "",
-        amount: "",
         description: "",
         assignedTo: "",
-        paymentMethod: "",
       });
       setShowAddModal(false);
       onUpdate();
@@ -184,6 +197,7 @@ const ExtraIncome = ({ darkMode }) => {
 
   const handleReturnSubmit = async (e) => {
     e.preventDefault();
+
     try {
       const {
         _id,
@@ -215,7 +229,7 @@ const ExtraIncome = ({ darkMode }) => {
 
       const response = await fetch(`${API_URL}/${_id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}`, },
         body: JSON.stringify(payload),
       });
 
@@ -250,23 +264,41 @@ const ExtraIncome = ({ darkMode }) => {
   const handleEdit = (record) => {
     setEditingRecord(record);
     setShowActionMenu(null);
+
+    const existingBreakdown = record.paymentBreakdown && Array.isArray(record.paymentBreakdown) && record.paymentBreakdown.length > 0
+    ? record.paymentBreakdown.map(p => ({ method: p.method, amount: p.amount.toString() }))
+    : [{ method: "", amount: "" }];
+
+    setPaymentBreakdown(existingBreakdown);
   };
 
   // Handle edit form submission
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+
+    const validPayments = paymentBreakdown.filter(p => p.method && p.amount !== "" && parseFloat(p.amount) > 0);
+    if (validPayments.length === 0) {
+      setError("Please add at least one valid payment method and amount.");
+      return;
+    }
+
+    const totalAmount = validPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    
     try {
       const payload = {
         date: `${editingRecord.date}T${editingRecord.time}:00.000Z`,
         incomeType: editingRecord.incomeType,
-        amount: parseFloat(editingRecord.amount),
+        amount: totalAmount,
         description: editingRecord.description,
         assignedTo: editingRecord.assignedTo,
-        paymentMethod: editingRecord.paymentMethod,
+        paymentBreakdown: validPayments.map(p => ({
+          method: p.method,
+          amount: parseFloat(p.amount)
+        })),
       };
       const response = await fetch(`${API_URL}/${editingRecord._id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
@@ -285,6 +317,7 @@ const ExtraIncome = ({ darkMode }) => {
         )
       );
       setEditingRecord(null);
+      setPaymentBreakdown([{ method: "", amount: "" }]);
       onUpdate();
     } catch (err) {
       console.error("Error updating extra income:", err);
@@ -298,6 +331,9 @@ const ExtraIncome = ({ darkMode }) => {
       try {
         const response = await fetch(`${API_URL}/${id}`, {
           method: "DELETE",
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
         if (!response.ok) {
           throw new Error("Failed to delete extra income");
@@ -586,7 +622,19 @@ const ExtraIncome = ({ darkMode }) => {
                 <td>{record.incomeType}</td>
                 <td>{record.amount.toFixed(2)}</td>
                 <td>{record.description || "N/A"}</td>
-                <td>{record.paymentMethod || "N/A"}</td>
+                <td>
+                  {record.paymentBreakdown && record.paymentBreakdown.length > 0 ? (
+                    <div>
+                      {record.paymentBreakdown.map((p, i) => (
+                        <div key={i} style={{ fontSize: "12px" }}>
+                          {p.method}: Rs. {p.amount.toFixed(2)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>{record.paymentMethod || "N/A"}</>
+                  )}
+                </td>
                 <td>
                   <div className="action-container">
                     <button
@@ -637,7 +685,14 @@ const ExtraIncome = ({ darkMode }) => {
 
       {showAddModal && (
         <div className={`m-a-modal-overlay ${darkMode ? "dark" : ""}`} onClick={() => setShowAddModal(false)}>
-          <div className={`m-a-modal-container ${darkMode ? "dark" : ""}`} onClick={(e) => e.stopPropagation()}>
+          <div className={`m-a-modal-container ${darkMode ? "dark" : ""}`} onClick={(e) => e.stopPropagation()} 
+            style={{
+              maxHeight: "1000px",
+              display: "flex",
+              flexDirection: "column",
+              width: "100%",
+              maxWidth: "600px",
+          }}>
             <h3 className={`m-a-modal-title ${darkMode ? "dark" : ""}`}>Add Extra Income Record</h3>
             {error && <p className="error-message">{error}</p>}
             <form onSubmit={handleSubmit}>
@@ -701,7 +756,7 @@ const ExtraIncome = ({ darkMode }) => {
                   }),
                 }}
               />
-              <label className={`madd-label ${darkMode ? "dark" : ""}`}>Amount</label>
+              {/* <label className={`madd-label ${darkMode ? "dark" : ""}`}>Amount</label>
               <input
                 className={`madd-input ${darkMode ? "dark" : ""}`}
                 type="number"
@@ -712,7 +767,7 @@ const ExtraIncome = ({ darkMode }) => {
                 min="0"
                 step="0.01"
                 required
-              />
+              /> */}
               <label className={`madd-label ${darkMode ? "dark" : ""}`}>Description</label>
               <input
                 className={`madd-input ${darkMode ? "dark" : ""}`}
@@ -747,21 +802,138 @@ const ExtraIncome = ({ darkMode }) => {
                 </select>
               {/* === END NEW FIELD === */}
               {/* === NEW: Payment Method Dropdown === */}
-                <label className={`madd-label ${darkMode ? "dark" : ""}`}>Payment Method:</label>
-                <select
-                  name="paymentMethod"
-                  className={`madd-input ${darkMode ? "dark" : ""}`}
-                  value={formData.paymentMethod}
-                  onChange={handleInputChange}
-                  required // Makes it mandatory
-                >
-                  <option value="">Select Payment Method</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Card">Card</option>
-                  <option value="Bank-Transfer">Bank Transfer</option>
-                  <option value="Bank-Check">Bank Check</option>
-                  <option value="Credit">Credit</option>
-                </select>
+                {/* === PAYMENT BREAKDOWN SECTION === */}
+                <div style={{ marginTop: "15px", padding: "12px", backgroundColor: darkMode ? "#2d3748" : "#f0f9ff", borderRadius: "5px", border: `1px solid ${darkMode ? "#4a5568" : "#bee3f8"}` }}>
+                  <h4 style={{ margin: "0 0 12px 0", color: darkMode ? "#63b3ed" : "#2b6cb0", fontSize: "16px", fontWeight: "bold" }}>
+                    Payment Breakdown
+                  </h4>
+                  {paymentBreakdown.map((entry, index) => (
+                    <div key={index} style={{ display: "flex", gap: "10px", marginBottom: "10px", alignItems: "center" }}>
+                      <select
+                        value={entry.method}
+                        onChange={(e) => {
+                          const newMethod = e.target.value;
+                          const newBreakdown = [...paymentBreakdown];
+
+                          // ✅ If changing TO a method that already exists elsewhere, MERGE
+                          if (newMethod && newMethod !== entry.method) {
+                            const existingIndex = newBreakdown.findIndex(
+                              (p, idx) => p.method === newMethod && idx !== index
+                            );
+
+                            if (existingIndex >= 0) {
+                              // Merge amount into existing row
+                              const currentAmount = parseFloat(entry.amount) || 0;
+                              const existingAmount = parseFloat(newBreakdown[existingIndex].amount) || 0;
+                              newBreakdown[existingIndex] = {
+                                ...newBreakdown[existingIndex],
+                                amount: (existingAmount + currentAmount).toFixed(2)
+                              };
+                              // Remove the current row
+                              newBreakdown.splice(index, 1);
+                            } else {
+                              // Just update the method
+                              newBreakdown[index].method = newMethod;
+                            }
+                          } else {
+                            // Clear method
+                            newBreakdown[index].method = newMethod;
+                          }
+
+                          setPaymentBreakdown(newBreakdown);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ccc",
+                          backgroundColor: darkMode ? "#444" : "#fff",
+                          color: darkMode ? "#fff" : "#333"
+                        }}
+                      >
+                        <option value="">Select Method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Card">Card</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Bank Check">Bank Check</option>
+                        <option value="Credit">Credit</option>
+                      </select>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Amount"
+                        onWheel={(e) => e.target.blur()}
+                        value={entry.amount}
+                        onChange={(e) => {
+                          const newBreakdown = [...paymentBreakdown];
+                          newBreakdown[index].amount = e.target.value;
+                          setPaymentBreakdown(newBreakdown);
+                        }}
+                        style={{
+                          width: "120px",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ccc",
+                          backgroundColor: darkMode ? "#444" : "#fff",
+                          color: darkMode ? "#fff" : "#333",
+                          textAlign: "right"
+                        }}
+                      />
+                      {paymentBreakdown.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newBreakdown = [...paymentBreakdown];
+                            newBreakdown.splice(index, 1);
+                            setPaymentBreakdown(newBreakdown);
+                          }}
+                          style={{
+                            background: "#e53e3e",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            width: "30px",
+                            height: "30px",
+                            cursor: "pointer"
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPaymentBreakdown([...paymentBreakdown, { method: "", amount: "" }])}
+                    style={{
+                      marginTop: "8px",
+                      background: "#38a169",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      padding: "6px 12px",
+                      fontSize: "14px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    + Add Payment
+                  </button>
+
+                  {/* REAL-TIME TOTAL */}
+                  {paymentBreakdown.some(p => p.amount) && (
+                    <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: `1px solid ${darkMode ? "#4a5568" : "#cbd5e0"}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", color: darkMode ? "#e2e8f0" : "#2d3748" }}>
+                        <span>Total Amount:</span>
+                        <span>
+                          Rs. {paymentBreakdown
+                            .filter(p => p.amount)
+                            .reduce((sum, p) => sum + parseFloat(p.amount), 0)
+                            .toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               {/* === END NEW FIELD === */}
               <div className="button-group">
                 <button type="submit" className="me-submit-btn">Submit</button>
@@ -840,7 +1012,7 @@ const ExtraIncome = ({ darkMode }) => {
                   }),
                 }}
               />
-              <label className={`madd-label ${darkMode ? "dark" : ""}`}>Amount</label>
+              {/* <label className={`madd-label ${darkMode ? "dark" : ""}`}>Amount</label>
               <input
                 className={`madd-input ${darkMode ? "dark" : ""}`}
                 type="number"
@@ -851,7 +1023,7 @@ const ExtraIncome = ({ darkMode }) => {
                 min="0"
                 step="0.01"
                 required
-              />
+              /> */}
               <label className={`madd-label ${darkMode ? "dark" : ""}`}>Description</label>
               <input
                 className={`madd-input ${darkMode ? "dark" : ""}`}
@@ -884,9 +1056,9 @@ const ExtraIncome = ({ darkMode }) => {
                   <option value="Genex-EX">Genex EX</option>
                   <option value="I-Device">I Device</option>
                 </select>
-              {/* === END NEW FIELD === */}
-              {/* === NEW: Payment Method Dropdown === */}
-                <label className={`madd-label ${darkMode ? "dark" : ""}`}>Payment Method:</label>
+                {/* === END NEW FIELD === */}
+                {/* === NEW: Payment Method Dropdown === */}
+                {/* <label className={`madd-label ${darkMode ? "dark" : ""}`}>Payment Method:</label>
                 <select
                   name="paymentMethod"
                   className={`madd-input ${darkMode ? "dark" : ""}`}
@@ -900,7 +1072,139 @@ const ExtraIncome = ({ darkMode }) => {
                   <option value="Bank-Transfer">Bank Transfer</option>
                   <option value="Bank-Check">Bank Check</option>
                   <option value="Credit">Credit</option>
-                </select>
+                </select> */}
+                {/* === PAYMENT BREAKDOWN SECTION === */}
+                <div style={{ marginTop: "15px", padding: "12px", backgroundColor: darkMode ? "#2d3748" : "#f0f9ff", borderRadius: "5px", border: `1px solid ${darkMode ? "#4a5568" : "#bee3f8"}` }}>
+                  <h4 style={{ margin: "0 0 12px 0", color: darkMode ? "#63b3ed" : "#2b6cb0", fontSize: "16px", fontWeight: "bold" }}>
+                    Payment Breakdown
+                  </h4>
+                  {paymentBreakdown.map((entry, index) => (
+                    <div key={index} style={{ display: "flex", gap: "10px", marginBottom: "10px", alignItems: "center" }}>
+                      <select
+                        value={entry.method}
+                        onChange={(e) => {
+                          const newMethod = e.target.value;
+                          const newBreakdown = [...paymentBreakdown];
+
+                          // ✅ If changing TO a method that already exists elsewhere, MERGE
+                          if (newMethod && newMethod !== entry.method) {
+                            const existingIndex = newBreakdown.findIndex(
+                              (p, idx) => p.method === newMethod && idx !== index
+                            );
+
+                            if (existingIndex >= 0) {
+                              // Merge amount into existing row
+                              const currentAmount = parseFloat(entry.amount) || 0;
+                              const existingAmount = parseFloat(newBreakdown[existingIndex].amount) || 0;
+                              newBreakdown[existingIndex] = {
+                                ...newBreakdown[existingIndex],
+                                amount: (existingAmount + currentAmount).toFixed(2)
+                              };
+                              // Remove the current row
+                              newBreakdown.splice(index, 1);
+                            } else {
+                              // Just update the method
+                              newBreakdown[index].method = newMethod;
+                            }
+                          } else {
+                            // Clear method
+                            newBreakdown[index].method = newMethod;
+                          }
+
+                          setPaymentBreakdown(newBreakdown);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ccc",
+                          backgroundColor: darkMode ? "#444" : "#fff",
+                          color: darkMode ? "#fff" : "#333"
+                        }}
+                      >
+                        <option value="">Select Method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Card">Card</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Bank Check">Bank Check</option>
+                        <option value="Credit">Credit</option>
+                      </select>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Amount"
+                        onWheel={(e) => e.target.blur()}
+                        value={entry.amount}
+                        onChange={(e) => {
+                          const newBreakdown = [...paymentBreakdown];
+                          newBreakdown[index].amount = e.target.value;
+                          setPaymentBreakdown(newBreakdown);
+                        }}
+                        style={{
+                          width: "120px",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ccc",
+                          backgroundColor: darkMode ? "#444" : "#fff",
+                          color: darkMode ? "#fff" : "#333",
+                          textAlign: "right"
+                        }}
+                      />
+                      {paymentBreakdown.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newBreakdown = [...paymentBreakdown];
+                            newBreakdown.splice(index, 1);
+                            setPaymentBreakdown(newBreakdown);
+                          }}
+                          style={{
+                            background: "#e53e3e",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            width: "30px",
+                            height: "30px",
+                            cursor: "pointer"
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPaymentBreakdown([...paymentBreakdown, { method: "", amount: "" }])}
+                    style={{
+                      marginTop: "8px",
+                      background: "#38a169",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      padding: "6px 12px",
+                      fontSize: "14px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    + Add Payment
+                  </button>
+
+                  {/* REAL-TIME TOTAL */}
+                  {paymentBreakdown.some(p => p.amount) && (
+                    <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: `1px solid ${darkMode ? "#4a5568" : "#cbd5e0"}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", color: darkMode ? "#e2e8f0" : "#2d3748" }}>
+                        <span>Total Amount:</span>
+                        <span>
+                          Rs. {paymentBreakdown
+                            .filter(p => p.amount)
+                            .reduce((sum, p) => sum + parseFloat(p.amount), 0)
+                            .toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               {/* === END NEW FIELD === */}
               <div className="button-group">
                 <button type="submit" className="me-submit-btn">Submit</button>

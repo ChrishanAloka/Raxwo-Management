@@ -40,11 +40,11 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    const token = localStorage.getItem('token');
     try {
       const response = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ serviceType, price, remarks, date, time, paymentMethod, assignedTo, }),
       });
 

@@ -149,13 +149,15 @@ const SupplierList = ({ darkMode }) => {
     setShowActionMenu(null);
   };
 
+  const token = localStorage.getItem('token');
+  
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this supplier?')) {
       try {
         const changedBy = localStorage.getItem('username') || localStorage.getItem('cashierName') || 'system';
         const response = await fetch(`https://raxwo-management.onrender.com/api/suppliers/${id}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ changedBy }),
         });
         if (!response.ok) {
@@ -815,14 +817,14 @@ const SupplierList = ({ darkMode }) => {
                               <span>Edit</span>
                             </div>
                           </button>
-                          {userRole === 'admin' && (
+                          {/* {userRole === 'admin' && (
                             <button onClick={() => handleDelete(supplier._id)} className="p-delete-btn">
                               <div className="action-btn-content">
                                 <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
                                 <span>Delete</span>
                               </div>
                             </button>
-                          )}
+                          )} */}
                           <button onClick={() => handleView(supplier._id)} className="p-view-btn">
                             <div className="action-btn-content">
                               <img src={viewicon} alt="view" width="30" height="30" className="p-view-btn-icon" />

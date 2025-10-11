@@ -2,21 +2,43 @@ const express = require("express");
 const router = express.Router();
 const Salary = require("../models/salaryModel");
 const Cashier = require("../models/cashierModel");
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 // Add Salary
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
-    const { employeeId } = req.body;
+    const { employeeId, date, ...rest } = req.body;
+
     const employee = await Cashier.findOne({ id: employeeId });
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
     }
+
+    // Validate date
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+
     const newSalary = new Salary({
-      ...req.body,
+      employeeId,
       employeeName: employee.cashierName,
+      date: parsedDate, // ensure it's a Date object
+      ...rest
     });
-    await newSalary.save();
-    res.status(201).json(newSalary);
+    
+    const savedSalary = await newSalary.save();
+
+    // ✅ LOG: Create Salary
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'Salary',
+      description: `Recorded salary for "${employee.cashierName}" (ID: ${employeeId}) on ${parsedDate.toISOString().split('T')[0]}`
+    });
+
+    res.status(201).json(savedSalary);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -44,7 +66,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Update Salary
-router.put("/:id", async (req, res) => {
+router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const { employeeId } = req.body;
     if (employeeId) {
@@ -56,6 +78,15 @@ router.put("/:id", async (req, res) => {
     }
     const updatedSalary = await Salary.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!updatedSalary) return res.status(404).json({ message: "Salary not found" });
+
+    // ✅ LOG: Edit Salary
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Salary',
+      description: `Updated salary for "${updatedSalary.employeeName}" (ID: ${updatedSalary.employeeId}) on ${updatedSalary.date.toISOString().split('T')[0]}`
+    });
+
     res.json(updatedSalary);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -63,10 +94,18 @@ router.put("/:id", async (req, res) => {
 });
 
 // Delete Salary
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const salary = await Salary.findByIdAndDelete(req.params.id);
     if (!salary) return res.status(404).json({ message: "Salary not found" });
+
+    await logActivity({
+      req,
+      action: 'Delete',
+      resource: 'Salary',
+      description: `Deleted salary record for employee "${salary.employeeName}" (ID: ${salary.employeeId}) on ${salary.date.toISOString().split('T')[0]}`
+    });
+
     res.json({ message: "Salary deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });

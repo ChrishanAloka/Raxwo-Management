@@ -17,7 +17,6 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
     buyingPrice: '',
     sellingPrice: '',
     supplierName: '',
-    returnstock: '',
   }]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -26,10 +25,12 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
   const navigate = useNavigate();
   const [showCartView, setShowCartView] = useState(false); 
   const [itemNames, setItemNames] = useState([]);
-  const [returnStocks, setReturnStocks] = useState({});
   const [productStocks, setProductStocks] = useState({});
+  const [stockLoading, setStockLoading] = useState(false);
 
   const CART_FORM_STORAGE_KEY = 'cartFormDraft';
+
+  const token = localStorage.getItem('token');
 
   const fetchNames = async () => {
     setLoading(true);
@@ -59,35 +60,6 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
     }
   };
   
-  const fetchReturnStock = async (itemCode) => {
-    try {
-      const response = await fetch(`https://raxwo-management.onrender.com/api/products/${encodeURIComponent(itemCode)}`);
-      if (!response.ok) {
-        console.warn(`Product ${itemCode} not found`);
-        return 0;
-      }
-      const product = await response.json();
-      return product.returnstock || 0;
-    } catch (err) {
-      console.error(`Error fetching return stock for ${itemCode}:`, err);
-      return 0;
-    }
-  };
-
-  const fetchProductStock = async (itemCode) => {
-    try {
-      const response = await fetch(`${PRODUCTS_API_URL}/${encodeURIComponent(itemCode)}`);
-      if (!response.ok) {
-        console.warn(`Product ${itemCode} not found`);
-        return 0;
-      }
-      const product = await response.json();
-      return product.stock || 0;
-    } catch (err) {
-      console.error(`Error fetching stock for ${itemCode}:`, err);
-      return 0;
-    }
-  };
 
   useEffect(() => {
     if (item) {
@@ -99,7 +71,6 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
         buyingPrice: item.buyingPrice?.toString() || '',
         sellingPrice: item.sellingPrice?.toString() || '',
         supplierName: item.supplierName || supplier.supplierName || '',
-        returnstock: item.returnstock?.toString() || '0',
       }]);
     } else {
       // Add mode: try to restore from localStorage
@@ -115,21 +86,10 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
             buyingPrice: '',
             sellingPrice: '',
             supplierName: supplier.supplierName || '',
-            returnstock: '0',
           }]);
         } catch (e) {
           console.warn('Failed to parse saved cart draft', e);
           // fallback to empty
-          setGrn('');
-          setItems([{
-            itemName: '',
-            category: '',
-            stock: '',
-            buyingPrice: '',
-            sellingPrice: '',
-            supplierName: supplier.supplierName || '',
-            returnstock: '0',
-          }]);
         }
       } else {
         // Fresh add
@@ -171,30 +131,35 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
       }
     }
   }, [grn, items, item]); // Only runs when these change
+  
 
   useEffect(() => {
-    const loadReturnStocks = async () => {
-      const stocks = {};
-      const avlstocks = {};
-      for (const item of items) {
-        if (item.itemName) {
-          // Try to find itemCode from itemNames array
-          const matchedItem = itemNames.find(i => i.itemName === item.itemName);
-          const itemCode = matchedItem?.itemCode;
-          if (itemCode) {
-            stocks[itemCode] = await fetchReturnStock(itemCode);
-            avlstocks[itemCode] = await fetchProductStock(itemCode);
+    const fetchLiveStock = async () => {
+          if (!item?.itemCode) {
+            setProductStocks(0);
+            return;
           }
-        }
-      }
-      setReturnStocks(stocks);
-      setProductStocks(avlstocks);
-    };
-
-    if (items.length > 0 && itemNames.length > 0) {
-      loadReturnStocks();
-    }
-  }, [items, itemNames]);
+    
+          setStockLoading(true);
+          try {
+            const response = await axios.get(
+              `${PRODUCTS_API_URL}/${encodeURIComponent(item.itemCode)}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+    
+            const product = response.data;
+            setProductStocks(product.stock || 0);
+          } catch (err) {
+            console.error('Failed to fetch product stock:', err);
+            setProductStocks(0);
+            setError('Failed to load current stock. Please try again.');
+          } finally {
+            setStockLoading(false);
+          }
+        };
+    
+        fetchLiveStock();
+      }, [item?.itemCode, token]);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -282,22 +247,6 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
         setError(`Supplier Name is required for item ${i + 1}`);
         return false;
       }
-      // ✅ Validate returnstock
-      const returnstock = Number(item.returnstock) || 0;
-      if (returnstock < 0) {
-        setError(`Return Stock must be a non-negative number for item ${i + 1}`);
-        return false;
-      }
-
-      // ✅ Get current stock
-      const matchedItem = itemNames.find(i => i.itemName === item.itemName);
-      const itemCode = matchedItem?.itemCode;
-      const currentStock = itemCode ? (productStocks[itemCode] || 0) : 0;
-
-      if (returnstock > currentStock) {
-        setError(`Return Stock for "${item.itemName}" cannot exceed available stock (${currentStock})`);
-        return false;
-      }
 
     }
     return true;
@@ -331,12 +280,12 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
           changedBy // Add changedBy to the request body
         };
         
-
+        
         const url = item ? `${API_URL}/${supplier._id}/items/${item._id}` : `${API_URL}/${supplier._id}/items`;
         const method = item ? 'PATCH' : 'POST';
         const response = await fetch(url, {
           method,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${token}` },
           body: JSON.stringify(itemData),
         });
 
@@ -357,7 +306,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
 
         const productResponse = await fetch(url2, {
           method: method2,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
             newStock: itemData.quantity,
             newBuyingPrice: itemData.buyingPrice,
@@ -509,6 +458,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
     return sum + qty * price;
   }, 0);
   
+  const availableStock = productStocks || 0;
 
   return (
     <div className="view-modal-select">
@@ -597,42 +547,15 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
                 />
                 {item && itemData.itemName && (
                   <div style={{ marginBottom: "8px", color: darkMode ? "#ccc" : "#666", fontSize: "14px" }}>
-                    <strong>Returns: </strong>
-                    {(() => {
-                      const matchedItem = itemNames.find(i => i.itemName === itemData.itemName);
-                      const itemCode = matchedItem?.itemCode;
-                      const returnQty = itemCode ? (returnStocks[itemCode] || 0) : 0;
-                      return (
-                        <span style={{ color: returnQty > 0 ? "#e74c3c" : "inherit", fontWeight: returnQty > 0 ? "bold" : "normal" }}>
-                          {returnQty}
-                        </span>
-                      );
-                    })()}
-                    <strong> / Available Stock: </strong>
-                    {(() => {
-                      const matchedItem = itemNames.find(i => i.itemName === itemData.itemName);
-                      const itemCode = matchedItem?.itemCode;
-                      const stock = itemCode ? (productStocks[itemCode] || 0) : 0;
-                      return (
-                        <span style={{ color: stock > 0 ? "#28a745" : "#e74c3c", fontWeight: "bold" }}>
-                          {stock}
-                        </span>
-                      );
-                    })()}
+                    <strong>Available  Stock: </strong>
+                    {stockLoading ? (
+                      <span>Loading...</span>
+                    ) : (
+                      <span style={{ color: availableStock > 0 ? '#28a745' : '#e74c3c', fontWeight: 'bold' }}>
+                        {availableStock}
+                      </span>
+                    )}
                   </div>
-                )}
-                {item && (
-                  <>
-                    <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`} >Return Stock</label>
-                    <input
-                      className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
-                      type="text"
-                      value={itemData.returnstock}
-                      onChange={(e) => handleItemChange(index, 'returnstock', e.target.value)}
-                      
-                      placeholder="0"
-                    />
-                  </>
                 )}
               </div>
               <div className="right-column">

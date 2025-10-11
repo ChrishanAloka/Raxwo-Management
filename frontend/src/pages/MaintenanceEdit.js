@@ -55,10 +55,11 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    const token = localStorage.getItem('token');
     try {
       const response = await fetch(`${API_URL}/${editedRecord._id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json","Authorization": `Bearer ${token}` },
         body: JSON.stringify(editedRecord),
       });
       if (!response.ok) throw new Error("Error updating Bills and Other Expences record");

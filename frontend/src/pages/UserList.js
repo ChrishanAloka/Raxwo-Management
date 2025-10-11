@@ -43,12 +43,16 @@ const UserList = ({ darkMode }) => {
         setLoading(false);
       });
   };
+  
+  const token = localStorage.getItem('token');
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' } , {headers: {
+            "Authorization": `Bearer ${token}`,
+          }});
       if (!response.ok) throw new Error(`Failed to delete user: ${response.statusText}`);
       setUsers(users.filter(user => user._id !== id));
       setShowActionMenu(null);

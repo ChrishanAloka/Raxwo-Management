@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router(); // ✅ This line is required
 const Return = require('../models/Return');
-const Product = require('../models/product');
+const Product = require('../models/Product');
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 // Add Return Record
-router.post('/return', async (req, res) => {
+router.post('/return', authMiddleware, async (req, res) => {
   try {
     const { productId, itemCode, itemName, returnQuantity, returnType } = req.body;
 
@@ -33,8 +35,17 @@ router.post('/return', async (req, res) => {
       returnType
     });
 
-    await newReturn.save();
-    res.json({ message: 'Return recorded successfully', newReturn });
+    const savedReturn = await newReturn.save();
+
+    // ✅ LOG: Create Return
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'Return',
+      description: `Recorded return of ${quantity} units of "${itemName}" (Code: ${itemCode}) - Type: ${returnType}`
+    });
+
+    res.json({ message: 'Return recorded successfully', newReturn: savedReturn });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -110,7 +110,7 @@ const CartForm = ({ supplier, closeModal, darkMode, refreshProducts }) => {
         setLoading(false);
         return false;
     }
-
+    const token = localStorage.getItem('token');
     try {
       // Get the current user's name from localStorage
       const changedBy = localStorage.getItem('username') || 'system';
@@ -125,7 +125,7 @@ const CartForm = ({ supplier, closeModal, darkMode, refreshProducts }) => {
         const method = 'POST';
         const response = await fetch(url, {
           method,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${token}` },
           body: JSON.stringify(itemData),
         });
 

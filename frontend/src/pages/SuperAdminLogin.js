@@ -18,7 +18,7 @@ const SuperAdminLogin = ({ darkMode }) => {
     setLoading(true);
     setMessage('');
     setError('');
-
+    
     try {
       const res = await axios.post('https://raxwo-management.onrender.com/api/auth/login', formData);
       console.log('SuperAdmin login successful:', res.data);

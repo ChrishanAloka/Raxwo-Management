@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const router = express.Router();
 const ProductRepair = require("../models/ProductRepair");
 const Product = require("../models/Product");
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 // Middleware: Get repair by ID
 async function getRepair(req, res, next) {
@@ -73,7 +75,7 @@ router.get("/", async (req, res) => {
 });
 
 // POST: Create a new repair
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
     console.log("POST /api/productsRepair - Received body:", req.body);
     const latestRepair = await ProductRepair.findOne().sort({ repairInvoice: -1 });
@@ -122,6 +124,16 @@ router.post("/", async (req, res) => {
     });
 
     const newRepair = await repair.save();
+
+    // ✅ LOG: Create ProductRepair
+    const customer = repair.customerName || repair.customerPhone || 'Anonymous';
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'ProductRepair',
+      description: `Created repair job ${repairInvoice} for "${customer}" - Device: "${repair.deviceType}", Issue: "${repair.issueDescription?.substring(0, 50)}${repair.issueDescription?.length > 50 ? '...' : ''}"`
+    });
+    
     console.log("Saved new repair:", newRepair);
     res.status(201).json(newRepair);
   } catch (err) {
@@ -131,7 +143,7 @@ router.post("/", async (req, res) => {
 });
 
 // PATCH: Update repair cart incrementally, decrease stock, and calculate totalRepairCost
-router.patch("/update-cart/:id", getRepair, async (req, res) => {
+router.patch("/update-cart/:id", authMiddleware, getRepair, async (req, res) => {
   try {
     const repair = req.repair;
     const { selectedProducts } = req.body;
@@ -146,6 +158,9 @@ router.patch("/update-cart/:id", getRepair, async (req, res) => {
 
     const existingCart = repair.repairCart || [];
     const updatedCartMap = new Map(existingCart.map(item => [item.itemCode, item]));
+
+    // Track product names for logging
+    const addedOrUpdatedItems = [];
 
     for (const selectedProduct of selectedProducts) {
       const { itemCode, quantity, supplierName, buyingPrice } = selectedProduct;
@@ -233,6 +248,9 @@ router.patch("/update-cart/:id", getRepair, async (req, res) => {
         }
       }
 
+      // Track for activity log
+      addedOrUpdatedItems.push(`${product.itemName} (x${quantity})`);
+
       // Extract sellingPrice from selectedProduct (edited by user)
       const { sellingPrice: frontendSellingPrice } = selectedProduct;
 
@@ -287,6 +305,16 @@ router.patch("/update-cart/:id", getRepair, async (req, res) => {
 
     try {
       const updatedRepair = await repair.save();
+
+      // ✅ LOG DETAILED ACTIVITY
+      const customer = updatedRepair.customerName || updatedRepair.customerPhone || 'Anonymous';
+      await logActivity({
+        req,
+        action: 'Edit',
+        resource: 'ProductRepair',
+        description: `Added/updated products in repair cart for "${customer}" (Job: ${updatedRepair.repairInvoice}): ${addedOrUpdatedItems.join(', ')}`
+      });
+      
       console.log("Updated repair with totalRepairCost:", updatedRepair);
       res.json(updatedRepair);
     } catch (saveErr) {
@@ -300,7 +328,7 @@ router.patch("/update-cart/:id", getRepair, async (req, res) => {
 });
 
 // PATCH: Return products from repair cart, increase stock, and recalculate totalRepairCost
-router.patch("/return-cart/:id", getRepair, async (req, res) => {
+router.patch("/return-cart/:id", authMiddleware, getRepair, async (req, res) => {
   try {
     const repair = req.repair;
     const { returnProducts } = req.body;
@@ -313,6 +341,9 @@ router.patch("/return-cart/:id", getRepair, async (req, res) => {
     const allProducts = await Product.find();
     const existingCart = repair.repairCart || [];
     const updatedCartMap = new Map(existingCart.map(item => [item.itemCode, item]));
+
+    // Track returned items for logging
+    const returnedItems = [];
 
     for (const returnProduct of returnProducts) {
       const { itemCode, quantity } = returnProduct;
@@ -407,6 +438,9 @@ router.patch("/return-cart/:id", getRepair, async (req, res) => {
         }
       }
 
+      // Track for activity log
+      returnedItems.push(`${product.itemName} (x${quantity})`);
+
       // Update or remove cart item
       if (cartItem.quantity === quantity) {
         updatedCartMap.delete(itemCode);
@@ -423,6 +457,16 @@ router.patch("/return-cart/:id", getRepair, async (req, res) => {
 
     try {
       const updatedRepair = await repair.save();
+
+      // ✅ LOG DETAILED ACTIVITY
+      const customer = updatedRepair.customerName || updatedRepair.customerPhone || 'Anonymous';
+      await logActivity({
+        req,
+        action: 'Edit',
+        resource: 'ProductRepair',
+        description: `Returned products from repair cart for "${customer}" (Job: ${updatedRepair.repairInvoice}): ${returnedItems.join(', ')}`
+      });
+      
       console.log("Updated repair after return:", updatedRepair);
       res.json(updatedRepair);
     } catch (saveErr) {
@@ -436,7 +480,7 @@ router.patch("/return-cart/:id", getRepair, async (req, res) => {
 });
 
 // PATCH: Add additional service to a repair
-router.patch("/add-service/:id", getRepair, async (req, res) => {
+router.patch("/add-service/:id", authMiddleware, getRepair, async (req, res) => {
   try {
     const repair = req.repair;
 
@@ -500,6 +544,17 @@ router.patch("/add-service/:id", getRepair, async (req, res) => {
     try {
       // Save the updated repair document
       const updatedRepair = await repair.save();
+      
+      // ✅ LOG DETAILED ACTIVITY
+      const customer = updatedRepair.customerName || updatedRepair.customerPhone || 'Anonymous';
+      console.log('User in route handler:', req.user);
+      await logActivity({
+        req,
+        action: 'Edit',
+        resource: 'ProductRepair',
+        description: `Added additional service "${newService.serviceName}" (${newService.serviceAmount}) to repair job ${updatedRepair.repairInvoice} for "${customer}"`
+      });
+      
       console.log("PATCH /add-service/:id - Updated repair with additional service");
 
       // Return the updated repair document
@@ -523,7 +578,7 @@ router.patch("/add-service/:id", getRepair, async (req, res) => {
 });
 
 // PATCH: Mark additional service as paid
-router.patch("/pay-service/:id", getRepair, async (req, res) => {
+router.patch("/pay-service/:id", authMiddleware, getRepair, async (req, res) => {
   try {
     const repair = req.repair;
 
@@ -554,6 +609,7 @@ router.patch("/pay-service/:id", getRepair, async (req, res) => {
       });
     }
 
+    const serviceName = repair.additionalServices[index].serviceName || 'Unnamed Service';
     // Mark the service as paid
     repair.additionalServices[index].isPaid = true;
 
@@ -566,6 +622,16 @@ router.patch("/pay-service/:id", getRepair, async (req, res) => {
     try {
       // Save the updated repair document
       const updatedRepair = await repair.save();
+
+      // ✅ LOG DETAILED ACTIVITY
+      const customer = updatedRepair.customerName || updatedRepair.customerPhone || 'Anonymous';
+      await logActivity({
+        req,
+        action: 'edit',
+        resource: 'ProductRepair',
+        description: `Marked additional service "${serviceName}" (index ${index}) as paid in repair job ${updatedRepair.repairInvoice} for "${customer}"`
+      });
+      
       console.log("PATCH /pay-service/:id - Marked service as paid");
 
       // Return the updated repair document
@@ -622,7 +688,7 @@ router.get('/job/:jobNumber', async (req, res) => {
 });
 
 // PATCH: Partial update for repair details
-router.patch("/:id", getRepair, async (req, res) => {
+router.patch("/:id", authMiddleware, getRepair, async (req, res) => {
   try {
     console.log("PATCH /api/productsRepair/:id - Request body:", req.body);
     console.log("PATCH /api/productsRepair/:id - Repair ID:", req.params.id);
@@ -661,7 +727,10 @@ router.patch("/:id", getRepair, async (req, res) => {
       "additionalServices",
       "totalAdditionalServicesAmount",
       "rettotalAdditionalServicesAmount", // ✅ ADD THIS
-      "returnCost" // ✅ ADD THIS
+      "returnCost",
+      "paymentBreakdown",
+      "finalAmountPaid",
+      "changeGiven", // ✅ ADD THIS
     ];
 
     const updates = {};
@@ -671,10 +740,16 @@ router.patch("/:id", getRepair, async (req, res) => {
       }
     });
 
+    // Track field changes for logging
+    const changeDetails = [];
     // Record changes before updating
     const changes = [];
     for (const [field, newValue] of Object.entries(updates)) {
       if (field !== 'changeHistory' && repair[field] !== newValue) {
+        const oldVal = formatValue(repair[field]);
+        const newVal = formatValue(newValue);
+        changeDetails.push(`${field}: ${oldVal} → ${newVal}`);
+
         changes.push({
           field,
           oldValue: repair[field],
@@ -724,6 +799,17 @@ router.patch("/:id", getRepair, async (req, res) => {
     
     await repair.save();
 
+    // ✅ LOG DETAILED ACTIVITY (only if changes occurred)
+    if (changeDetails.length > 0) {
+      const customer = repair.customerName || repair.customerPhone || 'Anonymous';
+      await logActivity({
+        req,
+        action: 'Edit',
+        resource: 'ProductRepair',
+        description: `Updated repair job ${repair.repairInvoice} for "${customer}": ${changeDetails.join('; ')}`
+      });
+    }
+
     res.json(repair);
   } catch (err) {
     console.error("Error updating repair:", err);
@@ -731,8 +817,41 @@ router.patch("/:id", getRepair, async (req, res) => {
   }
 });
 
+// Helper to format values for logs
+function formatValue(val) {
+  if (val === null || val === undefined) return 'null';
+  
+  if (typeof val === 'number') {
+    return val.toFixed(2);
+  }
+
+  if (typeof val === 'object') {
+    if (Array.isArray(val)) {
+      // Format array of objects specially for paymentMethods
+      if (val.length > 0 && val[0] && typeof val[0] === 'object' && val[0].method !== undefined) {
+        return val.map(pm => `${pm.method}: ${pm.amount}`).join(', ');
+      }
+      // Fallback for other arrays
+      return `[${val.map(formatValue).join(', ')}]`;
+    }
+    // Handle plain objects (e.g., { method: "Cash", amount: 500 })
+    if (val.method !== undefined && val.amount !== undefined) {
+      return `${val.method}: ${val.amount}`;
+    }
+    // Generic object fallback (avoid [object Object])
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return '[object]';
+    }
+  }
+
+  // Fallback for strings, booleans, etc.
+  return String(val).substring(0, 50) + (String(val).length > 50 ? '...' : '');
+}
+
 // PUT: Full update for repair
-router.put("/:id", getRepair, async (req, res) => {
+router.put("/:id", authMiddleware, getRepair, async (req, res) => {
   try {
     // Extract all fields from request body
     const {
@@ -758,8 +877,7 @@ router.put("/:id", getRepair, async (req, res) => {
       totalDiscountAmount,
       totalAdditionalServicesAmount,
       totalRepairCost,
-      finalAmount,
-      changedBy
+      finalAmount
     } = req.body;
 
     console.log("put req.body : ",req.body);
@@ -821,6 +939,43 @@ router.put("/:id", getRepair, async (req, res) => {
       finalAmount: calculatedFinalAmount,
     };
 
+    // ✅ Use authenticated user for all logging and history
+    const changedBy = req.user.username;
+
+    // 🔍 Build detailed change list for logging
+    const changeDetails = [];
+
+    const fieldsToCompare = [
+      'customerName', 'customerPhone', 'deviceType', 'technician',
+      'serialNumber', 'issueDescription', 'repairStatus', 'repairCost', 'finalAmount'
+    ];
+
+    for (const field of fieldsToCompare) {
+      const oldValue = req.repair[field];
+      const newValue = updates[field];
+
+      // Only log if value actually changed
+      if (oldValue != newValue) {
+        const oldStr = formatValue(oldValue);
+        const newStr = formatValue(newValue);
+        changeDetails.push(`${field}: ${oldStr} → ${newStr}`);
+      }
+    }
+
+    // Special: Log if repairCart item count changed
+    const oldCartCount = (req.repair.repairCart || []).length;
+    const newCartCount = (updates.repairCart || []).length;
+    if (oldCartCount !== newCartCount) {
+      changeDetails.push(`repairCart items: ${oldCartCount} → ${newCartCount}`);
+    }
+
+    // Special: Log if services count changed
+    const oldServicesCount = (req.repair.services || []).length;
+    const newServicesCount = (updates.services || []).length;
+    if (oldServicesCount !== newServicesCount) {
+      changeDetails.push(`services: ${oldServicesCount} → ${newServicesCount}`);
+    }
+
     // Record changes before updating
     await recordChanges(req.repair, updates, changedBy || 'system', 'update');
 
@@ -829,6 +984,25 @@ router.put("/:id", getRepair, async (req, res) => {
       updates,
       { new: true, runValidators: true, overwrite: true }
     );
+
+    // ✅ LOG DETAILED ACTIVITY
+    if (changeDetails.length > 0) {
+      const customer = updatedRepair.customerName || updatedRepair.customerPhone || 'Anonymous';
+      await logActivity({
+        req,
+        action: 'Edit',
+        resource: 'ProductRepair',
+        description: `Updated repair job ${updatedRepair.repairInvoice} for "${customer}": ${changeDetails.join('; ')}`
+      });
+    } else {
+      // Fallback if no tracked fields changed (e.g., only calculated fields)
+      await logActivity({
+        req,
+        action: 'Edit',
+        resource: 'ProductRepair',
+        description: `Updated repair job ${updatedRepair.repairInvoice} for "${updatedRepair.customerName || 'Anonymous'}" (no tracked field changes)`
+      });
+    }
 
     console.log("PUT /api/productsRepair/:id - Updated repair:", updatedRepair);
     res.json(updatedRepair);
@@ -839,9 +1013,20 @@ router.put("/:id", getRepair, async (req, res) => {
 });
 
 // DELETE: Remove a repair
-router.delete("/:id", getRepair, async (req, res) => {
+router.delete("/:id", authMiddleware, getRepair, async (req, res) => {
   try {
+    const repair = req.repair;
+
     await ProductRepair.deleteOne({ _id: req.repair._id });
+
+    const customer = repair.customerName || repair.customerPhone || 'Anonymous';
+    await logActivity({
+      req,
+      action: 'Delete',
+      resource: 'ProductRepair',
+      description: `Deleted repair job ${repair.repairInvoice} for "${customer}" - Device: "${repair.deviceType}"`
+    });
+
     console.log("DELETE /api/productsRepair/:id - Deleted repair ID:", req.repair._id);
     res.json({ message: "Repair record deleted successfully" });
   } catch (err) {

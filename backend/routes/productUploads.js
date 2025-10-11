@@ -4,6 +4,8 @@ const router = express.Router();
 const XLSX = require('xlsx');
 const UploadedProduct = require('../models/Product');
 const Item = require('../models/Product'); // Use your actual Item model here
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 // Multer setup for Excel files
 const upload = multer({
@@ -22,7 +24,7 @@ const upload = multer({
 });
 
 // POST /api/product-uploads/bulk-upload
-router.post('/bulk-upload', upload.single('file'), async (req, res) => {
+router.post('/bulk-upload', authMiddleware, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -124,6 +126,14 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
     if (validItems.length > 0) {
       await Item.insertMany(validItems);
     }
+
+    // ✅ LOG: Bulk product upload
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'Product',
+      description: `Bulk uploaded ${validItems.length} products from file "${req.file.originalname}" (${errors.length} rows flagged)`
+    });
 
     res.json({
       message: 'Upload complete',

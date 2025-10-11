@@ -1,12 +1,19 @@
 const express = require("express");
 const router = express.Router();
 const ExtraIncome = require("../models/ExtraIncome");
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 // Create a new extra income record
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
-    const { date, incomeType, amount, description, assignedTo, paymentMethod} = req.body;
-    console.log("Creating extra income:", { date, incomeType, amount, description, assignedTo, paymentMethod });
+    const { date, incomeType, amount, description, assignedTo, paymentBreakdown} = req.body;
+    console.log("Creating extra income:", { date, incomeType, amount, description, assignedTo });
+
+    // ✅ Validate paymentBreakdown if provided
+    if (paymentBreakdown && (!Array.isArray(paymentBreakdown) || paymentBreakdown.length === 0)) {
+      return res.status(400).json({ message: "paymentBreakdown must be a non-empty array" });
+    }
 
     const extraIncome = new ExtraIncome({
       date: new Date(date),
@@ -14,11 +21,20 @@ router.post("/", async (req, res) => {
       amount: parseFloat(amount),
       description,
       assignedTo,
-      paymentMethod,
+      paymentBreakdown: paymentBreakdown || undefined,
     });
 
-    await extraIncome.save();
-    res.status(201).json(extraIncome);
+    const savedIncome = await extraIncome.save();
+
+    // ✅ LOG: Create ExtraIncome
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'ExtraIncome',
+      description: `Recorded extra income of ${savedIncome.amount} (${savedIncome.incomeType}) on ${savedIncome.date.toISOString().split('T')[0]}${savedIncome.description ? `: "${savedIncome.description}"` : ''}`
+    });
+
+    res.status(201).json(savedIncome);
   } catch (err) {
     console.error("Error creating extra income:", err);
     res.status(500).json({ message: "Error creating extra income", error: err.message });
@@ -38,11 +54,18 @@ router.get("/", async (req, res) => {
 });
 
 // Update an extra income record
-router.put("/:id", async (req, res) => {
+router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, incomeType, amount, description, assignedTo, paymentMethod, returnAlert, serviceCharge, totalAmount } = req.body;
-    console.log(`Updating extra income ID ${id}:`, { date, incomeType, amount, description, assignedTo, paymentMethod});
+    const { date, incomeType, amount, description, assignedTo, paymentBreakdown, returnAlert, serviceCharge, totalAmount } = req.body;
+    console.log(`Updating extra income ID ${id}:`, { date, incomeType, amount, description, assignedTo});
+
+    // ✅ Validate paymentBreakdown if provided
+    if (paymentBreakdown !== undefined) {
+      if (!Array.isArray(paymentBreakdown) || paymentBreakdown.length === 0) {
+        return res.status(400).json({ message: "paymentBreakdown must be a non-empty array" });
+      }
+    }
 
     const extraIncome = await ExtraIncome.findByIdAndUpdate(
       id,
@@ -52,7 +75,7 @@ router.put("/:id", async (req, res) => {
         amount: parseFloat(amount),
         description,
         assignedTo,
-        paymentMethod,
+        paymentBreakdown: paymentBreakdown || undefined,
         returnAlert, 
         serviceCharge, 
         totalAmount,
@@ -64,6 +87,14 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Extra income not found" });
     }
 
+    // ✅ LOG: Edit ExtraIncome
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'ExtraIncome',
+      description: `Updated extra income of ${extraIncome.amount} (${extraIncome.incomeType}) on ${extraIncome.date.toISOString().split('T')[0]}${extraIncome.description ? `: "${extraIncome.description}"` : ''}`
+    });
+
     res.json(extraIncome);
   } catch (err) {
     console.error("Error updating extra income:", err);
@@ -72,7 +103,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // Delete an extra income record
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`Deleting extra income ID ${id}`);
@@ -81,6 +112,13 @@ router.delete("/:id", async (req, res) => {
     if (!extraIncome) {
       return res.status(404).json({ message: "Extra income not found" });
     }
+
+    await logActivity({
+      req,
+      action: 'delete',
+      resource: 'ExtraIncome',
+      description: `Deleted extra income of ${extraIncome.amount} (${extraIncome.incomeType}) on ${extraIncome.date.toISOString().split('T')[0]}`
+    });
 
     res.json({ message: "Extra income deleted successfully" });
   } catch (err) {

@@ -145,14 +145,17 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
     fetchDeviceTypes();
   }, []);
 
+  const token = localStorage.getItem('token');
+
   const handleAddNewIssue = async () => {
     if (!newIssue.trim()) return;
-
+    
     try {
       const response = await fetch("https://raxwo-management.onrender.com/api/deviceIssues", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ issue: newIssue.trim() }),
       });
@@ -190,6 +193,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ type: newDeviceType.trim() }),
       });
@@ -348,6 +352,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           ...formData,

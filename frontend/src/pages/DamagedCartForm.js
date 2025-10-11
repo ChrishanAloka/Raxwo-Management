@@ -23,6 +23,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [productStock, setProductStock] = useState(null); // live available stock
   const [productReturnStock, setProductReturnStock] = useState(null); // total returns already recorded
+  const [productDamagedStock, setProductDamagedStock] = useState(null);
   const [stockLoading, setStockLoading] = useState(false);
 
   const token = localStorage.getItem('token');
@@ -32,6 +33,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
       if (!item?.itemCode) {
         setProductStock(0);
         setProductReturnStock(0);
+        setProductDamagedStock(0);
         return;
       }
 
@@ -45,10 +47,12 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
         const product = response.data;
         setProductStock(product.stock || 0);
         setProductReturnStock(product.returnstock || 0);
+        setProductDamagedStock(product.damagedstock || 0);
       } catch (err) {
         console.error('Failed to fetch product stock:', err);
         setProductStock(0);
         setProductReturnStock(0);
+        setProductDamagedStock(0);
         setError('Failed to load current stock. Please try again.');
       } finally {
         setStockLoading(false);
@@ -133,9 +137,9 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
       const itemData = items[0];
 
       await axios.patch(
-        `${PRODUCTS_API_URL}/update-returnstockitem/${encodeURIComponent(item.itemCode)}`,
+        `${PRODUCTS_API_URL}/update-damagedstockitem/${encodeURIComponent(item.itemCode)}`,
         {
-          returnstock: parseInt(itemData.returnstock) || 0,
+          damagedstock: parseInt(itemData.returnstock) || 0,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -169,7 +173,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
   return (
     <div className="view-modal-select">
       <div className="modal-content-select">
-        <h2 className="modal-title">↩️ Return Item</h2>
+        <h2 className="modal-title">⚠️ Damaged Item</h2>
 
         {error && <p className="error-message">{error}</p>}
 
@@ -223,9 +227,14 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
                   <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>
                     {productReturnStock || 0}
                   </span>
+                  <br />
+                  <strong>Already Damaged:</strong>{' '}
+                  <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>
+                    {productDamagedStock || 0}
+                  </span>
                 </div>
 
-                <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Add to the Return Quantity</label>
+                <label className={`pro-edit-label ${darkMode ? 'dark' : ''}`}>Add to the Damaged Quantity</label>
                 <input
                   className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
                   type="number"

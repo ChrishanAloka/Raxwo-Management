@@ -45,8 +45,13 @@ const SalaryEdit = ({ isOpen, onClose, salary, refreshSalaries, darkMode }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const token = localStorage.getItem('token');
     try {
-      await axios.put(`${API_URL}/${salary._id}`, formData);
+      await axios.put(`${API_URL}/${salary._id}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      } ,formData);
       alert("Salary updated successfully");
       refreshSalaries();
       onClose();

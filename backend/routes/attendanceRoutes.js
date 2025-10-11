@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Attendance = require("../models/attendanceModel");
 const Cashier = require("../models/cashierModel");
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 // Helper function to get current time in HH:MM:SS format
 const getCurrentTime = () => {
@@ -13,7 +15,7 @@ const getCurrentTime = () => {
 };
 
 // Mark Attendance
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
     const { cashierId, remarks, clientTime } = req.body;
     const today = new Date().toISOString().split("T")[0]; // Get today's date (YYYY-MM-DD)
@@ -41,10 +43,27 @@ router.post("/", async (req, res) => {
       });
 
       await newAttendance.save();
+
+      await logActivity({
+        req,
+        action: 'create',
+        resource: 'Attendance',
+        description: `Marked in-time for cashier "${cashier.cashierName}" (ID: ${cashierId}) on ${today} at ${timeNow}`
+      });
+
+
       return res.status(201).json({ message: "In-time marked", newAttendance });
     } else if (existingRecords.length === 1) {
       // Second entry: Mark Out-time with remarks
       await Attendance.findByIdAndUpdate(existingRecords[0]._id, { outTime: timeNow, remarks });
+
+      await logActivity({
+        req,
+        action: 'edit',
+        resource: 'Attendance',
+        description: `Marked out-time for cashier "${existingRecords[0].cashierName}" (ID: ${cashierId}) on ${today} at ${timeNow}${remarks ? ` with remarks: "${remarks}"` : ''}`
+      });
+
       return res.status(200).json({ message: "Out-time recorded with remarks", outTime: timeNow });
     } else {
       return res.status(400).json({ message: "Attendance already marked for today" });
@@ -65,7 +84,7 @@ router.get("/", async (req, res) => {
 });
 
 // Update Attendance Record
-router.put("/:id", async (req, res) => {
+router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const { outTime, remarks } = req.body;
     const updatedRecord = await Attendance.findByIdAndUpdate(
@@ -78,6 +97,14 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Attendance record not found" });
     }
 
+    // ✅ LOG: Edit Attendance
+    await logActivity({
+      req,
+      action: 'edit',
+      resource: 'Attendance',
+      description: `Updated out-time for "${updatedRecord.cashierName}" (ID: ${updatedRecord.cashierId}) on ${updatedRecord.date} to ${outTime}${remarks ? ` with remarks: "${remarks}"` : ''}`
+    });
+
     res.json({ message: "Attendance updated", updatedRecord });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -85,13 +112,21 @@ router.put("/:id", async (req, res) => {
 });
 
 // Delete Attendance Record
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const deletedRecord = await Attendance.findByIdAndDelete(req.params.id);
 
     if (!deletedRecord) {
       return res.status(404).json({ message: "Attendance record not found" });
     }
+
+    // ✅ LOG: Delete Attendance
+    await logActivity({
+      req,
+      action: 'delete',
+      resource: 'Attendance',
+      description: `Deleted attendance record for "${deletedRecord.cashierName}" (ID: ${deletedRecord.cashierId}) on ${deletedRecord.date}`
+    });
 
     res.json({ message: "Attendance record deleted" });
   } catch (error) {

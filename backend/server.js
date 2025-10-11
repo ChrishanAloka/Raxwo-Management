@@ -49,6 +49,7 @@ const extraIncomeRoutes = require("./routes/extraIncome");
 const clickedProductRoutes = require("./routes/clickedProducts");
 const productUploadsRoutes = require('./routes/productUploads');
 const bankPassbookRoutes = require('./routes/bankPassbookRoutes');
+const activitylog = require('./routes/activityLog'); 
 
 app.use("/api/extra-income", extraIncomeRoutes);
 app.use("/api/clicked-products", clickedProductRoutes);
@@ -68,6 +69,8 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api", customerRoutes);
 app.use("/api/productsRepair", productRepairRoutes);
 app.use("/api/salaries", salaryRoutes);
+// app.js
+app.use('/api/activity',activitylog);
 
 // Global error handler
 app.use((err, req, res, next) => {

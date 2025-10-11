@@ -47,10 +47,14 @@ const MaintenanceList = ({ darkMode }) => {
     }
   };
 
+  const token = localStorage.getItem('token');
+
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this maintenance record?")) {
       try {
-        await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+        await fetch(`${API_URL}/${id}`, { method: "DELETE" }, {headers: {
+          'Authorization': `Bearer ${token}`
+        }});
         setMaintenanceRecords(maintenanceRecords.filter(record => record._id !== id));
         setShowActionMenu(null);
       } catch (error) {

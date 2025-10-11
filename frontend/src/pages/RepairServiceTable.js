@@ -57,11 +57,16 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     setShowActionMenu(null);
   };
 
+  const token = localStorage.getItem('token');
+
   const handleDelete = async (index) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         const response = await fetch(`${API_URL}/${supplierId}/items/${index}`, {
           method: 'DELETE',
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
         });
         if (!response.ok) {
           throw new Error('Failed to delete item');
@@ -79,7 +84,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     try {
       const response = await fetch(`${PRODUCT_API_URL}/update-stock/${item.itemCode}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           newStock: item.quantity,
           newBuyingPrice: item.buyingPrice,

@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Payment = require("../models/Payment");
 const ProductRepair = require("../models/ProductRepair");
+const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 router.get("/", async (req, res) => {
   try {

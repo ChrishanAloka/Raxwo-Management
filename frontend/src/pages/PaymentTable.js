@@ -1223,14 +1223,14 @@ const PaymentTable = ({ darkMode }) => {
                                 <span>Edit</span>
                               </div>
                             </button>
-                            {userRole === 'admin' && (
+                            {/* {userRole === 'admin' && (
                               <button onClick={() => handleDelete(payment._id)} className="p-delete-btn">
                                 <div className="action-btn-content">
                                   <img src={deleteIcon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
                                   <span>Delete</span>
                                 </div>
                               </button>
-                            )}
+                            )} */}
                             <button onClick={() => handleReturn(payment)} className="p-edit-btn">
                               <div className="action-btn-content">
                                 <span className="p-edit-btn-icon" style={{width:"30", height:"30"}}>↩️ </span>

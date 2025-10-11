@@ -68,7 +68,7 @@ const EditProduct = ({ product, closeModal, darkMode, showGRN }) => {
       return;
     }
     // Remove supplierName validation
-
+    const token = localStorage.getItem('token');
     try {
       const changedBy = localStorage.getItem('username') || localStorage.getItem('cashierName') || 'system';
       // Only send changed fields, changedBy, and changeSource
@@ -90,7 +90,7 @@ const EditProduct = ({ product, closeModal, darkMode, showGRN }) => {
       }
       const response = await fetch(`${API_URL}/${product._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}`  },
         body: JSON.stringify(updatePayload),
       });
 

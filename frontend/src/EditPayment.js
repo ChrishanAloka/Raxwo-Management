@@ -4,144 +4,201 @@ import "./EditPayment.css";
 const API_URL = "https://raxwo-management.onrender.com/api/payments";
 
 const EditPayment = ({ payment, closeModal, darkMode }) => {
+  // Top-level editable fields
   const [formData, setFormData] = useState({
-    invoiceNumber: "",
-    paymentMethod: "",
-    discountApplied: "",
-    totalAmount: "",
-    cashierName: "",
-    cashierId: "",
+    customerName: "",
+    contactNumber: "",
+    address: "",
+    description: "",
+    assignedTo: "", // overall assignment (optional)
   });
 
-  // State for items with editable assignedTo
-  const [itemAssignments, setItemAssignments] = useState([]);
+  // Split payment methods
+  const [paymentMethods, setPaymentMethods] = useState([{ method: '', amount: '' }]);
+  const [duplicateError, setDuplicateError] = useState('');
+
+  // Item-level editable assignments + other fields
+  const [items, setItems] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  // Initialize form and item assignments
+  // Initialize from payment
   useEffect(() => {
     if (payment) {
       setFormData({
-        invoiceNumber: payment.invoiceNumber || "",
-        paymentMethod: payment.paymentMethod || "",
-        discountApplied: payment.discountApplied?.toString() || "0",
-        totalAmount: payment.totalAmount?.toString() || "",
-        cashierName: payment.cashierName || "",
-        cashierId: payment.cashierId || "",
+        customerName: payment.customerName || '',
+        contactNumber: payment.contactNumber || '',
+        address: payment.address || '',
+        description: payment.description || '',
+        assignedTo: payment.assignedTo || '',
       });
 
-      // Initialize item assignments
+      // Handle split vs legacy payment methods
+      if (Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0) {
+        setPaymentMethods(
+          payment.paymentMethods.map(pm => ({
+            method: pm.method || '',
+            amount: pm.amount?.toString() || ''
+          }))
+        );
+      } else {
+        setPaymentMethods([{
+          method: payment.paymentMethod || '',
+          amount: (payment.totalPaid || payment.totalAmount || 0).toString()
+        }]);
+      }
+
+      // Initialize editable items (with quantity, price, discount, assignedTo)
       if (Array.isArray(payment.items)) {
-        setItemAssignments(
-          payment.items.map((item) => ({
-            _id: item._id || item.itemId, // unique key
-            assignedTo: item.assignedTo || "", // editable
+        setItems(
+          payment.items.map(item => ({
+            _id: item._id || item.itemId,
             itemName: item.itemName,
-            quantity: item.quantity,
-            price: item.price,
-            discount: item.discount,
+            quantity: item.quantity || 1,
+            price: item.price || item.sellingPrice || 0,
+            discount: item.discount || 0,
+            assignedTo: item.assignedTo || '',
+            productId: item.productId || item._id,
           }))
         );
       }
     }
   }, [payment]);
 
-  const handleChange = (e) => {
+  const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleItemChange = (itemId, value) => {
-    setItemAssignments((prev) =>
-      prev.map((item) =>
-        item._id === itemId ? { ...item, assignedTo: value } : item
-      )
-    );
+  const handleItemChange = (index, field, value) => {
+    setItems(prev => {
+      const newItems = [...prev];
+      newItems[index] = { ...newItems[index], [field]: value };
+      return newItems;
+    });
   };
 
+  // === Payment Methods Helpers ===
+  const updatePaymentMethod = (index, field, value) => {
+    const newMethods = [...paymentMethods];
+    newMethods[index][field] = value;
+    setPaymentMethods(newMethods);
+    setDuplicateError('');
+
+    if (field === 'method') {
+      const methods = newMethods.map(m => m.method).filter(Boolean);
+      if (new Set(methods).size !== methods.length) {
+        setDuplicateError('❌ Duplicate payment methods not allowed.');
+      }
+    }
+  };
+
+  const addPaymentMethod = () => {
+    setPaymentMethods([...paymentMethods, { method: '', amount: '' }]);
+  };
+
+  const removePaymentMethod = (index) => {
+    if (paymentMethods.length > 1) {
+      setPaymentMethods(paymentMethods.filter((_, i) => i !== index));
+      setDuplicateError('');
+    }
+  };
+
+  // === Submit Handler ===
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage("");
     setError("");
+    setMessage("");
 
-    // Validate required fields
-    if (!formData.paymentMethod.trim()) {
-      setError("Payment Method is required");
-      setLoading(false);
-      return;
-    }
-    if (!formData.cashierName.trim()) {
-      setError("Cashier Name is required");
-      setLoading(false);
-      return;
-    }
-    if (!formData.cashierId.trim()) {
-      setError("Cashier ID is required");
-      setLoading(false);
+    // Validate payment methods
+    const validMethods = paymentMethods.filter(pm => pm.method && pm.amount !== '');
+    if (validMethods.length === 0) {
+      setError("At least one valid payment method is required.");
       return;
     }
 
+    const totalPaid = validMethods.reduce((sum, pm) => sum + parseFloat(pm.amount), 0);
+    const totalAmountNum = parseFloat(payment.totalAmount);
+    if (totalPaid < totalAmountNum) {
+      setError("Total paid cannot be less than total amount due.");
+      return;
+    }
+
+    if (duplicateError) {
+      setError("Fix duplicate payment methods.");
+      return;
+    }
+
+    // Prepare payload
+    const payload = {
+      changedBy: localStorage.getItem('username') || 'system',
+      changeSource: 'Payment',
+    };
+
+    // Top-level changes
+    const topLevelFields = ['customerName', 'contactNumber', 'address', 'description', 'assignedTo'];
+    topLevelFields.forEach(field => {
+      if (formData[field] !== (payment[field] || '')) {
+        payload[field] = formData[field];
+      }
+    });
+
+    // Payment methods
+    payload.paymentMethods = validMethods.map(pm => ({
+      method: pm.method,
+      amount: parseFloat(pm.amount)
+    }));
+    payload.totalPaid = totalPaid;
+    payload.changeGiven = totalPaid - totalAmountNum;
+
+    // Item changes (only send changed fields)
+    const itemUpdates = items
+      .map((item, idx) => {
+        const orig = payment.items[idx];
+        const changes = {};
+
+        if (item.quantity !== (orig.quantity || 1)) changes.quantity = item.quantity;
+        if (item.price !== (orig.price || orig.sellingPrice || 0)) changes.price = item.price;
+        if (item.discount !== (orig.discount || 0)) changes.discount = item.discount;
+        if (item.assignedTo !== (orig.assignedTo || '')) changes.assignedTo = item.assignedTo;
+
+        return Object.keys(changes).length > 0 ? { _id: item._id, ...changes, productId: item.productId } : null;
+      })
+      .filter(Boolean);
+
+    if (itemUpdates.length > 0) {
+      payload.items = itemUpdates;
+    }
+
+    if (Object.keys(payload).length <= 2) {
+      setError("No changes detected.");
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError("Authentication required.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const changedBy = localStorage.getItem('username') || localStorage.getItem('cashierName') || 'system';
-
-      // Prepare payload
-      const updatePayload = { changedBy, changeSource: 'Payment' };
-
-      // Only include top-level fields if they changed (but they're read-only, so likely not)
-      const topFields = ['paymentMethod', 'cashierName', 'cashierId'];
-      topFields.forEach(field => {
-        if (payment[field] !== formData[field]) {
-          updatePayload[field] = formData[field];
-        }
-      });
-
-      // Extract assignedTo changes from items
-      const itemUpdates = itemAssignments
-        .filter(item => item.assignedTo !== (payment.items?.find(p => p._id === item._id)?.assignedTo || ""))
-        .map(item => ({
-          _id: item._id,
-          assignedTo: item.assignedTo,
-        }));
-
-      if (itemUpdates.length > 0) {
-        updatePayload.items = itemUpdates; // Send only updated items
-      }
-
-      // If no changes at all
-      if (Object.keys(updatePayload).length === 2) {
-        setError('No changes detected.');
-        setLoading(false);
-        return;
-      }
-
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('Authentication required. Please log in.');
-        setLoading(false);
-        return;
-      }
-
       const response = await fetch(`${API_URL}/${payment._id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify(updatePayload),
+        body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update payment");
-      }
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Update failed");
 
-      setMessage("✅ Payment & assignments updated successfully!");
-      setTimeout(() => {
-        closeModal();
-      }, 1500);
+      setMessage("✅ Payment updated successfully!");
+      setTimeout(() => closeModal(), 1500);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -159,64 +216,183 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
         {message && <p className="success-message">{message}</p>}
 
         <form className="edit-payment-form" onSubmit={handleSubmit}>
-          {/* Top Fields (Read-Only) */}
+          {/* Customer Info */}
           <div className="form-row">
             <div className="left-column">
-              <label className={`edit-label ${darkMode ? "dark" : ""}`}>INVOICE NUMBER</label>
+              <label className={`edit-label ${darkMode ? "dark" : ""}`}>Customer Name</label>
               <input
                 className={`edit-input ${darkMode ? "dark" : ""}`}
-                type="text"
-                value={formData.invoiceNumber}
-                readOnly
+                name="customerName"
+                value={formData.customerName}
+                onChange={handleFormChange}
               />
             </div>
             <div className="right-column">
-              <label className={`edit-label ${darkMode ? "dark" : ""}`}>PAYMENT METHOD</label>
-              <select
+              <label className={`edit-label ${darkMode ? "dark" : ""}`}>Contact Number</label>
+              <input
                 className={`edit-input ${darkMode ? "dark" : ""}`}
-                name="paymentMethod"
-                value={formData.paymentMethod}
-                onChange={handleChange}
-                required
+                name="contactNumber"
+                value={formData.contactNumber}
+                onChange={handleFormChange}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            {/* <div className="left-column">
+              <label className={`edit-label ${darkMode ? "dark" : ""}`}>Address</label>
+              <input
+                className={`edit-input ${darkMode ? "dark" : ""}`}
+                name="address"
+                value={formData.address}
+                onChange={handleFormChange}
+              />
+            </div> */}
+            <div className="right-column">
+              <label className={`edit-label ${darkMode ? "dark" : ""}`}>Description</label>
+              <input
+                className={`edit-input ${darkMode ? "dark" : ""}`}
+                name="description"
+                value={formData.description}
+                onChange={handleFormChange}
+              />
+            </div>
+          </div>
+
+          {/* Overall Assigned To (optional) */}
+          {/* <div className="form-row">
+            <div className="full-width">
+              <label className={`edit-label ${darkMode ? "dark" : ""}`}>Overall Assign To</label>
+              <select
+                name="assignedTo"
+                value={formData.assignedTo}
+                onChange={handleFormChange}
+                className={`edit-input ${darkMode ? "dark" : ""}`}
               >
-                <option value="">Select Method</option>
-                <option value="Cash">Cash</option>
-                <option value="Card">Card</option>
-                <option value="Bank-Transfer">Bank Transfer</option>
-                <option value="Bank-Check">Bank Check</option>
-                <option value="Credit">Credit</option>
+                <option value="">None</option>
+                <option value="Prabath">Prabath</option>
+                <option value="Nadeesh">Nadeesh</option>
+                <option value="Accessories">Accessories</option>
+                <option value="Genex-EX">Genex EX</option>
+                <option value="I-Device">I Device</option>
+                <option value="Refund">Refund</option>
               </select>
+            </div>
+          </div> */}
+
+          {/* Payment Methods (Split) */}
+          <div className="form-row">
+            <div className="full-width">
+              <label className={`edit-label ${darkMode ? "dark" : ""}`}>PAYMENT METHODS</label>
+              {paymentMethods.map((pm, index) => (
+                <div key={index} style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                  <select
+                    value={pm.method}
+                    onChange={(e) => updatePaymentMethod(index, 'method', e.target.value)}
+                    className={`edit-input ${darkMode ? "dark" : ""}`}
+                    style={{ flex: 1 }}
+                  >
+                    <option value="">Select</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Card</option>
+                    <option value="Bank-Transfer">Bank Transfer</option>
+                    <option value="Bank-Check">Bank Check</option>
+                    <option value="Credit">Credit</option>
+                    <option value="PayHere">PayHere</option>
+                    <option value="Genie">Genie</option>
+                    <option value="mCash">mCash</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Amount"
+                    value={pm.amount}
+                    onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
+                    className={`edit-input ${darkMode ? "dark" : ""}`}
+                    style={{ width: '120px' }}
+                  />
+                  {paymentMethods.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removePaymentMethod(index)}
+                      style={{ background: 'red', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 6px' }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addPaymentMethod}
+                style={{ marginTop: '8px', fontSize: '14px' }}
+              >
+                + Add Another Method
+              </button>
+              {duplicateError && (
+                <p style={{ color: 'red', fontSize: '13px', marginTop: '6px' }}>{duplicateError}</p>
+              )}
             </div>
           </div>
 
           {/* Items Table */}
           <div className="items-section">
             <h3 className={`section-title ${darkMode ? "dark" : ""}`}>Items</h3>
-            {itemAssignments.length > 0 ? (
+            {items.length > 0 ? (
               <table className={`items-table ${darkMode ? "dark" : ""}`}>
                 <thead>
                   <tr>
-                    <th>Item Name</th>
+                    <th>Item</th>
                     <th>Qty</th>
-                    <th>Price (Rs.)</th>
-                    <th>Discount (Rs.)</th>
+                    <th>Price</th>
+                    <th>Disc.</th>
                     <th>Assign To</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {itemAssignments.map((item) => (
+                  {items.map((item, idx) => (
                     <tr key={item._id}>
-                      <td>{item.itemName || 'N/A'}</td>
-                      <td>{item.quantity || 0}</td>
-                      <td>{item.price?.toFixed(2) || '0.00'}</td>
-                      <td>{item.discount?.toFixed(2) || '0.00'}</td>
+                      <td>{item.itemName}</td>
+                      <td>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          className={`edit-input ${darkMode ? "dark" : ""}`}
+                          style={{ width: '60px' }}
+                          readOnly
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.price}
+                          className={`edit-input ${darkMode ? "dark" : ""}`}
+                          style={{ width: '80px' }}
+                          readOnly
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.discount}
+                          className={`edit-input ${darkMode ? "dark" : ""}`}
+                          style={{ width: '80px' }}
+                          readOnly
+                        />
+                      </td>
                       <td>
                         <select
                           value={item.assignedTo}
-                          onChange={(e) => handleItemChange(item._id, e.target.value)}
+                          onChange={(e) => handleItemChange(idx, 'assignedTo', e.target.value)}
                           className={`assign-select ${darkMode ? "dark" : ""}`}
                         >
-                          <option value="" disabled>Select</option>
+                          <option value="">Select</option>
                           <option value="Prabath">Prabath</option>
                           <option value="Nadeesh">Nadeesh</option>
                           <option value="Accessories">Accessories</option>
@@ -230,62 +406,15 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                 </tbody>
               </table>
             ) : (
-              <p className={`no-items ${darkMode ? "dark" : ""}`}>
-                No items to assign.
-              </p>
+              <p>No items</p>
             )}
           </div>
 
-          {/* Bottom Fields (Read-Only) */}
-          <div className="form-row">
-            <div className="left-column">
-              <label className={`edit-label ${darkMode ? "dark" : ""}`}>DISCOUNT (Rs.)</label>
-              <input
-                className={`edit-input ${darkMode ? "dark" : ""}`}
-                type="number"
-                value={formData.discountApplied}
-                onWheel={(e) => e.target.blur()}
-                readOnly
-                step="0.01"
-              />
-            </div>
-            <div className="right-column">
-              <label className={`edit-label ${darkMode ? "dark" : ""}`}>TOTAL AMOUNT (Rs.)</label>
-              <input
-                className={`edit-input ${darkMode ? "dark" : ""}`}
-                type="number"
-                value={formData.totalAmount}
-                onWheel={(e) => e.target.blur()}
-                readOnly
-                step="0.01"
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="left-column">
-              <label className={`edit-label ${darkMode ? "dark" : ""}`}>CASHIER NAME</label>
-              <input
-                className={`edit-input ${darkMode ? "dark" : ""}`}
-                type="text"
-                value={formData.cashierName}
-                readOnly
-              />
-            </div>
-            <div className="right-column">
-              <label className={`edit-label ${darkMode ? "dark" : ""}`}>CASHIER ID</label>
-              <input
-                className={`edit-input ${darkMode ? "dark" : ""}`}
-                type="text"
-                value={formData.cashierId}
-                readOnly
-              />
-            </div>
-          </div>
-
-          {/* Buttons */}
+          {/* Save / Cancel */}
           <div className="button-group">
-            <button type="submit" className="edit-submit-btn">Save</button>
+            <button type="submit" className="edit-submit-btn" disabled={loading}>
+              {loading ? "Saving..." : "Save Changes"}
+            </button>
             <button type="button" className="edit-cancel-btn" onClick={closeModal}>
               Cancel
             </button>

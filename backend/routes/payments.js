@@ -4,6 +4,7 @@ const Payment = require('../models/Payment');
 const Product = require('../models/Product');
 const Counter = require('../models/Counter');
 const authMiddleware = require('../middleware/authMiddleware');
+const logActivity = require('../utils/logActivity');
 
 const getNextInvoiceNumber = async () => {
   const counter = await Counter.findOneAndUpdate(
@@ -17,15 +18,24 @@ const getNextInvoiceNumber = async () => {
 // POST: Create a new payment (Protected route)
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { items, totalAmount, discountApplied, paymentMethod, cashierId, cashierName, customerName, contactNumber, address, description, assignedTo, isWholesale, customerDetails } = req.body;
-    console.log('Received payment data in backend:', { items, totalAmount, discountApplied, paymentMethod, cashierId, cashierName, customerName, contactNumber, address, description, assignedTo, isWholesale, customerDetails }); // Debug log
+    const { items, totalAmount, discountApplied, paymentMethods, totalPaid, changeGiven, cashierId, cashierName, customerName, contactNumber, address, description, assignedTo, isWholesale, customerDetails, paymentDate } = req.body;
+    console.log('Received payment data in backend:', { items, totalAmount, discountApplied, cashierId, cashierName, customerName, contactNumber, address, description, assignedTo, isWholesale, customerDetails }); // Debug log
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'No items provided' });
     }
     
-    if (!totalAmount || !paymentMethod) {
-      return res.status(400).json({ message: 'Total amount and payment method are required' });
+    if (!totalAmount || !paymentMethods || !Array.isArray(paymentMethods) || paymentMethods.length === 0) {
+      return res.status(400).json({ message: 'Total amount and at least one payment method are required' });
+    }
+
+    const calculatedTotalPaid = paymentMethods.reduce((sum, p) => sum + (p.amount || 0), 0);
+    if (Math.abs(calculatedTotalPaid - totalPaid) > 0.01) {
+      return res.status(400).json({ message: 'Total paid does not match sum of payment methods' });
+    }
+
+    if (totalPaid < totalAmount) {
+      return res.status(400).json({ message: 'Total paid is less than total amount due' });
     }
 
     if (!cashierId || !cashierName) {
@@ -50,7 +60,9 @@ router.post('/', authMiddleware, async (req, res) => {
       items,
       totalAmount,
       discountApplied: discountApplied || 0,
-      paymentMethod,
+      paymentMethods, // ✅ array
+      totalPaid,
+      changeGiven,
       cashierId,
       cashierName,
       customerName: customerName || '',
@@ -60,10 +72,21 @@ router.post('/', authMiddleware, async (req, res) => {
       assignedTo: assignedTo || '',
       isWholesale: isWholesale || false,
       customerDetails: isWholesale ? customerDetails : null,
+      date: paymentDate,
     });
 
     const savedPayment = await payment.save();
     console.log('Saved payment document:', savedPayment); // Debug log
+
+    // ✅ LOG: Create Payment (Sale)
+    const customer = customerName || contactNumber || 'Anonymous';
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'Payment',
+      description: `Processed sale ${invoiceNumber} for ${items.length} items, total=${savedPayment.totalAmount}, customer="${customer}", cashier="${savedPayment.cashierName}"`
+    });
+
     res.status(201).json({ 
       message: 'Payment successful', 
       payment: savedPayment, 
@@ -174,16 +197,15 @@ router.patch('/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    // Step 1: Find the payment
     const payment = await Payment.findById(id);
     if (!payment) {
       return res.status(404).json({ message: 'Payment not found' });
     }
 
-    // Step 2: Handle top-level updates (safe list)
+    // ✅ Allow both legacy (single) and new (split) payment fields
     const allowedTopLevelFields = [
       'invoiceNumber',
-      'paymentMethod',
+      'paymentMethod',        // ← Keep this for legacy/single-method
       'discountApplied',
       'totalAmount',
       'cashierName',
@@ -192,108 +214,176 @@ router.patch('/:id', authMiddleware, async (req, res) => {
       'contactNumber',
       'address',
       'description',
-      'assignedTo', // top-level assignment
+      'assignedTo',
       'returnAlert',
       'serviceCharge',
       'rettotalAmount',
+      // New split-payment fields (optional)
+      'paymentMethods',
+      'totalPaid',
+      'changeGiven'
     ];
 
-    // Apply allowed top-level updates
+    const topLevelChanges = [];
+
+    // 🔁 Process all allowed top-level fields
     Object.keys(updates)
       .filter(key => allowedTopLevelFields.includes(key))
       .forEach(key => {
-        payment[key] = updates[key];
+        let newValue = updates[key];
+        let oldValue = payment[key];
+
+        // Special handling for paymentMethods (array)
+        if (key === 'paymentMethods') {
+          if (!Array.isArray(newValue) || newValue.length === 0) {
+            throw new Error('paymentMethods must be a non-empty array');
+          }
+          // Validate structure
+          newValue = newValue.map(pm => ({
+            method: pm.method,
+            amount: parseFloat(pm.amount)
+          }));
+          // Check duplicates
+          const methods = newValue.map(pm => pm.method);
+          if (new Set(methods).size !== methods.length) {
+            throw new Error('Duplicate payment methods are not allowed');
+          }
+          // Validate totalPaid if totalAmount exists
+          const totalPaid = newValue.reduce((sum, pm) => sum + pm.amount, 0);
+          if (totalPaid < payment.totalAmount) {
+            throw new Error('Total paid cannot be less than total amount due');
+          }
+          updates.totalPaid = totalPaid;
+          updates.changeGiven = totalPaid - payment.totalAmount;
+        }
+
+        // Compare values (handle null/undefined)
+        const oldFormatted = formatValue(oldValue);
+        const newFormatted = formatValue(newValue);
+
+        if (oldFormatted !== newFormatted) {
+          topLevelChanges.push(`${key}: ${oldFormatted} → ${newFormatted}`);
+          payment[key] = newValue;
+        }
       });
 
-    // Step 3: Handle item-level assignedTo updates
+    // 🔍 Track item-level changes (unchanged from your original logic)
+    const itemChanges = [];
     let itemsUpdated = false;
 
     if (Array.isArray(updates.items)) {
       for (const update of updates.items) {
         const itemId = update._id;
-        const assignedTo = update.assignedTo;
-        
-
-        // Validate item ID
         if (!itemId) {
           return res.status(400).json({ message: 'Missing _id in item update' });
         }
 
-        // Find item in payment.items
-          const item = payment.items.id(itemId); // Mongoose subdocument findById
-          if (!item) {
-            return res.status(404).json({ message: `Item with _id ${itemId} not found in payment` });
-          }
-
-        // Validate assignedTo
-        if (assignedTo !== undefined) {
-
-          // Update only if changed
-          if (item.assignedTo !== assignedTo) {
-            item.assignedTo = assignedTo;
-            itemsUpdated = true;
-          }
+        const item = payment.items.id(itemId);
+        if (!item) {
+          return res.status(404).json({ message: `Item with _id ${itemId} not found` });
         }
 
-        // Update retquantity
-        if (update.retquantity !== undefined) {
-          item.retquantity = update.retquantity;
+        if (update.assignedTo !== undefined && item.assignedTo !== update.assignedTo) {
+          const oldVal = formatValue(item.assignedTo);
+          const newVal = formatValue(update.assignedTo);
+          itemChanges.push(`Item "${item.itemName}" assignedTo: ${oldVal} → ${newVal}`);
+          item.assignedTo = update.assignedTo;
           itemsUpdated = true;
         }
 
-        const product = await Product.findById(update.productId);
-        if (!product) {
-          return res.status(404).json({ message: `Product ${update.itemName} not found` });
+        if (update.retquantity !== undefined && item.retquantity !== update.retquantity) {
+          const oldVal = formatValue(item.retquantity);
+          const newVal = formatValue(update.retquantity);
+          itemChanges.push(`Item "${item.itemName}" retquantity: ${oldVal} → ${newVal}`);
+          item.retquantity = update.retquantity;
+          itemsUpdated = true;
+
+          if (update.productId) {
+            await Product.findByIdAndUpdate(update.productId, { $set: { returnstock: update.retquantity } });
+          }
         }
-        await Product.findByIdAndUpdate(update.productId, { $set: { returnstock: update.retquantity } });
 
         if (update.givenQty !== undefined) {
           const delta = update.givenQty;
-
           if (delta > 0 && update.productId) {
             const product = await Product.findById(update.productId);
             if (!product) {
               return res.status(404).json({ message: `Product not found for item: ${item.itemName}` });
             }
-
             if (product.stock < delta) {
               return res.status(400).json({
                 message: `Insufficient stock for "${item.itemName}". Available: ${product.stock}, Requested: ${delta}`
               });
             }
-
-            await Product.findByIdAndUpdate(update.productId, {
-              $inc: { stock: -delta }
-            });
-            
-            await product.save();
+            await Product.findByIdAndUpdate(update.productId, { $inc: { stock: -delta } });
           }
-
-          item.givenQty = update.givenQty;
-          itemsUpdated = true;
+          if (item.givenQty !== update.givenQty) {
+            const oldVal = formatValue(item.givenQty);
+            const newVal = formatValue(update.givenQty);
+            itemChanges.push(`Item "${item.itemName}" givenQty: ${oldVal} → ${newVal}`);
+            item.givenQty = update.givenQty;
+            itemsUpdated = true;
+          }
         }
-
       }
     }
 
-    // Step 4: Only save if something changed
-    if (Object.keys(updates).some(key => allowedTopLevelFields.includes(key)) || itemsUpdated) {
-      // Optional: Add metadata
-      payment.changedBy = req.body.changedBy || 'Unknown';
+    // Save if changes detected
+    if (topLevelChanges.length > 0 || itemsUpdated) {
+      payment.changedBy = req.user.username;
       payment.changeSource = req.body.changeSource || 'Payment';
+      await payment.save();
 
-      await payment.save(); // Mongoose handles validation
+      const customer = payment.customerName || payment.contactNumber || 'Anonymous';
+      const allChanges = [...topLevelChanges, ...itemChanges];
+      await logActivity({
+        req,
+        action: 'edit',
+        resource: 'Payment',
+        description: `Updated payment ${payment.invoiceNumber} for "${customer}": ${allChanges.join('; ')}`
+      });
+
+      return res.json(payment);
     } else {
       return res.status(400).json({ message: 'No valid changes detected' });
     }
-
-    // Step 5: Return updated payment
-    res.json(payment);
   } catch (err) {
     console.error('Error updating payment:', err.message);
     res.status(500).json({ message: err.message || 'Internal server error' });
   }
 });
+
+function formatValue(val) {
+  if (val === null || val === undefined) return 'null';
+  
+  if (typeof val === 'number') {
+    return val.toFixed(2);
+  }
+
+  if (typeof val === 'object') {
+    if (Array.isArray(val)) {
+      // Format array of objects specially for paymentMethods
+      if (val.length > 0 && val[0] && typeof val[0] === 'object' && val[0].method !== undefined) {
+        return val.map(pm => `${pm.method}: ${pm.amount}`).join(', ');
+      }
+      // Fallback for other arrays
+      return `[${val.map(formatValue).join(', ')}]`;
+    }
+    // Handle plain objects (e.g., { method: "Cash", amount: 500 })
+    if (val.method !== undefined && val.amount !== undefined) {
+      return `${val.method}: ${val.amount}`;
+    }
+    // Generic object fallback (avoid [object Object])
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return '[object]';
+    }
+  }
+
+  // Fallback for strings, booleans, etc.
+  return String(val).substring(0, 50) + (String(val).length > 50 ? '...' : '');
+}
 
 // DELETE: Delete a payment by ID (Protected route)
 router.delete('/:id', authMiddleware, async (req, res) => {
@@ -312,6 +402,15 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 
     await Payment.findByIdAndDelete(paymentId);
+
+    const customer = payment.customerName || payment.contactNumber || 'Anonymous';
+    await logActivity({
+      req,
+      action: 'delete',
+      resource: 'Payment',
+      description: `Deleted payment ${payment.invoiceNumber} for ${payment.items.length} items, total=${payment.totalAmount}, customer="${customer}"`
+    });
+
     res.json({ message: 'Payment deleted successfully' });
   } catch (err) {
     console.error('Delete payment error:', err);
@@ -360,6 +459,16 @@ router.post('/return', authMiddleware, async (req, res) => {
     });
 
     const savedReturn = await returnPayment.save();
+
+    // ✅ LOG: Create Payment (Return/Refund)
+    const customer = customerName || contactNumber || 'Anonymous';
+    await logActivity({
+      req,
+      action: 'create',
+      resource: 'Payment',
+      description: `Processed return ${returnInvoiceNumber} for ${items.length} items, refund=${totalRefund}, customer="${customer}", cashier="${savedReturn.cashierName}"`
+    });
+    
     res.status(201).json({
       message: 'Return processed successfully',
       returnPayment: savedReturn,

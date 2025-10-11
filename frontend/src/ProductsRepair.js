@@ -76,6 +76,8 @@ const ProductRepairList = ({ darkMode }) => {
   const [editingItemIndex, setEditingItemIndex] = useState(null);
   const [tempSellingPrice, setTempSellingPrice] = useState('');
 
+  const [paymentBreakdown, setPaymentBreakdown] = useState([{ method: "", amount: "" }]);
+
   const userRole = localStorage.getItem('role');
 
   const handleClearSearch = () => {
@@ -455,6 +457,31 @@ const ProductRepairList = ({ darkMode }) => {
     }
   }, [error]);
 
+  // Load from localStorage when selectedRepair changes
+  useEffect(() => {
+    if (selectedRepair?._id) {
+      const saved = localStorage.getItem(`paymentBreakdown_${selectedRepair._id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setPaymentBreakdown(parsed);
+          }
+        } catch (e) {
+          console.warn("Failed to parse saved payment breakdown", e);
+        }
+      } else {
+        setPaymentBreakdown([{ method: "", amount: "" }]);
+      }
+    }
+  }, [selectedRepair?._id]);
+
+  useEffect(() => {
+    if (selectedRepair?._id && paymentBreakdown.length > 0) {
+      localStorage.setItem(`paymentBreakdown_${selectedRepair._id}`, JSON.stringify(paymentBreakdown));
+    }
+  }, [paymentBreakdown, selectedRepair?._id]);
+
   const handleDelete = async (id) => {
     const userRole = localStorage.getItem("role");
     if (userRole !== "admin") {
@@ -463,7 +490,9 @@ const ProductRepairList = ({ darkMode }) => {
     }
     if (window.confirm("Are you sure you want to delete this repair record?")) {
       try {
-        const response = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+        const response = await fetch(`${API_URL}/${id}`, { method: "DELETE" }, {headers: {
+          'Authorization': `Bearer ${token}`
+        }});
         if (!response.ok) throw new Error("Failed to delete repair record");
         setRepairs(repairs.filter((repair) => repair._id !== id));
       } catch (err) {
@@ -605,7 +634,10 @@ const ProductRepairList = ({ darkMode }) => {
     );
   };
 
+  const token = localStorage.getItem('token');
+
   const handleReturnSubmit = async () => {
+    
     try {
       // Get the products that have a quantity greater than 0
       const returnProducts = returnFormData
@@ -642,7 +674,7 @@ const ProductRepairList = ({ darkMode }) => {
 
       const response = await fetch(`${API_URL}/return-cart/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ returnProducts }),
       });
 
@@ -715,7 +747,7 @@ const ProductRepairList = ({ darkMode }) => {
 
       const response = await fetch(`${API_URL}/update-cart/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ selectedProducts: productsWithSupplier, changedBy }),
       });
 
@@ -753,7 +785,7 @@ const ProductRepairList = ({ darkMode }) => {
 
           const retryResponse = await fetch(`${API_URL}/update-cart/${selectedRepair._id}`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
             body: JSON.stringify({ selectedProducts: fixedProducts, changedBy }),
           });
 
@@ -815,7 +847,7 @@ const ProductRepairList = ({ darkMode }) => {
       // Update the server with the new cart
       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({
           repairCart: updatedCart,
           totalRepairCost: newCartTotal,
@@ -877,7 +909,7 @@ const ProductRepairList = ({ darkMode }) => {
       // Send update to backend
       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({
           repairCart: newRepairCart,
           returnCart: newReturnCart,
@@ -902,7 +934,7 @@ const ProductRepairList = ({ darkMode }) => {
       if (selectedRepair.repairStatus !== "Returned") {
         const response2 = await fetch(`${API_URL}/${selectedRepair._id}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ repairStatus: "Returned" }),
         });
 
@@ -927,44 +959,326 @@ const ProductRepairList = ({ darkMode }) => {
     }
   };
 
-  const handleCompletePayment = async () => {
+  const handleCancelRepair = async () => {
+    if (!window.confirm("Are you sure you want to cancel this repair? This action cannot be undone.")) {
+      return;
+    }
+
     try {
-      // ✅ CHECK: Ensure a payment method is selected
-      if (!selectedRepair.paymentMethod || selectedRepair.paymentMethod.trim() === "") {
-        setError("Please select a payment method before completing the payment.");
-        return; // Prevent further execution
-      }
+      setLoading(true);
+      setError("");
 
-      // Check if there are any unpaid additional services
-      const hasUnpaidServices = selectedRepair.additionalServices &&
-        selectedRepair.additionalServices.some(service => !service.isPaid);
-
-      if (hasUnpaidServices) {
-        if (!window.confirm("There are unpaid additional services. Do you still want to mark the repair as completed?")) {
-          return;
-        }
-      }
+      const username = localStorage.getItem('username') || 'System';
+      const changeEntry = {
+        changedAt: new Date().toISOString(),
+        changedBy: username,
+        field: 'repairStatus',
+        oldValue: selectedRepair.repairStatus,
+        newValue: 'Cancelled',
+        changeType: 'UPDATE'
+      };
 
       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repairStatus: "Completed" }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          repairStatus: "Cancelled",
+          changeHistory: [...(selectedRepair.changeHistory || []), changeEntry]
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update repair status");
+        throw new Error(errorData.message || "Failed to cancel repair");
       }
 
       const updatedRepair = await response.json();
-      // console.log("Repair status updated to Completed:", updatedRepair);
+
+      // Update local state
+      setRepairs(repairs.map(r => (r._id === updatedRepair._id ? updatedRepair : r)));
+      setSelectedRepair(updatedRepair);
+
+      setMessage("Repair has been cancelled successfully!");
+      setShowViewModal(false); // Optional: close modal after cancel
+    } catch (err) {
+      console.error("Error cancelling repair:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReturnCollected = async () => {
+    // if (!window.confirm("Are you sure you want to cancel this repair? This action cannot be undone.")) {
+    //   return;
+    // }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const username = localStorage.getItem('username') || 'System';
+      const changeEntry = {
+        changedAt: new Date().toISOString(),
+        changedBy: username,
+        field: 'repairStatus',
+        oldValue: selectedRepair.repairStatus,
+        newValue: 'Returned-Collected',
+        changeType: 'UPDATE'
+      };
+
+      const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          repairStatus: "Returned-Collected",
+          changeHistory: [...(selectedRepair.changeHistory || []), changeEntry]
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to Collected repair");
+      }
+
+      const updatedRepair = await response.json();
+
+      // Update local state
+      setRepairs(repairs.map(r => (r._id === updatedRepair._id ? updatedRepair : r)));
+      setSelectedRepair(updatedRepair);
+
+      setMessage("Returned Repair has been Collected successfully!");
+      setShowViewModal(false); // Optional: close modal after cancel
+    } catch (err) {
+      console.error("Error cancelling repair:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteCollected = async () => {
+    // if (!window.confirm("Are you sure you want to cancel this repair? This action cannot be undone.")) {
+    //   return;
+    // }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const username = localStorage.getItem('username') || 'System';
+      const changeEntry = {
+        changedAt: new Date().toISOString(),
+        changedBy: username,
+        field: 'repairStatus',
+        oldValue: selectedRepair.repairStatus,
+        newValue: 'Completed-Collected',
+        changeType: 'UPDATE'
+      };
+
+      const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          repairStatus: "Completed-Collected",
+          changeHistory: [...(selectedRepair.changeHistory || []), changeEntry]
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to Collected repair");
+      }
+
+      const updatedRepair = await response.json();
+
+      // Update local state
+      setRepairs(repairs.map(r => (r._id === updatedRepair._id ? updatedRepair : r)));
+      setSelectedRepair(updatedRepair);
+
+      setMessage("Completed Repair has been Collected successfully!");
+      setShowViewModal(false); // Optional: close modal after cancel
+    } catch (err) {
+      console.error("Error cancelling repair:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelCollected = async () => {
+    // if (!window.confirm("Are you sure you want to cancel this repair? This action cannot be undone.")) {
+    //   return;
+    // }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const username = localStorage.getItem('username') || 'System';
+      const changeEntry = {
+        changedAt: new Date().toISOString(),
+        changedBy: username,
+        field: 'repairStatus',
+        oldValue: selectedRepair.repairStatus,
+        newValue: 'Cancelled-Collected',
+        changeType: 'UPDATE'
+      };
+
+      const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          repairStatus: "Cancelled-Collected",
+          changeHistory: [...(selectedRepair.changeHistory || []), changeEntry]
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to Collected repair");
+      }
+
+      const updatedRepair = await response.json();
+
+      // Update local state
+      setRepairs(repairs.map(r => (r._id === updatedRepair._id ? updatedRepair : r)));
+      setSelectedRepair(updatedRepair);
+
+      setMessage("Cancelled Repair has been Collected successfully!");
+      setShowViewModal(false); // Optional: close modal after cancel
+    } catch (err) {
+      console.error("Error cancelling repair:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompletePayment = async () => {
+    // ✅ VALIDATION: assignedTo is required
+    if (!selectedRepair.assignedTo || selectedRepair.assignedTo.trim() === "") {
+      setError("Please assign this repair to a technician or team before completing payment.");
+      return;
+    }
+
+    // ✅ VALIDATION: Every cart item must be assigned
+    const unassignedItems = selectedRepair.repairCart.filter(item => !item.assignedTo || item.assignedTo.trim() === "");
+    if (unassignedItems.length > 0) {
+      setError(`Please assign all repair cart items to a technician or team. ${unassignedItems.length} item(s) are unassigned.`);
+      return;
+    }
+
+    // ✅ VALIDATION: payment breakdown must be valid
+    const validPayments = paymentBreakdown.filter(p => p.method && p.amount !== "" && parseFloat(p.amount) > 0);
+    if (validPayments.length === 0) {
+      setError("Please add at least one valid payment method and amount.");
+      return;
+    }
+
+    const totalPaid = validPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    const finalAmountDue = (selectedRepair.totalRepairCost || 0) - (selectedRepair.totalDiscountAmount || 0) + (selectedRepair.totalAdditionalServicesAmount || 0);
+
+    // ✅ Allow overpayment (for change), but not underpayment
+    if (totalPaid < finalAmountDue - 0.01) {
+      setError(`Total paid (Rs. ${totalPaid.toFixed(2)}) is less than amount due (Rs. ${finalAmountDue.toFixed(2)}).`);
+      return;
+    }
+
+    // ✅ Optional: Warn about unpaid additional services (already paid via breakdown, so usually not needed)
+    const hasUnpaidServices = selectedRepair.additionalServices &&
+      selectedRepair.additionalServices.some(service => !service.isPaid);
+
+    // if (hasUnpaidServices) {
+    //   // if (!window.confirm("There are unpaid additional services. Do you still want to mark the repair as completed?")) {
+    //   //   return;
+    //   // }
+
+    //   setError(`There are unpaid additional services.`);
+    //   return;
+
+    // }
+
+    // ✅ Calculate change (only if overpaid)
+    const changeGiven = totalPaid > finalAmountDue ? parseFloat((totalPaid - finalAmountDue).toFixed(2)) : 0;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      // ✅ AUTO-PAY ALL UNPAID ADDITIONAL SERVICES
+      const unpaidServiceIndices = additionalServices
+        .map((service, index) => (!service.isPaid ? index : null))
+        .filter(index => index !== null);
+
+      if (unpaidServiceIndices.length > 0) {
+        // Mark each unpaid service as paid
+        for (const index of unpaidServiceIndices) {
+          await fetch(`${API_URL}/pay-service/${selectedRepair._id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+            body: JSON.stringify({ serviceIndex: index }),
+          });
+        }
+        // Refresh repair data to reflect paid status
+        const refreshedRepairRes = await fetch(`${API_URL}/${selectedRepair._id}`);
+        const refreshedRepair = await refreshedRepairRes.json();
+        setSelectedRepair(refreshedRepair);
+        setAdditionalServices(refreshedRepair.additionalServices || []);
+      }
+
+      const paymentDetails = validPayments.map(p => ({
+        method: p.method,
+        amount: parseFloat(p.amount)
+      }));
+
+      const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({
+          repairStatus: "Completed",
+          paymentBreakdown: paymentDetails,
+          finalAmountPaid: totalPaid,
+          changeGiven, // ✅ Save change only if > 0
+          // Optional: keep paymentMethod for legacy
+          // paymentMethod: validPayments[0]?.method
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to complete payment");
+      }
+
+      const updatedRepair = await response.json();
       setRepairs(repairs.map((r) => (r._id === updatedRepair._id ? updatedRepair : r)));
       setShowViewModal(false);
       fetchRepairs();
-      setMessage("Repair marked as completed successfully!");
+      setMessage(changeGiven > 0 
+        ? `Payment completed! Change returned: Rs. ${changeGiven.toFixed(2)}`
+        : "Payment completed successfully!"
+      );
+      // ✅ CLEAR PAYMENT BREAKDOWN (STATE + LOCAL STORAGE)
+    setPaymentBreakdown([{ method: "", amount: "" }]);
+    localStorage.removeItem(`paymentBreakdown_${selectedRepair._id}`);
+
     } catch (err) {
       console.error("Error completing payment:", err);
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1004,7 +1318,7 @@ const ProductRepairList = ({ darkMode }) => {
       // console.log("Calculation details:", { cartTotal, repairCost: selectedRepair.repairCost, totalDiscountAmount, totalAdditionalServicesAmount, updatedTotalRepairCost, finalAmount });
       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({
           services: updatedServices,
           totalDiscountAmount,
@@ -1041,7 +1355,7 @@ const ProductRepairList = ({ darkMode }) => {
   
       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({
           services: updatedServices,
           totalDiscountAmount,
@@ -1096,7 +1410,7 @@ const ProductRepairList = ({ darkMode }) => {
 
       const response = await fetch(`${API_URL}/add-service/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({
           additionalService: serviceToAdd
         }),
@@ -1152,9 +1466,35 @@ const ProductRepairList = ({ darkMode }) => {
 
       // console.log("Marking service as paid, index:", index);
 
+      const serviceToPay = additionalServices[index];
+      if (!serviceToPay) {
+        throw new Error("Service not found");
+      }
+
+      const serviceAmount = parseFloat(serviceToPay.serviceAmount);
+
+      // ✅ CONSOLIDATE INTO EXISTING "Cash" ROW OR CREATE ONE
+      setPaymentBreakdown(prev => {
+        const cashEntryIndex = prev.findIndex(p => p.method === "Cash");
+        const newBreakdown = [...prev];
+
+        if (cashEntryIndex >= 0) {
+          // Update existing Cash row
+          newBreakdown[cashEntryIndex] = {
+            ...newBreakdown[cashEntryIndex],
+            amount: (parseFloat(newBreakdown[cashEntryIndex].amount) || 0) + serviceAmount
+          };
+        } else {
+          // Add new Cash row
+          newBreakdown.push({ method: "Cash", amount: serviceAmount });
+        }
+
+        return newBreakdown;
+      });
+
       const response = await fetch(`${API_URL}/pay-service/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({
           serviceIndex: index
         }),
@@ -1221,7 +1561,7 @@ const ProductRepairList = ({ darkMode }) => {
       // Send update to backend
       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({
           additionalServices: updatedServices,
           totalAdditionalServicesAmount,
@@ -1287,7 +1627,7 @@ const ProductRepairList = ({ darkMode }) => {
       // Send update to backend
       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({
           additionalServices: updatedAdditionalServices,
           returnedadditionalServices: updatedReturnedServices,
@@ -1311,7 +1651,7 @@ const ProductRepairList = ({ darkMode }) => {
       if (selectedRepair.repairStatus !== "Returned") {
         const response2 = await fetch(`${API_URL}/${selectedRepair._id}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ repairStatus: "Returned" }),
         });
 
@@ -1334,6 +1674,27 @@ const ProductRepairList = ({ darkMode }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper to calculate real-time payment summary
+  const calculatePaymentSummary = () => {
+    const validPayments = paymentBreakdown
+      .filter(p => p.method && p.amount !== "" && !isNaN(parseFloat(p.amount)) && parseFloat(p.amount) > 0)
+      .map(p => ({ ...p, amount: parseFloat(p.amount) }));
+
+    const totalPaid = validPayments.reduce((sum, p) => sum + p.amount, 0);
+    const finalAmountDue = (selectedRepair.totalRepairCost || 0) - (selectedRepair.totalDiscountAmount || 0) + (selectedRepair.totalAdditionalServicesAmount || 0);
+    const changeGiven = totalPaid > finalAmountDue ? totalPaid - finalAmountDue : 0;
+
+    return {
+      validPayments,
+      totalPaid,
+      finalAmountDue,
+      changeGiven,
+      isOverpaid: totalPaid > finalAmountDue,
+      isUnderpaid: totalPaid < finalAmountDue - 0.01,
+      isValid: totalPaid >= finalAmountDue - 0.01 && validPayments.length > 0
+    };
   };
 
     
@@ -2033,7 +2394,8 @@ const ProductRepairList = ({ darkMode }) => {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json"
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify(requestBody),
       });
@@ -2120,7 +2482,8 @@ const ProductRepairList = ({ darkMode }) => {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json"
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           repairStatus: newStatus,
@@ -2192,7 +2555,8 @@ const ProductRepairList = ({ darkMode }) => {
       const response = await fetch(`${API_URL}/${repair._id}`, {
         method: "PATCH",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           repairCart: updatedCart,
@@ -2250,6 +2614,7 @@ const ProductRepairList = ({ darkMode }) => {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           repairCart: updatedCart,
@@ -2857,6 +3222,11 @@ const ProductRepairList = ({ darkMode }) => {
 
               <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
                 <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Repair Status:</strong>
+                <span style={{ color: darkMode ? "#fff" : "#333" }}>{selectedRepair.repairStatus}</span>
+              </div>
+
+              <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
+                <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Repair Status:</strong>
                 <select
                   value={selectedRepair.repairStatus}
                   onChange={async (e) => {
@@ -2941,7 +3311,7 @@ const ProductRepairList = ({ darkMode }) => {
                       // Update the backend
                       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
                         method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                         body: JSON.stringify({ assignedTo: newValue }),
                       });
 
@@ -3000,7 +3370,7 @@ const ProductRepairList = ({ darkMode }) => {
                   </div>
                 )}
 
-                {error && (
+                {/* {error && (
                   <div style={{
                     marginTop: "5px",
                     color: "#e53e3e",
@@ -3009,9 +3379,10 @@ const ProductRepairList = ({ darkMode }) => {
                   }}>
                     {error}
                   </div>
-                )}
+                )} */}
+
               </div>
-              <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
+              {/* <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
                 <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Payment Method:</strong>
                 <select
                   value={selectedRepair.paymentMethod || ""}
@@ -3022,7 +3393,7 @@ const ProductRepairList = ({ darkMode }) => {
                     try {
                       const response = await fetch(`${API_URL}/${selectedRepair._id}`, {
                         method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                         body: JSON.stringify({ paymentMethod: newValue }),
                       });
                       if (!response.ok) {
@@ -3084,7 +3455,7 @@ const ProductRepairList = ({ darkMode }) => {
                     {error}
                   </div>
                 )}
-              </div>
+              </div> */}
             </div>
             <div style={{ marginBottom: "20px" }}>
               <h3 style={{
@@ -3174,7 +3545,7 @@ const ProductRepairList = ({ darkMode }) => {
                           )}
                         </td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
-                          {(selectedRepair.repairStatus !== "Completed" && selectedRepair.repairStatus !== "Returned") && (
+                          {(selectedRepair.repairStatus === "In Progress" || selectedRepair.repairStatus === "Pending") && (
                             <button
                               onClick={() => handleDecreaseCartQuantity(index)}
                               className="quantity-btn"
@@ -3296,7 +3667,7 @@ const ProductRepairList = ({ darkMode }) => {
                       // setLoading(true);
                       await fetch(`${API_URL}/${selectedRepair._id}`, {
                         method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                         body: JSON.stringify({ cartDescription: newDesc }),
                       });
                       // setMessage("Cart description updated successfully.");
@@ -3380,19 +3751,21 @@ const ProductRepairList = ({ darkMode }) => {
                           <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>Rs. {service.discountAmount}</td>
                           <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>{service.description || "N/A"}</td>
                           <td style={{ border: "1px solid #ddd", padding: "10px", color: darkMode ? "#fff" : "#333" }}>
-                            <button
-                              onClick={() => handleRemoveService(index)}  // ✅ Add this line
-                              style={{
-                                backgroundColor: "rgb(231, 76, 60)",
-                                color: "white",
-                                border: "none",
-                                padding: "5px 10px",
-                                borderRadius: "3px",
-                                cursor: "pointer"
-                              }}
-                            >
-                              Remove
-                            </button>
+                            {(selectedRepair.repairStatus === "In Progress" || selectedRepair.repairStatus === "Pending") && (
+                              <button
+                                onClick={() => handleRemoveService(index)}  // ✅ Add this line
+                                style={{
+                                  backgroundColor: "rgb(231, 76, 60)",
+                                  color: "white",
+                                  border: "none",
+                                  padding: "5px 10px",
+                                  borderRadius: "3px",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                Remove
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -3404,7 +3777,7 @@ const ProductRepairList = ({ darkMode }) => {
               )}
               
               {/* Add New Service Form */}
-              {selectedRepair.repairStatus !== "Completed" && (
+              {(selectedRepair.repairStatus === "In Progress" || selectedRepair.repairStatus === "Pending") && (
                 <div style={{
                   backgroundColor: darkMode ? "#333" : "#f9f9f9",
                   padding: "15px",
@@ -3623,21 +3996,22 @@ const ProductRepairList = ({ darkMode }) => {
                               >
                                 Mark as Paid
                               </button>
-                              
-                              <button
-                                  onClick={() => handleRemoveAdditionalService(index)}
-                                  style={{
-                                    backgroundColor: "#dc3545",
-                                    color: "white",
-                                    border: "none",
-                                    padding: "5px 10px",
-                                    borderRadius: "3px",
-                                    cursor: "pointer"
-                                  }}
-                                  title="Remove unpaid service"
-                              >
-                                  Remove
-                              </button>
+                              {(selectedRepair.repairStatus === "In Progress" || selectedRepair.repairStatus === "Pending") && (
+                                <button
+                                    onClick={() => handleRemoveAdditionalService(index)}
+                                    style={{
+                                      backgroundColor: "#dc3545",
+                                      color: "white",
+                                      border: "none",
+                                      padding: "5px 10px",
+                                      borderRadius: "3px",
+                                      cursor: "pointer"
+                                    }}
+                                    title="Remove unpaid service"
+                                >
+                                    Remove
+                                </button>
+                              )}
                               </>
                             )}
                             {service.isPaid && (
@@ -3666,7 +4040,7 @@ const ProductRepairList = ({ darkMode }) => {
                           Total Additional Services:
                         </td>
                         <td style={{ border: "1px solid #ddd", padding: "10px", fontWeight: "bold", color: darkMode ? "#fff" : "#333" }}>
-                          Rs. {additionalServices.reduce((total, service) => total + (service.isPaid ? 0 : Math.max(0, parseFloat(service.serviceAmount || 0))), 0).toFixed(2)}
+                          Rs. {additionalServices.reduce((total, service) => total + ( Math.max(0, parseFloat(service.serviceAmount || 0))), 0).toFixed(2)}
                         </td>
                       </tr>
                     </tfoot>
@@ -3721,7 +4095,7 @@ const ProductRepairList = ({ darkMode }) => {
               )}
             
               {/* Add New Additional Service Form */}
-              {selectedRepair.repairStatus !== "Completed" && (
+              {((selectedRepair.repairStatus === "In Progress" || selectedRepair.repairStatus === "Pending") || selectedRepair.repairStatus === "Returned") && (
                 <div style={{
                   backgroundColor: darkMode ? "#333" : "#f9f9f9",
                   padding: "15px",
@@ -4002,11 +4376,291 @@ const ProductRepairList = ({ darkMode }) => {
                     </span>
                   </div>
                 </div>
-                )}
+              )}
             </div>
 
+            {/* ✅ PAYMENT BREAKDOWN & CHANGE DETAILS */}
+            {selectedRepair.paymentBreakdown && selectedRepair.paymentBreakdown.length > 0 && (
+              <div style={{
+                backgroundColor: darkMode ? "#2d3748" : "#f0f9ff",
+                padding: "15px",
+                borderRadius: "5px",
+                marginBottom: "15px",
+                border: `1px solid ${darkMode ? "#4a5568" : "#bee3f8"}`
+              }}>
+                <h3 style={{
+                  fontSize: "16px",
+                  color: darkMode ? "#63b3ed" : "#2b6cb0",
+                  marginBottom: "10px",
+                  fontWeight: "bold"
+                }}>
+                  Payment Details
+                </h3>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", padding: "6px", borderBottom: `1px solid ${darkMode ? "#4a5568" : "#cbd5e0"}` }}>Method</th>
+                      <th style={{ textAlign: "right", padding: "6px", borderBottom: `1px solid ${darkMode ? "#4a5568" : "#cbd5e0"}` }}>Amount (Rs.)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedRepair.paymentBreakdown.map((p, idx) => (
+                      <tr key={idx}>
+                        <td style={{ padding: "6px", color: darkMode ? "#e2e8f0" : "#2d3748" }}>{p.method}</td>
+                        <td style={{ padding: "6px", textAlign: "right", color: darkMode ? "#e2e8f0" : "#2d3748" }}>
+                          {parseFloat(p.amount).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr style={{ borderTop: `1px solid ${darkMode ? "#4a5568" : "#cbd5e0"}`, fontWeight: "bold" }}>
+                      <td style={{ padding: "6px" }}>Total Paid</td>
+                      <td style={{ padding: "6px", textAlign: "right" }}>
+                        {selectedRepair.finalAmountPaid ? parseFloat(selectedRepair.finalAmountPaid).toFixed(2) : '0.00'}
+                      </td>
+                    </tr>
+                    {selectedRepair.changeGiven > 0 && (
+                      <tr style={{ fontWeight: "bold", color: darkMode ? "#68d391" : "#2f855a" }}>
+                        <td style={{ padding: "6px" }}>Change Given</td>
+                        <td style={{ padding: "6px", textAlign: "right" }}>
+                          {parseFloat(selectedRepair.changeGiven).toFixed(2)}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* ✅ REAL-TIME PAYMENT SUMMARY */}
+            {(selectedRepair.repairStatus === "In Progress" || selectedRepair.repairStatus === "Pending") && (
+              <div style={{
+                backgroundColor: darkMode ? "#2d3748" : "#f0f9ff",
+                padding: "12px",
+                borderRadius: "5px",
+                marginBottom: "15px",
+                border: `1px solid ${darkMode ? "#4a5568" : "#bee3f8"}`
+              }}>
+                <h4 style={{
+                  margin: "0 0 10px 0",
+                  color: darkMode ? "#63b3ed" : "#2b6cb0",
+                  fontSize: "15px",
+                  fontWeight: "bold"
+                }}>
+                  Payment Summary
+                </h4>
+                {paymentBreakdown.some(p => p.method || p.amount) && (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                      <span style={{ color: darkMode ? "#e2e8f0" : "#4a5568" }}>Amount Due:</span>
+                      <strong style={{ color: darkMode ? "#fff" : "#2d3748" }}>
+                        Rs. {calculatePaymentSummary().finalAmountDue.toFixed(2)}
+                      </strong>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                      <span style={{ color: darkMode ? "#e2e8f0" : "#4a5568" }}>Total Paid:</span>
+                      <strong style={{ color: darkMode ? "#fff" : "#2d3748" }}>
+                        Rs. {calculatePaymentSummary().totalPaid.toFixed(2)}
+                      </strong>
+                    </div>
+                    {calculatePaymentSummary().isOverpaid && (
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                        <span style={{ color: darkMode ? "#68d391" : "#2f855a" }}>Change Due:</span>
+                        <strong style={{ color: darkMode ? "#68d391" : "#2f855a" }}>
+                          Rs. {calculatePaymentSummary().changeGiven.toFixed(2)}
+                        </strong>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
+                      <span>Status:</span>
+                      {calculatePaymentSummary().isUnderpaid ? (
+                        <span style={{ color: "#e53e3e", fontWeight: "bold" }}>❌ Underpaid</span>
+                      ) : calculatePaymentSummary().isOverpaid ? (
+                        <span style={{ color: "#68d391", fontWeight: "bold" }}>✅ Overpaid (Change due)</span>
+                      ) : calculatePaymentSummary().totalPaid > 0 ? (
+                        <span style={{ color: "#38a169", fontWeight: "bold" }}>✅ Exact Amount</span>
+                      ) : (
+                        <span style={{ color: "#a0aec0" }}>—</span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {(selectedRepair.repairStatus === "In Progress" || selectedRepair.repairStatus === "Pending") && (
+              <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)", marginTop: "10px" }}>
+                <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "10px" }}>
+                  Payment Breakdown
+                </strong>
+                {paymentBreakdown.map((entry, index) => (
+                  <div key={index} style={{ display: "flex", gap: "10px", marginBottom: "8px", alignItems: "center" }}>
+                    <select
+                      value={entry.method}
+                      onChange={(e) => {
+                        const newMethod = e.target.value;
+                        const newBreakdown = [...paymentBreakdown];
+
+                        // ✅ If changing TO a method that already exists, MERGE
+                        if (newMethod && newMethod !== entry.method) {
+                          const existingIndex = newBreakdown.findIndex(
+                            (p, idx) => p.method === newMethod && idx !== index
+                          );
+
+                          if (existingIndex >= 0) {
+                            // Merge amount into existing row
+                            const currentAmount = parseFloat(entry.amount) || 0;
+                            const existingAmount = parseFloat(newBreakdown[existingIndex].amount) || 0;
+                            newBreakdown[existingIndex] = {
+                              ...newBreakdown[existingIndex],
+                              amount: (existingAmount + currentAmount).toFixed(2)
+                            };
+                            // Remove the current row
+                            newBreakdown.splice(index, 1);
+                          } else {
+                            // Just update the method
+                            newBreakdown[index].method = newMethod;
+                          }
+                        } else {
+                          // Clear method
+                          newBreakdown[index].method = newMethod;
+                        }
+
+                        setPaymentBreakdown(newBreakdown);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: "6px",
+                        borderRadius: "4px",
+                        border: "1px solid #ccc",
+                        backgroundColor: darkMode ? "#444" : "#fff",
+                        color: darkMode ? "#fff" : "#333"
+                      }}
+                    >
+                      <option value="">Select Method</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Card">Card</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="Bank Check">Bank Check</option>
+                      <option value="Credit">Credit</option>
+                    </select>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Amount"
+                      value={entry.amount}
+                      onWheel={(e) => e.target.blur()}
+                      onChange={(e) => {
+                        const newBreakdown = [...paymentBreakdown];
+                        newBreakdown[index].amount = e.target.value;
+                        setPaymentBreakdown(newBreakdown);
+                      }}
+                      style={{
+                        width: "120px",
+                        padding: "6px",
+                        borderRadius: "4px",
+                        border: "1px solid #ccc",
+                        backgroundColor: darkMode ? "#444" : "#fff",
+                        color: darkMode ? "#fff" : "#333",
+                        textAlign: "right"
+                      }}
+                    />
+                    {paymentBreakdown.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newBreakdown = [...paymentBreakdown];
+                          newBreakdown.splice(index, 1);
+                          setPaymentBreakdown(newBreakdown);
+                        }}
+                        style={{
+                          background: "#e53e3e",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          width: "30px",
+                          height: "30px",
+                          cursor: "pointer"
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPaymentBreakdown([...paymentBreakdown, { method: "", amount: "" }])}
+                  style={{
+                    marginTop: "8px",
+                    background: "#38a169",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    fontSize: "14px",
+                    cursor: "pointer"
+                  }}
+                >
+                  + Add Payment
+                </button>
+              </div>
+            )}
+
+            {error && (
+              <div style={{
+                marginTop: "14px",
+                color: "#e53e3e",
+                fontSize: "14px",
+                textAlign: "center"
+              }}>
+                {error}
+              </div>
+            )}
+
             <div className="modal-buttons" style={{ display: "flex", justifyContent: "space-between", marginTop: "20px" }}>
-              {selectedRepair.repairStatus !== "Completed" && selectedRepair.repairStatus !== "Returned" && (
+              
+              {/* Cancel Button — only for Pending status */}
+              {selectedRepair.repairStatus === "Pending" && (
+                <button
+                  onClick={handleCancelRepair}
+                  className="a-p-cancel-btn"
+                  style={{ backgroundColor: "#e53e3e", color: "white", border: "none", padding: "10px 20px", borderRadius: "4px", cursor: "pointer" }}
+                >
+                  Cancel Repair
+                </button>
+              )}
+
+              {selectedRepair.repairStatus === "Cancelled" && (
+                <button
+                  onClick={handleCancelCollected}
+                  className="a-p-submit-btn"
+                  style={{ backgroundColor: "#0d0d0dff", color: "white", border: "none", padding: "10px 20px", borderRadius: "4px", cursor: "pointer" }}
+                >
+                  Repair Collected
+                </button>
+              )}
+
+              {selectedRepair.repairStatus === "Returned" && (
+                <button
+                  onClick={handleReturnCollected}
+                  className="a-p-submit-btn"
+                  style={{ backgroundColor: "#0d0d0dff", color: "white", border: "none", padding: "10px 20px", borderRadius: "4px", cursor: "pointer" }}
+                >
+                  Repair Collected
+                </button>
+              )}
+
+              {selectedRepair.repairStatus === "Completed" && (
+                <button
+                  onClick={handleCompleteCollected}
+                  className="a-p-submit-btn"
+                  style={{ backgroundColor: "#0d0d0dff", color: "white", border: "none", padding: "10px 20px", borderRadius: "4px", cursor: "pointer" }}
+                >
+                  Repair Collected
+                </button>
+              )}
+              
+              {(selectedRepair.repairStatus === "In Progress" || selectedRepair.repairStatus === "Pending") && (
                 <button
                   onClick={handleCompletePayment}
                   className={`a-p-submit-btn ${darkMode ? "dark" : ""}`}

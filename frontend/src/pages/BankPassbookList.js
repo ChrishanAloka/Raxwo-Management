@@ -361,7 +361,9 @@ const fetchPaymentIncomes = async () => {
     if (!id.startsWith("repair-")) {
       if (window.confirm("Are you sure you want to delete this transaction?")) {
         try {
-          await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+          await fetch(`${API_URL}/${id}`, { method: "DELETE" } , {headers: {
+            'Authorization': `Bearer ${token}`
+          }} );                         
           setTransactions(transactions.filter(t => t._id !== id));
           setShowActionMenu(null);
         } catch (err) {

@@ -54,11 +54,12 @@ const SupplierUpdate = ({ isOpen, onClose, supplierId, refreshSuppliers, darkMod
     e.preventDefault();
     setError("");
     setSuccess("");
+    const token = localStorage.getItem('token');
     try {
       const changedBy = localStorage.getItem('username') || localStorage.getItem('cashierName') || 'system';
       const response = await fetch(`${API_URL}/${supplierId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ ...formData, changedBy }),
       });
       if (!response.ok) {

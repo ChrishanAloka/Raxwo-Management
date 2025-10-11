@@ -87,14 +87,17 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
     fetchDeviceIssues();
   }, []);
 
+  const token = localStorage.getItem('token');
+  
   const handleAddNewIssue = async () => {
     if (!newIssue.trim()) return;
-
+    
     try {
       const response = await fetch('https://raxwo-management.onrender.com/api/deviceIssues', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ issue: newIssue.trim() }),
       });
@@ -223,7 +226,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
       console.log("Sending PATCH request...");
       let response = await fetch(`${API_URL}/${repair._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify(requestBody),
       });
 
@@ -235,7 +238,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
           console.log("PATCH failed, sending PUT request...");
           response = await fetch(`${API_URL}/${repair._id}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
             body: JSON.stringify(requestBody),
           });
 

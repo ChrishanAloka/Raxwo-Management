@@ -81,14 +81,14 @@ const AddSupplier = ({ supplier, closeModal, darkMode, refreshSuppliers }) => {
       setLoading(false);
       return;
     }
-
+    const token = localStorage.getItem('token');
     try {
       const changedBy = localStorage.getItem('username') || localStorage.getItem('cashierName') || 'system';
       const url = supplier ? `${API_URL}/${supplier._id}` : API_URL;
       const method = supplier ? "PATCH" : "POST";
       const response = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ ...formData, changedBy }),
       });
 
