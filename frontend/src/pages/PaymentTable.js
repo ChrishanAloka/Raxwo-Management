@@ -16,6 +16,7 @@ import ReturnPayment from '../ReturnPayment';
 import { useMemo } from 'react'; // Make sure this is imported
 
 const API_URL = 'https://raxwo-management.onrender.com/api/payments';
+const PAYMENT_WITH_CATEGORY_API_URL = 'https://raxwo-management.onrender.com/api/payments/with-categories';
 
 const PaymentTable = ({ darkMode }) => {
   const [payments, setPayments] = useState([]);
@@ -57,7 +58,7 @@ const PaymentTable = ({ darkMode }) => {
     }
 
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetch(PAYMENT_WITH_CATEGORY_API_URL, {
         headers: {
           "Authorization": `Bearer ${token}`,
         },
@@ -272,6 +273,12 @@ const PaymentTable = ({ darkMode }) => {
               <span class="item-name">${item.itemName.length > 12 ? item.itemName.substring(0) : item.itemName}</span>
               <span class="item-amt">Rs. ${(item.price * item.quantity).toFixed(2)}</span>
             </div>
+            <!-- Category line -->
+            <div class="item-row" style="font-size: 8px; color: #666;">
+              <span></span>
+              <span class="item-name">Category: ${item.category || '—'}</span>
+              <span></span>
+            </div>
             ${item.discount > 0 ? `
               <div class="item-row">
                 <span></span>
@@ -361,11 +368,11 @@ const PaymentTable = ({ darkMode }) => {
     const contactNumber = paymentData.contactNumber || "N/A";
     const address = paymentData.address || "N/A";
     const description = paymentData.description || "N/A";
-    const paymentMethod = paymentData.paymentMethod || "Not Selected";
+    const paymentMethod = paymentData.paymentMethods || "Not Selected";
     const items = paymentData.items || [];
     const totalAmount = paymentData.totalAmount || 0;
-    const paidAmount = paymentData.totalAmount || 0;
-    const balance = totalAmount - paidAmount;
+    const paidAmount = paymentData.totalPaid || 0;
+    const balance = paidAmount - totalAmount ;
 
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const totalDiscount = items.reduce((sum, item) => sum + (item.discount || 0), 0);
@@ -527,11 +534,23 @@ const PaymentTable = ({ darkMode }) => {
                 <p><strong>Customer:</strong> ${customerName}</p>
                 <p><strong>Contact:</strong> ${contactNumber}</p>
                 <p><strong>Description:</strong> ${description}</p>
+                
               </div>
               <div>
                 <p><strong>Date:</strong> ${currentDate}</p>
                 <p><strong>Invoice:</strong> ${paymentData.invoiceNumber}</p>
-                <p><strong>Payment Method:</strong> ${paymentMethod}</p>
+                <p>
+                  <strong>Payment Method(s):</strong>
+                  <ul style="margin: 5px 0; list-style-type: disc;">
+                    ${
+                      Array.isArray(paymentData.paymentMethods) && paymentData.paymentMethods.length > 0
+                        ? paymentData.paymentMethods.map(pm => 
+                            `<li>${pm.method}: Rs. ${Number(pm.amount || 0).toFixed(2)}</li>`
+                          ).join('')
+                        : `<li>${paymentData.paymentMethod || 'Not Selected'}: Rs. ${Number(paymentData.totalAmount || 0).toFixed(2)}</li>`
+                    }
+                  </ul>
+                </p>
               </div>
             </div>
           </div>
@@ -540,6 +559,7 @@ const PaymentTable = ({ darkMode }) => {
             <thead>
               <tr>
                 <th>Item Name</th>
+                <th>Category</th>
                 <th>Quantity</th>
                 <th>Price</th>
                 <th>Discount</th>
@@ -553,9 +573,11 @@ const PaymentTable = ({ darkMode }) => {
                 const price = item.price || 0;
                 const discount = typeof item.discount === 'number' ? item.discount : 0;
                 const total = (price * quantity - discount).toFixed(2);
+                const category = item.category || '—';
                 return `
                   <tr>
                     <td>${itemName}</td>
+                    <td>${category}</td>
                     <td>${quantity}</td>
                     <td>Rs. ${price.toFixed(2)}</td>
                     <td>Rs. ${discount.toFixed(2)}</td>
@@ -1189,9 +1211,11 @@ const PaymentTable = ({ darkMode }) => {
                 <tr key={payment._id}>
                   <td>{new Date(payment.date).toLocaleDateString()}</td>
                   <td>{new Date(payment.date).toLocaleTimeString()}</td>
-                  <td>{payment.invoiceNumber}</td>
+                  <td>{payment.invoiceNumber} {payment.returnAlert === "returned" ? "(Ret)" : ""}</td>
                   <td style={{whiteSpace: 'normal', wordBreak: 'break-word'}}>{/* Combine all item names */}
-                    {payment.items.map(item => item.itemName).join(', ')}
+                    {payment.items.map((item, idx) => (
+                      <div key={idx}>{item.itemName} ({item.category || '—'}),</div>
+                    ))}
                   </td>
                   {/* <td> */}
                     {/* Combine quantities */}
@@ -1221,12 +1245,14 @@ const PaymentTable = ({ darkMode }) => {
                         <>
                           <div className="action-menu-overlay" onClick={() => setShowActionMenu(null)} />
                           <div className="action-menu">
-                            <button onClick={() => handleEdit(payment)} className="p-edit-btn">
-                              <div className="action-btn-content">
-                                <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
-                                <span>Edit</span>
-                              </div>
-                            </button>
+                            {userRole === 'admin' && (
+                              <button onClick={() => handleEdit(payment)} className="p-edit-btn">
+                                <div className="action-btn-content">
+                                  <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
+                                  <span>Edit</span>
+                                </div>
+                              </button>
+                            )}
                             {userRole === 'admin' && (
                               <button onClick={() => handleDelete(payment._id)} className="p-delete-btn">
                                 <div className="action-btn-content">
@@ -1235,13 +1261,15 @@ const PaymentTable = ({ darkMode }) => {
                                 </div>
                               </button>
                             )}
-                            <button onClick={() => handleReturn(payment)} className="p-edit-btn">
-                              <div className="action-btn-content">
-                                <span className="p-edit-btn-icon" style={{width:"30", height:"30"}}>↩️ </span>
-                                <span> Return</span>
-                              </div>
-                            </button>
-                            <button 
+                            {userRole === 'admin' && (
+                              <button onClick={() => handleReturn(payment)} className="p-edit-btn">
+                                <div className="action-btn-content">
+                                  <span className="p-edit-btn-icon" style={{width:"30", height:"30"}}>↩️ </span>
+                                  <span> Return</span>
+                                </div>
+                              </button>
+                            )}
+                              <button 
                               onClick={() => generatePaymentBill(payment)}
                               className="p-edit-btn"
                             >

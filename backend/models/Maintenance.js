@@ -9,7 +9,8 @@ const MaintenanceSchema = new mongoose.Schema({
     remarks: { type: String, required: false },
     assignedTo: { type: String, required: false },
     paymentMethod: { type: String, required: false },
-},
-  { timestamps: true });
+},{ timestamps: true });
+
+MaintenanceSchema.set('timestamps', true);
 
 module.exports = mongoose.model("Maintenance", MaintenanceSchema);

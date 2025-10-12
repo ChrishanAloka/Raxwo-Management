@@ -4555,7 +4555,7 @@ const ProductRepairList = ({ darkMode }) => {
                       <option value="Card">Card</option>
                       <option value="Bank-Transfer">Bank Transfer</option>
                       <option value="Bank-Check">Bank Check</option>
-                      <option value="Credit">Credit</option>
+                      {/* <option value="Credit">Credit</option> */}
                     </select>
                     <input
                       type="number"

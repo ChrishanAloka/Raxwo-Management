@@ -38,7 +38,6 @@ const paymentSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['Bank-Transfer', 'Cash', 'Card', 'Bank-Check', 'Credit', 'Refund'],
     required: false
   },
   // In your Payment schema
@@ -46,7 +45,7 @@ const paymentSchema = new mongoose.Schema({
     method: { type: String, required: true }, // "Cash", "Card", etc.
     amount: { type: Number, required: true }
   }],
-  totalPaid: { type: Number, required: true },
+  totalPaid: { type: Number, required: false },
   changeGiven: { type: Number, default: 0 },
   cashierId: {
     type: String,
@@ -79,6 +78,12 @@ const paymentSchema = new mongoose.Schema({
   date: {
     type: Date,
     default: Date.now
+  },
+  creditedDate:{
+    type: Date,
+  },
+  stockDeducted:{
+    type: String,
   }
 }, { timestamps: true });
 

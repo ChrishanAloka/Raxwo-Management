@@ -7,11 +7,11 @@ const logActivity = require('../utils/logActivity');
 // Create a new extra income record
 router.post("/", authMiddleware, async (req, res) => {
   try {
-    const { date, incomeType, amount, description, assignedTo, paymentBreakdown} = req.body;
+    const { date, incomeType, amount, description, assignedTo, paymentBreakdown, hasCredit, creditedDate} = req.body;
     console.log("Creating extra income:", { date, incomeType, amount, description, assignedTo });
 
     // ✅ Validate paymentBreakdown if provided
-    if (paymentBreakdown && (!Array.isArray(paymentBreakdown) || paymentBreakdown.length === 0)) {
+    if (paymentBreakdown && (!Array.isArray(paymentBreakdown) || paymentBreakdown.length === 0) && !hasCredit) {
       return res.status(400).json({ message: "paymentBreakdown must be a non-empty array" });
     }
 
@@ -22,6 +22,7 @@ router.post("/", authMiddleware, async (req, res) => {
       description,
       assignedTo,
       paymentBreakdown: paymentBreakdown || undefined,
+      creditedDate
     });
 
     const savedIncome = await extraIncome.save();
@@ -57,12 +58,12 @@ router.get("/", async (req, res) => {
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, incomeType, amount, description, assignedTo, paymentBreakdown, returnAlert, serviceCharge, totalAmount } = req.body;
+    const { date, incomeType, amount, description, assignedTo, paymentBreakdown, returnAlert, serviceCharge, totalAmount, hasCredit, creditedDate, } = req.body;
     console.log(`Updating extra income ID ${id}:`, { date, incomeType, amount, description, assignedTo});
 
     // ✅ Validate paymentBreakdown if provided
     if (paymentBreakdown !== undefined) {
-      if (!Array.isArray(paymentBreakdown) || paymentBreakdown.length === 0) {
+      if (!Array.isArray(paymentBreakdown) || paymentBreakdown.length === 0 && !hasCredit) {
         return res.status(400).json({ message: "paymentBreakdown must be a non-empty array" });
       }
     }
@@ -79,6 +80,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
         returnAlert, 
         serviceCharge, 
         totalAmount,
+        creditedDate
       },
       { new: true, runValidators: true }
     );

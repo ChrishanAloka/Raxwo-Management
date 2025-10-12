@@ -137,8 +137,10 @@ const ExtraIncome = ({ darkMode }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const hasCredit = paymentBreakdown.some(p => p.method === "Credit");
+
     // ✅ VALIDATION: Payment breakdown must be valid
-    const validPayments = paymentBreakdown.filter(p => p.method && p.amount !== "" && parseFloat(p.amount) > 0);
+    const validPayments = paymentBreakdown.filter(p => p.method && p.amount !== "");
     if (validPayments.length === 0) {
       setError("Please add at least one valid payment method and amount.");
       return;
@@ -153,6 +155,8 @@ const ExtraIncome = ({ darkMode }) => {
         amount: totalAmount,
         description: formData.description,
         assignedTo: formData.assignedTo,
+        creditedDate: hasCredit ? new Date().toISOString().split('T')[0] : null,
+        hasCredit,
         paymentBreakdown: validPayments.map(p => ({
           method: p.method,
           amount: parseFloat(p.amount)
@@ -282,7 +286,9 @@ const ExtraIncome = ({ darkMode }) => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
 
-    const validPayments = paymentBreakdown.filter(p => p.method && p.amount !== "" && parseFloat(p.amount) > 0);
+    const hasCredit = paymentBreakdown.some(p => p.method === "Credit");
+
+    const validPayments = paymentBreakdown.filter(p => p.method && p.amount !== "");
     if (validPayments.length === 0) {
       setError("Please add at least one valid payment method and amount.");
       return;
@@ -297,6 +303,8 @@ const ExtraIncome = ({ darkMode }) => {
         amount: totalAmount,
         description: editingRecord.description,
         assignedTo: editingRecord.assignedTo,
+        creditedDate: hasCredit ? new Date().toISOString().split('T')[0] : null,
+        hasCredit,
         paymentBreakdown: validPayments.map(p => ({
           method: p.method,
           amount: parseFloat(p.amount)
@@ -625,7 +633,7 @@ const ExtraIncome = ({ darkMode }) => {
               <tr key={record._id}>
                 <td>{record.date}</td>
                 <td>{record.time}</td>
-                <td>{record.incomeType}</td>
+                <td>{record.incomeType} {record.returnAlert === "returned" ? "(returned)" : ""}</td>
                 <td>{record.amount.toFixed(2)}</td>
                 <td>{record.description || "N/A"}</td>
                 <td>
@@ -821,6 +829,22 @@ const ExtraIncome = ({ darkMode }) => {
                           const newMethod = e.target.value;
                           const newBreakdown = [...paymentBreakdown];
 
+                          // ✅ SPECIAL HANDLING FOR "Credit"
+                          if (newMethod === "Credit") {
+                            // Reset to only Credit
+                            setPaymentBreakdown([{ method: "Credit", amount: "" }]);
+                            return;
+                          }
+
+                          // If currently in Credit-only mode and switching away
+                          if (
+                            paymentBreakdown.length === 1 &&
+                            paymentBreakdown[0].method === "Credit"
+                          ) {
+                            setPaymentBreakdown([{ method: newMethod, amount: "" }]);
+                            return;
+                          }
+
                           // ✅ If changing TO a method that already exists elsewhere, MERGE
                           if (newMethod && newMethod !== entry.method) {
                             const existingIndex = newBreakdown.findIndex(
@@ -908,22 +932,24 @@ const ExtraIncome = ({ darkMode }) => {
                       )}
                     </div>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => setPaymentBreakdown([...paymentBreakdown, { method: "", amount: "" }])}
-                    style={{
-                      marginTop: "8px",
-                      background: "#38a169",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      padding: "6px 12px",
-                      fontSize: "14px",
-                      cursor: "pointer"
-                    }}
-                  >
-                    + Add Payment
-                  </button>
+                  {!paymentBreakdown.some(p => p.method === "Credit") && (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentBreakdown([...paymentBreakdown, { method: "", amount: "" }])}
+                      style={{
+                        marginTop: "8px",
+                        background: "#38a169",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "6px 12px",
+                        fontSize: "14px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      + Add Payment
+                    </button>
+                  )}
 
                   {/* REAL-TIME TOTAL */}
                   {paymentBreakdown.some(p => p.amount) && (
@@ -1092,6 +1118,22 @@ const ExtraIncome = ({ darkMode }) => {
                           const newMethod = e.target.value;
                           const newBreakdown = [...paymentBreakdown];
 
+                          // ✅ SPECIAL HANDLING FOR "Credit"
+                          if (newMethod === "Credit") {
+                            // Reset to only Credit
+                            setPaymentBreakdown([{ method: "Credit", amount: "" }]);
+                            return;
+                          }
+
+                          // If currently in Credit-only mode and switching away
+                          if (
+                            paymentBreakdown.length === 1 &&
+                            paymentBreakdown[0].method === "Credit"
+                          ) {
+                            setPaymentBreakdown([{ method: newMethod, amount: "" }]);
+                            return;
+                          }
+
                           // ✅ If changing TO a method that already exists elsewhere, MERGE
                           if (newMethod && newMethod !== entry.method) {
                             const existingIndex = newBreakdown.findIndex(
@@ -1179,22 +1221,24 @@ const ExtraIncome = ({ darkMode }) => {
                       )}
                     </div>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => setPaymentBreakdown([...paymentBreakdown, { method: "", amount: "" }])}
-                    style={{
-                      marginTop: "8px",
-                      background: "#38a169",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      padding: "6px 12px",
-                      fontSize: "14px",
-                      cursor: "pointer"
-                    }}
-                  >
-                    + Add Payment
-                  </button>
+                  {!paymentBreakdown.some(p => p.method === "Credit") && (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentBreakdown([...paymentBreakdown, { method: "", amount: "" }])}
+                      style={{
+                        marginTop: "8px",
+                        background: "#38a169",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "6px 12px",
+                        fontSize: "14px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      + Add Payment
+                    </button>
+                  )}
 
                   {/* REAL-TIME TOTAL */}
                   {paymentBreakdown.some(p => p.amount) && (

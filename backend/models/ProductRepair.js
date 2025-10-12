@@ -79,7 +79,7 @@ const productRepairSchema = new mongoose.Schema({
   ],
   finalAmountPaid: { type: Number, default: 0 },
   changeGiven: { type: Number, default: 0 }, // ✅ Must be present
-  completedAt: { type: Date, default: Date.now },
+  completedAt: { type: Date, },
   // Change history to track modifications
   changeHistory: [{
     field: { type: String, required: true },

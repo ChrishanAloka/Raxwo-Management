@@ -18,80 +18,102 @@ const getNextInvoiceNumber = async () => {
 // POST: Create a new payment (Protected route)
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { items, totalAmount, discountApplied, paymentMethods, totalPaid, changeGiven, cashierId, cashierName, customerName, contactNumber, address, description, assignedTo, isWholesale, customerDetails, paymentDate } = req.body;
+    const { items, totalAmount, discountApplied, paymentMethods, totalPaid, changeGiven, cashierId, cashierName, customerName, contactNumber, address, description, assignedTo, isWholesale, customerDetails, paymentDate, creditedDate, hasCredit } = req.body;
     console.log('Received payment data in backend:', { items, totalAmount, discountApplied, cashierId, cashierName, customerName, contactNumber, address, description, assignedTo, isWholesale, customerDetails }); // Debug log
 
+    const calculatedTotalPaid = paymentMethods.reduce((sum, p) => sum + (p.amount || 0), 0);
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'No items provided' });
     }
     
-    if (!totalAmount || !paymentMethods || !Array.isArray(paymentMethods) || paymentMethods.length === 0) {
+    else if (!totalAmount || !paymentMethods || !Array.isArray(paymentMethods) || paymentMethods.length === 0) {
       return res.status(400).json({ message: 'Total amount and at least one payment method are required' });
     }
 
-    const calculatedTotalPaid = paymentMethods.reduce((sum, p) => sum + (p.amount || 0), 0);
-    if (Math.abs(calculatedTotalPaid - totalPaid) > 0.01) {
+    else if (Math.abs(calculatedTotalPaid - totalPaid) > 0.01 && !hasCredit) {
       return res.status(400).json({ message: 'Total paid does not match sum of payment methods' });
     }
 
-    if (totalPaid < totalAmount) {
+    else if (totalPaid < totalAmount && !hasCredit) {
       return res.status(400).json({ message: 'Total paid is less than total amount due' });
     }
 
-    if (!cashierId || !cashierName) {
+    else if (!cashierId || !cashierName) {
       return res.status(400).json({ message: 'Cashier ID and name are required' });
     }
 
-    for (const item of items) {
-      const product = await Product.findById(item.productId);
-      if (!product || product.stock < item.quantity) {
-        return res.status(400).json({ message: `Not enough stock for ${item.itemName}` });
+    else {
+
+      for (const item of items) {
+        const product = await Product.findById(item.productId);
+        if (!product || product.stock < item.quantity) {
+          return res.status(400).json({ message: `Insufficient stock for ${item.itemName}` });
+        }
       }
+
+      // for (const item of items) {
+      //   await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
+      // }
+
+      const invoiceNumber = `INV-${await getNextInvoiceNumber()}`;
+
+      const payment = new Payment({
+        invoiceNumber,
+        items,
+        totalAmount,
+        discountApplied: discountApplied || 0,
+        paymentMethods, // ✅ array
+        totalPaid,
+        changeGiven,
+        cashierId,
+        cashierName,
+        customerName: customerName || '',
+        contactNumber: contactNumber || '',
+        address: address || '',
+        description: description || '',
+        assignedTo: assignedTo || '',
+        isWholesale: isWholesale || false,
+        customerDetails: isWholesale ? customerDetails : null,
+        date: paymentDate,
+        creditedDate: creditedDate,
+        stockDeducted: false,
+      });
+
+      const savedPayment = await payment.save();
+      console.log('Saved payment document:', savedPayment); // Debug log
+
+      try {
+        for (const item of items) {
+          await Product.findByIdAndUpdate(
+            item.productId,
+            { $inc: { stock: -item.quantity } }
+          );
+        }
+
+        // ✅ Mark stock as deducted
+        await Payment.findByIdAndUpdate(savedPayment._id, { stockDeducted: true });
+      } catch (stockError) {
+        // ⚠️ Stock deduction failed — but payment exists!
+        console.error(`Stock deduction failed for ${invoiceNumber}:`, stockError);
+        // → Log for admin review, or trigger alert
+        // → Optionally: send to queue for retry
+      }
+
+      // ✅ LOG: Create Payment (Sale)
+      const customer = customerName || contactNumber || 'Anonymous';
+      await logActivity({
+        req,
+        action: 'create',
+        resource: 'Payment',
+        description: `Processed sale ${invoiceNumber} for ${items.length} items, total=${savedPayment.totalAmount}, customer="${customer}", cashier="${savedPayment.cashierName}"`
+      });
+
+      res.status(201).json({ 
+        message: 'Payment successful', 
+        payment: savedPayment, 
+        invoiceNumber 
+      });
     }
-
-    for (const item of items) {
-      await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
-    }
-
-    const invoiceNumber = `INV-${await getNextInvoiceNumber()}`;
-
-    const payment = new Payment({
-      invoiceNumber,
-      items,
-      totalAmount,
-      discountApplied: discountApplied || 0,
-      paymentMethods, // ✅ array
-      totalPaid,
-      changeGiven,
-      cashierId,
-      cashierName,
-      customerName: customerName || '',
-      contactNumber: contactNumber || '',
-      address: address || '',
-      description: description || '',
-      assignedTo: assignedTo || '',
-      isWholesale: isWholesale || false,
-      customerDetails: isWholesale ? customerDetails : null,
-      date: paymentDate,
-    });
-
-    const savedPayment = await payment.save();
-    console.log('Saved payment document:', savedPayment); // Debug log
-
-    // ✅ LOG: Create Payment (Sale)
-    const customer = customerName || contactNumber || 'Anonymous';
-    await logActivity({
-      req,
-      action: 'create',
-      resource: 'Payment',
-      description: `Processed sale ${invoiceNumber} for ${items.length} items, total=${savedPayment.totalAmount}, customer="${customer}", cashier="${savedPayment.cashierName}"`
-    });
-
-    res.status(201).json({ 
-      message: 'Payment successful', 
-      payment: savedPayment, 
-      invoiceNumber 
-    });
   } catch (err) {
     console.error('Payment save error:', err);
     res.status(500).json({ message: err.message });
@@ -189,6 +211,37 @@ router.get('/track', async (req, res) => {
   } catch (err) {
     console.error('Error in payment tracking:', err.message);
     res.status(500).json({ message: 'Server error while fetching payment usage' });
+  }
+});
+
+// routes/payments.js
+router.get('/with-categories', async (req, res) => {
+  try {
+    // Step 1: Fetch all products (include buyingPrice and stock)
+    const products = await Product.find().select('_id category buyingPrice stock').lean();
+    const productMap = new Map(products.map(p => [p._id.toString(), p]));
+
+    // Step 2: Fetch all payments
+    const payments = await Payment.find().lean();
+
+    // Step 3: Enrich each payment item with category, buyingPrice, and stock
+    const enrichedPayments = payments.map(payment => {
+      const enrichedItems = (payment.items || []).map(item => {
+        const product = productMap.get(item.productId?.toString());
+        return {
+          ...item,
+          category: product?.category || 'Uncategorized',
+          buyingPrice: product?.buyingPrice || 0,
+          stock: product?.stock || 0
+        };
+      });
+      return { ...payment, items: enrichedItems };
+    });
+
+    res.json(enrichedPayments);
+  } catch (error) {
+    console.error('Error in /with-categories:', error);
+    res.status(500).json({ message: 'Failed to fetch payments with categories' });
   }
 });
 

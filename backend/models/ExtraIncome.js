@@ -47,10 +47,15 @@ const extraIncomeSchema = new mongoose.Schema({
       amount: { type: Number, required: true }
     }
   ],
+  creditedDate: {
+    type: Date,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
+
+extraIncomeSchema.set('timestamps', true);
 
 module.exports = mongoose.model("ExtraIncome", extraIncomeSchema);

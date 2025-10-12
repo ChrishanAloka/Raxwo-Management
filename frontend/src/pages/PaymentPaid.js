@@ -85,6 +85,11 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
   };
 
   const addPaymentMethod = () => {
+    // Prevent adding if Credit is selected
+    if (paymentEntries.some(entry => entry.method === 'Credit')) {
+      return; // silently ignore or show message
+    }
+    
     setPaymentEntries([...paymentEntries, { method: '', amount: '' }]);
   };
 
@@ -98,6 +103,27 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
   };
 
   const updatePaymentMethod = (index, field, value) => {
+    // If setting a method to "Credit"
+    if (field === 'method' && value === 'Credit') {
+      // Reset to only one Credit entry
+      setPaymentEntries([{ method: 'Credit', amount: '' }]);
+      setTotalPaid(totalAmount); // credit covers full amount
+      setDuplicateError('');
+      setPaymentError('');
+      return;
+    }
+
+    // If currently in Credit-only mode and changing away from Credit
+    if (paymentEntries.length === 1 && paymentEntries[0].method === 'Credit' && field === 'method' && value !== 'Credit') {
+      // Allow switching to another method, keep one entry
+      const newEntries = [{ method: value, amount: '' }];
+      setPaymentEntries(newEntries);
+      recalculateTotalPaid(newEntries);
+      setDuplicateError('');
+      setPaymentError('');
+      return;
+    }
+    
     const newEntries = [...paymentEntries];
     newEntries[index][field] = value;
     setPaymentEntries(newEntries);
@@ -531,15 +557,20 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
   const handleConfirmPayment = async () => {
     setPaymentError('');
     // Validate
-    const validEntries = paymentEntries.filter(e => e.method && e.amount !== '' && parseFloat(e.amount) > 0);
-    if (validEntries.length === 0) {
+    const nonCreditEntries = paymentEntries.filter(e => e.method && e.method !== "Credit" && e.amount !== '' && parseFloat(e.amount) > 0);
+    const hasCredit = paymentEntries.some(e => e.method === "Credit");
+
+    const validEntries = paymentEntries;
+
+    // Validation
+    if (nonCreditEntries.length === 0 && !hasCredit) {
       setPaymentError("Please add at least one valid payment method.");
       return;
     }
 
     const totalPaidNum = parseFloat(totalPaid.toFixed(2));
     const changeGiven = Math.max(0, totalPaidNum - totalAmount); // never negative
-    if (totalPaidNum < totalAmount) {
+    if (totalPaidNum < totalAmount - 0.01 && !hasCredit) {
       setPaymentError("Total paid is less than the amount due.");
       return;
     }
@@ -573,7 +604,7 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
           discountApplied: items.reduce((sum, item) => sum + (item.discount || 0), 0),
           paymentMethods: validEntries.map(e => ({
             method: e.method,
-            amount: parseFloat(e.amount)
+            amount: parseFloat(e.amount) || 0
           })),
           totalPaid: totalPaidNum,
           changeGiven,
@@ -586,7 +617,9 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
           address: address || '',
           description: description || '',
           assignedTo: assignedTo || '',
-          paymentDate: paymentDate || new Date().toISOString().split('T')[0] // fallback
+          paymentDate: paymentDate || new Date().toISOString().split('T')[0], // fallback
+          creditedDate: hasCredit ? new Date().toISOString().split('T')[0] : null,
+          hasCredit,
         }),
       });
 
@@ -638,64 +671,87 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
 
   return (
     <div className="popup">
+      {/* 🔒 Full-screen loading overlay */}
+      {loading && (
+        <div className="payment-loading-overlay">
+          <div className="payment-loading-spinner">
+            <div className="spinner"></div>
+            <p>Processing payment... Please wait</p>
+          </div>
+        </div>
+      )}
+
       <div className={`popup-content ${darkMode ? "dark-mode" : ""}`}>
         <div className="left-section">
           <h2 className={`pop-title ${darkMode ? "dark-mode" : ""}`}>Complete Payment</h2>
-          {/* <label className={`p-lbl ${darkMode ? "dark-mode" : ""}`}>Payment Method:</label> */}
-          {/* <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-            <option className="drop" value="">Select</option>
-            <option className="drop" value="Cash">Cash</option>
-            <option className="drop" value="Card">Card</option>
-            <option className="drop" value="Bank-Transfer">Bank Transfer</option>
-            <option className="drop" value="Bank-Check">Bank Check</option>
-            <option className="drop" value="Credit">Credit</option>
-          </select> */}
 
           <div className="payment-methods-section">
             <label className={`p-lbl ${darkMode ? "dark-mode" : ""}`}>Payment Methods:</label>
-            {/* <h3>Payment Methods</h3> */}
-            {paymentEntries.map((entry, index) => (
-              <div key={index} className="payment-entry" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                <select
-                  value={entry.method}
-                  onChange={(e) => updatePaymentMethod(index, 'method', e.target.value)}
-                  className={`p-lbl ${darkMode ? "dark-mode" : ""}`}
-                  style={{ flex: 1 }}
-                >
-                  <option value="">Select</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Card">Card</option>
-                  <option value="Bank-Transfer">Bank Transfer</option>
-                  <option value="Bank-Check">Bank Check</option>
-                  <option value="Credit">Credit</option>
-                </select>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Amount"
-                  value={entry.amount}
-                  onWheel={(e) => e.target.blur()}
-                  onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
-                  className={`customer-input ${darkMode ? 'dark' : ''}`}
-                  style={{ width: '120px', marginLeft: '8px' }}
-                />
-                {paymentEntries.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removePaymentMethod(index)}
-                    style={{ marginLeft: '8px', background: 'red', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 6px' }}
+            {paymentEntries.map((entry, index) => {
+              const isCredit = entry.method === "Credit";
+              return (
+                <div key={index} className="payment-entry" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                  <select
+                    value={entry.method}
+                    onChange={(e) => updatePaymentMethod(index, 'method', e.target.value)}
+                    className={`p-lbl ${darkMode ? "dark-mode" : ""}`}
+                    style={{ flex: 1 }}
+                    disabled={loading} // 🔒 Disable during loading
                   >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-            <button type="button" onClick={addPaymentMethod} style={{ marginTop: '8px', fontSize: '14px' }}>
-              + Add Another Method
-            </button>
+                    <option value="">Select</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Card</option>
+                    <option value="Bank-Transfer">Bank Transfer</option>
+                    <option value="Bank-Check">Bank Check</option>
+                    <option value="Credit">Credit</option>
+                  </select>
+                  {isCredit ? (
+                    <input
+                      type="text"
+                      value={0}
+                      readOnly
+                      className={`customer-input ${darkMode ? 'dark' : ''}`}
+                      style={{ width: '150px', marginLeft: '8px', backgroundColor: '#f0f0f0' }}
+                      disabled
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Amount"
+                      value={entry.amount}
+                      onWheel={(e) => e.target.blur()}
+                      onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
+                      className={`customer-input ${darkMode ? 'dark' : ''}`}
+                      style={{ width: '120px', marginLeft: '8px' }}
+                      disabled={loading} // 🔒 Disable during loading
+                    />
+                  )}
+                  {paymentEntries.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removePaymentMethod(index)}
+                      style={{ marginLeft: '8px', background: 'red', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 6px' }}
+                      disabled={loading} // 🔒 Disable during loading
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {!paymentEntries.some(entry => entry.method === "Credit") && (
+              <button 
+                type="button" 
+                onClick={addPaymentMethod} 
+                style={{ marginTop: '8px', fontSize: '14px' }}
+                disabled={loading} // 🔒 Disable during loading
+              >
+                + Add Another Method
+              </button>
+            )}
           </div>
 
-          {/* 👇 Show error here */}
           {duplicateError && (
             <p style={{ color: 'red', fontSize: '13px', marginTop: '6px', textAlign: 'center' }}>
               {duplicateError}
@@ -709,17 +765,6 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
             <strong>Change:</strong> Rs.{(totalPaid - totalAmount).toFixed(2)}
           </p>
 
-          {/* <p className={`tot-amo ${darkMode ? "dark-mode" : ""}`}>
-            <strong>Total Amount:</strong> Rs.{totalAmount.toFixed(2)}
-          </p>
-
-          <label className={`p-lbl ${darkMode ? "dark-mode" : ""}`} hidden={paymentMethod === "Credit"}>Paid Amount:</label>
-          <input type="text" value={paidAmount} placeholder="Enter paid amount" hidden={paymentMethod === "Credit"}/>
-
-          <p className={`balance ${darkMode ? "dark-mode" : ""}`}>
-            <strong>Balance:</strong> Rs.{balance.toFixed(2)}
-          </p> */}
-
           {paymentError && (
             <p style={{ color: 'red', fontSize: '13px', marginTop: '6px', textAlign: 'center' }}>
               ❌ {paymentError}
@@ -730,7 +775,7 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
             <button
               className={`p-con-btn ${darkMode ? "dark-mode" : ""}`}
               onClick={handleConfirmPayment}
-              disabled={loading || !!duplicateError}
+              disabled={loading || !!duplicateError || totalPaid < totalAmount}
             >
               {loading ? "Processing..." : "Confirm Payment"}
             </button>
@@ -745,8 +790,17 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
         </div>
 
         <div className="right-section">
-            <button onClick={() => onClose(null)} className="p-cancel-btn">Cancel</button>
-          <div className="p-dialpad">
+          {/* 🔒 Disable Cancel during loading */}
+          <button 
+            onClick={() => !loading && onClose(null)} 
+            className="p-cancel-btn"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          
+          {/* 🔒 Disable dialpad during loading */}
+          <div className="p-dialpad" style={{ opacity: loading ? 0.5 : 1, pointerEvents: loading ? 'none' : 'auto' }}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, ".", 0].map((num) => (
               <button key={num} onClick={() => handleDialpadInput(num.toString())}>
                 {num}
@@ -756,6 +810,43 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
           </div>
         </div>
       </div>
+
+      {/* ✅ Add CSS for loading overlay */}
+      <style jsx>{`
+        .payment-loading-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+          border-radius: 12px;
+        }
+        .payment-loading-spinner {
+          background: white;
+          padding: 20px 30px;
+          border-radius: 10px;
+          text-align: center;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .spinner {
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #007bff;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 15px;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
