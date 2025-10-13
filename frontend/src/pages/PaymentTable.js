@@ -16,7 +16,7 @@ import ReturnPayment from '../ReturnPayment';
 import { useMemo } from 'react'; // Make sure this is imported
 
 const API_URL = 'https://raxwo-management.onrender.com/api/payments';
-const PAYMENT_WITH_CATEGORY_API_URL = 'https://raxwo-management.onrender.com/api/payments/with-categories';
+const PAYMENT_WITH_CATEGORY_API_URL = 'https://raxwo-management.onrender.com/api/payments/with-itemcodes';
 
 const PaymentTable = ({ darkMode }) => {
   const [payments, setPayments] = useState([]);
@@ -1214,7 +1214,7 @@ const PaymentTable = ({ darkMode }) => {
                   <td>{payment.invoiceNumber} {payment.returnAlert === "returned" ? "(Ret)" : ""}</td>
                   <td style={{whiteSpace: 'normal', wordBreak: 'break-word'}}>{/* Combine all item names */}
                     {payment.items.map((item, idx) => (
-                      <div key={idx}>{item.itemName} ({item.category || '—'}),</div>
+                      <div key={idx}>{item.itemName} ({item.category || '—'} / {item.quantity || '—'}),</div>
                     ))}
                   </td>
                   {/* <td> */}

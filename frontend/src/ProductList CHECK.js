@@ -26,6 +26,7 @@ const CLICKED_PRODUCTS_API_URL = 'https://raxwo-management.onrender.com/api/clic
 
 const REPAIRS_API_URL = 'https://raxwo-management.onrender.com/api/productsRepair';
 const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments';
+const PAYMENTS_API_URLwithItemcode = 'https://raxwo-management.onrender.com/api/payments/with-itemcodes';
 
 const ProductList = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -75,6 +76,12 @@ const ProductList = ({ darkMode }) => {
 
   const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);  
+
+  const [usedQuantities, setUsedQuantities] = useState({});
+  const [usageLoading, setUsageLoading] = useState(false);
+
+  const [supplierQuantities, setSupplierQuantities] = useState({});
+  const [supplierLoading, setSupplierLoading] = useState(false);
 
   // Get all unique categories from products
   const allCategories = [...new Set(products.map(p => p.category).filter(Boolean))];
@@ -130,7 +137,9 @@ const ProductList = ({ darkMode }) => {
             sellingPrice: product.sellingPrice,
             Supplier:product.Supplier,
             createdAt: product.createdAt,
-            addedBackAt: product.addedBackAt
+            addedBackAt: product.addedBackAt,
+            returnstock: product.returnstock,
+            damagedstock: product.damagedstock
             // Add other fields as needed
           };
         });
@@ -190,6 +199,102 @@ const ProductList = ({ darkMode }) => {
     };
   }, [showCategoryFilter]);
 
+  useEffect(() => {
+    if (products.length > 0) {
+      loadAllUsage();
+      loadSupplierQuantities();
+    }
+  }, [products]);
+
+  // Replace your current `calculateUsedQuantityForItem` and `loadAllUsage` with this:
+
+  const loadAllUsage = async () => {
+    setUsageLoading(true);
+    const usageMap = {};
+
+    try {
+      // 1. Fetch ALL repairs once
+      const repairsRes = await fetch(REPAIRS_API_URL);
+      const repairsList = repairsRes.ok ? await repairsRes.json() : [];
+
+      // 2. Fetch ALL payments with itemCode once
+      const paymentsRes = await fetch(PAYMENTS_API_URLwithItemcode);
+      const allPayments = paymentsRes.ok ? await paymentsRes.json() : [];
+
+      // 3. Aggregate usage from repairs (used + returns)
+      repairsList.forEach(repair => {
+        // Used in repairs
+        (repair.repairCart || []).forEach(item => {
+          if (item.itemCode) {
+            usageMap[item.itemCode] = (usageMap[item.itemCode] || 0) + (item.quantity || 0);
+          }
+        });
+        // Returns from repairs (subtract)
+        // (repair.returnCart || []).forEach(item => {
+        //   if (item.itemCode) {
+        //     usageMap[item.itemCode] = (usageMap[item.itemCode] || 0) - (item.quantity || 0);
+        //   }
+        // });
+      });
+
+      // 4. Aggregate usage from payments
+      allPayments.forEach(payment => {
+        (payment.items || []).forEach(item => {
+          if (item.itemCode) {
+            // Only count if it's a sale (not a return)
+            // In your /with-itemcodes, `quantity` is the sold amount
+            usageMap[item.itemCode] = (usageMap[item.itemCode] || 0) + (item.quantity || 0) - (item.retquantity || 0);
+          }
+        });
+      });
+
+      allPayments.forEach(payment => {
+        (payment.items || []).forEach(item => {
+          if (item.itemCode) {
+            // Only count if it's a sale (not a return)
+            // In your /with-itemcodes, `quantity` is the sold amount
+            usageMap[item.itemCode] = (usageMap[item.itemCode] || 0) + (item.givenQty || 0);
+          }
+        });
+      });
+
+      // 5. Save to state
+      setUsedQuantities(usageMap);
+    } catch (err) {
+      console.error('Failed to load usage data:', err);
+      setUsedQuantities({});
+    } finally {
+      setUsageLoading(false);
+    }
+  };
+
+  const loadSupplierQuantities = async () => {
+    setSupplierLoading(true);
+    const supplierQtyMap = {};
+
+    try {
+      const res = await fetch('https://raxwo-management.onrender.com/api/suppliers');
+      if (!res.ok) throw new Error('Failed to fetch suppliers');
+      const suppliers = await res.json();
+
+      // Loop through all suppliers and their carts
+      suppliers.forEach(supplier => {
+        (supplier.items || []).forEach(item => {
+          if (item.itemCode && item.quantity != null) {
+            supplierQtyMap[item.itemCode] = (supplierQtyMap[item.itemCode] || 0) + item.quantity;
+          }
+        });
+      });
+
+      setSupplierQuantities(supplierQtyMap);
+    } catch (err) {
+      console.error('Error loading supplier quantities:', err);
+      setSupplierQuantities({});
+    } finally {
+      setSupplierLoading(false);
+    }
+  };
+
 
   const formatTrackDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -215,6 +320,10 @@ const ProductList = ({ darkMode }) => {
       const repairsRes = await fetch(REPAIRS_API_URL);
       if (!repairsRes.ok) throw new Error("Failed to fetch repair data");
       const repairsList = await repairsRes.json();
+
+      const paymentRes = await fetch(PAYMENTS_API_URLwithItemcode);
+      if (!paymentRes.ok) throw new Error("Failed to fetch payment data");
+      const paymentList = await paymentRes.json();
 
       const repairsUsed = repairsList
         .filter((repair) =>
@@ -246,6 +355,25 @@ const ProductList = ({ darkMode }) => {
           };
         });
 
+        const payments = paymentList
+        .filter((repair) =>
+          repair.items?.some((cartItem) => cartItem.itemCode === itemCode)
+        )
+        .map((repair) => {
+          const cartItem = repair.items.find((i) => i.itemCode === itemCode);
+          return {
+
+            type: "Payment",
+            invoiceNo: repair.invoiceNumber || "N/A",
+            customerName: repair.customerName || "Unknown",
+            quantity: cartItem?.quantity || 0,
+            retquantity: cartItem?.retquantity || 0,
+            givenQty: cartItem?.givenQty || 0,
+            retalert: repair.returnAlert || 0,
+            date: repair.createdAt ? formatTrackDate(repair.createdAt) : "N/A",
+          };
+        });
+
       // --- Fetch Payments ---
       const paymentsRes = await fetch(
         `${PAYMENTS_API_URL}/track?itemCode=${encodeURIComponent(itemCode)}`
@@ -264,7 +392,7 @@ const ProductList = ({ darkMode }) => {
       }));
 
       // Combine and sort by date (newest first)
-      const usageRecords = [...repairsUsed, ...repairsReturned, ...formattedPaymentsUsed].sort(
+      const usageRecords = [...repairsUsed, ...repairsReturned, ...payments].sort(
         (a, b) => new Date(b.date) - new Date(a.date)
       );
 
@@ -588,12 +716,12 @@ const ProductList = ({ darkMode }) => {
             valueB = b.category || '';
             break;
           case 'buyingPrice':
-            valueA = a.buyingPrice || 0;
-            valueB = b.buyingPrice || 0;
+            valueA = a.returnstock || 0;
+            valueB = b.returnstock || 0;
             break;
           case 'sellingPrice':
-            valueA = a.sellingPrice || 0;
-            valueB = b.sellingPrice || 0;
+            valueA = a.damagedstock || 0;
+            valueB = b.damagedstock || 0;
             break;
           case 'stock':
             valueA = a.stock || 0;
@@ -606,10 +734,6 @@ const ProductList = ({ darkMode }) => {
           case 'supplier':
             valueA = a.Supplier || 0;
             valueB = b.Supplier || 0;
-            break;
-          case 'createdAt':
-            valueA = a.createdAt || 0;
-            valueB = b.createdAt || 0;
             break;
           default:
             return 0;
@@ -1330,21 +1454,21 @@ const ProductList = ({ darkMode }) => {
                   )}
                 </th>
                 <th onClick={() => handleSort('buyingPrice')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'normal', wordBreak: 'break-word'  }}>
-                  Buying Price
+                  Returned
                   {sortConfig.key === 'buyingPrice' && (
                     <span style={{ marginLeft: '8px' }}>
                       {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
                     </span>
                   )}
                 </th>
-                {/* <th onClick={() => handleSort('sellingPrice')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  Selling Price
+                <th onClick={() => handleSort('sellingPrice')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Damaged
                   {sortConfig.key === 'sellingPrice' && (
                     <span style={{ marginLeft: '8px' }}>
                       {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
                     </span>
                   )}
-                </th> */}
+                </th>
                 <th onClick={() => handleSort('stock')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                   Stock
                   {sortConfig.key === 'stock' && (
@@ -1353,6 +1477,9 @@ const ProductList = ({ darkMode }) => {
                     </span>
                   )}
                 </th>
+                <th>Real Balance</th>
+                <th>Used</th>
+                <th>Supplier Qty</th>
                 {/* <th>Supplier</th> */}
                 {/* <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                   Status
@@ -1370,14 +1497,7 @@ const ProductList = ({ darkMode }) => {
                     </span>
                   )}
                 </th>
-                <th onClick={() => handleSort('createdAt')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  Date
-                  {sortConfig.key === 'createdAt' && (
-                    <span style={{ marginLeft: '8px' }}>
-                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
-                    </span>
-                  )}
-                </th>
+                <th>Date</th>
                 {/* <th>Created At</th>
                 <th>Added Back</th> */}
                 <th>Action</th>
@@ -1404,18 +1524,45 @@ const ProductList = ({ darkMode }) => {
                     </td>
                     <td>
                       <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
-                        Rs. {Number(product.buyingPrice).toFixed(2)} 
+                        {(product.returnstock)} 
                       </span>
                     </td>
-                    {/* <td>
+                    <td>
                       <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
-                        Rs. {Number(product.sellingPrice).toFixed(2)} 
+                        {(product.damagedstock)} 
                       </span>
-                    </td> */}
+                    </td>
                     <td>
                       <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
                         {product.stock}
                       </span>
+                    </td>
+                    <td>
+                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
+                        {((supplierQuantities[product.itemCode]||0) - (usedQuantities[product.itemCode]||0) - (product.returnstock||0) - (product.damagedstock||0))} 
+                      </span>
+                    </td>
+                    <td>
+                      {usageLoading ? (
+                        <span>⋯</span>
+                      ) : usedQuantities[product.itemCode] !== undefined ? (
+                        <span style={{ color: product.stock <= 2 ? (product.stock === 0 ? 'red' : '#2957F0') : 'black', fontWeight: 'bold' }}>
+                          {usedQuantities[product.itemCode]}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td>
+                      {supplierLoading ? (
+                        <span>⋯</span>
+                      ) : supplierQuantities[product.itemCode] !== undefined ? (
+                        <span style={{ color: '#1e90ff', fontWeight: 'bold' }}>
+                          {supplierQuantities[product.itemCode]}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     {/* <td>{product.supplierName || 'N/A'}</td> */}
                     {/* <td>
@@ -1428,15 +1575,8 @@ const ProductList = ({ darkMode }) => {
                         {product.Supplier === 'Unknown' ? 'SYSTEM' : product.Supplier }
                       </span>
                     </td>
-                    <td>
-                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold' }}>
-                        {product.createdAt 
-                          ? new Date(product.createdAt).toISOString().split('T')[0].replace(/-/g, '/') 
-                          : 'N/A'}
-                      </span>
-                    </td>
-                    {/*
-                    <td>{product.addedBackAt ? (
+                    <td>{product.createdAt ? new Date(product.createdAt).toLocaleString() : 'N/A'}</td>
+                    {/* <td>{product.addedBackAt ? (
                       <div>
                         <div>{new Date(product.addedBackAt).toLocaleString()}</div>
                         <div style={{ fontSize: '0.8em', color: '#666' }}>
@@ -1551,7 +1691,14 @@ const ProductList = ({ darkMode }) => {
                       <td>{record.type}</td>
                       <td>{record.invoiceNo}</td>
                       <td>{record.customerName}</td>
-                      <td>{record.quantity}</td>
+                      <td>{record.retquantity > 0 ? 
+                            record.givenQty > 0 ? 
+                              `${record.quantity} (Given ${record.givenQty} / Returned: ${record.retquantity})` 
+                              : `${record.quantity} (Returned: ${record.retquantity})` 
+                            : record.type === "Repair Return" ? 
+                              `${record.quantity} (Returned: ${record.quantity})` 
+                              :`${record.quantity}`}
+                      </td>
                       <td>{record.date}</td>
                     </tr>
                   ))}

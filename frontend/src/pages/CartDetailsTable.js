@@ -508,7 +508,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                       <td>{record.type}</td>
                       <td>{record.invoiceNo}</td>
                       <td>{record.customerName}</td>
-                      <td>{record.retalert === "returned" ? `Returned: ${record.retquantity}` : `${record.quantity}`}</td>
+                      <td>{record.retalert === "returned" ? record.givenQty > 0 ? `Given ${record.givenQty} / Returned: ${record.retquantity}` : ` Returned: ${record.retquantity}` : `${record.quantity}`}</td>
                       <td>{record.date}</td>
                     </tr>
                   ))}

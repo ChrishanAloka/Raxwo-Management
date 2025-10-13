@@ -3,6 +3,7 @@ const router = express.Router();
 const Payment = require('../models/Payment');
 const Product = require('../models/Product');
 const Counter = require('../models/Counter');
+const Repair = require("../models/ProductRepair");
 const authMiddleware = require('../middleware/authMiddleware');
 const logActivity = require('../utils/logActivity');
 
@@ -178,6 +179,7 @@ router.get('/track', async (req, res) => {
       const matchedItems = payment.items.filter(item => item.productId.equals(productId));
       const totalQuantityInPayment = matchedItems.reduce((sum, item) => sum + item.quantity, 0);
       const totalRetQuantityInPayment = matchedItems.reduce((sum, item) => sum + item.retquantity, 0);
+      const totalgivenQuantityInPayment = matchedItems.reduce((sum, item) => sum + item.givenQty, 0);
 
       const invoiceNo = payment.invoiceNumber;
       if (usageMap.has(invoiceNo)) {
@@ -187,6 +189,7 @@ router.get('/track', async (req, res) => {
           ...existing,
           quantity: existing.quantity + totalQuantityInPayment,
           retquantity: existing.retquantity + totalRetQuantityInPayment,
+          givenQty: existing.givenQty + totalgivenQuantityInPayment,
           retalert: payment.returnAlert,
         });
       } else {
@@ -197,6 +200,7 @@ router.get('/track', async (req, res) => {
           customerName: payment.customerName || 'Unknown',
           quantity: totalQuantityInPayment,
           retquantity: totalRetQuantityInPayment,
+          givenQty: totalgivenQuantityInPayment,
           retalert: payment.returnAlert,
           date: payment.createdAt
         });
@@ -214,6 +218,106 @@ router.get('/track', async (req, res) => {
   }
 });
 
+// Add this route in your payments (or a new usage) router
+router.get('/track-all', async (req, res) => {
+  try {
+    // Step 1: Fetch all products to map itemCode <-> productId
+    const allProducts = await Product.find({}, 'itemCode');
+    const productMap = {};
+    allProducts.forEach(p => {
+      productMap[p._id.toString()] = p.itemCode;
+    });
+
+    // Step 2: Fetch all payments
+    const payments = await Payment.find(
+      { 'items.productId': { $exists: true, $ne: null } },
+      'items createdAt'
+    ).lean();
+
+    // Step 3: Fetch all repairs (assuming you have a Repair model)
+    const repairs = await Repair.find(
+      { $or: [{ 'repairCart.itemCode': { $exists: true } }, { 'returnCart.itemCode': { $exists: true } }] },
+      'repairCart returnCart createdAt'
+    ).lean();
+
+    // Step 4: Initialize usage accumulator
+    const usageByItemCode = {};
+
+    // Helper to ensure key exists
+    const addUsage = (itemCode, qty) => {
+      if (!usageByItemCode[itemCode]) usageByItemCode[itemCode] = 0;
+      usageByItemCode[itemCode] += qty;
+    };
+
+    // Process payments
+    payments.forEach(payment => {
+      (payment.items || []).forEach(item => {
+        const pid = item.productId?.toString();
+        if (pid && productMap[pid]) {
+          addUsage(productMap[pid], item.quantity || 0);
+        }
+      });
+    });
+
+    // Process repairs (used = positive)
+    repairs.forEach(repair => {
+      (repair.repairCart || []).forEach(item => {
+        if (item.itemCode) {
+          addUsage(item.itemCode, item.quantity || 0);
+        }
+      });
+    });
+
+    // Process repair returns (returned = negative usage)
+    repairs.forEach(repair => {
+      (repair.returnCart || []).forEach(item => {
+        if (item.itemCode) {
+          addUsage(item.itemCode, -(item.quantity || 0)); // subtract returned
+        }
+      });
+    });
+
+    // Optional: Remove zero or negative-only entries? Keep all for consistency.
+    res.json(usageByItemCode);
+  } catch (err) {
+    console.error('Error in /track-all:', err);
+    res.status(500).json({ message: 'Failed to fetch global usage data', error: err.message });
+  }
+});
+
+// In your payments router file (e.g., routes/payments.js)
+
+router.get('/with-itemcodes', async (req, res) => {
+  try {
+    // Step 1: Fetch all products (include buyingPrice and stock)
+    const products = await Product.find().select('_id itemCode category buyingPrice stock').lean();
+    const productMap = new Map(products.map(p => [p._id.toString(), p]));
+
+    // Step 2: Fetch all payments
+    const payments = (await Payment.find().lean().sort({ createdAt: -1 }));
+
+    // Step 3: Enrich each payment item with category, buyingPrice, and stock
+    const enrichedPayments = payments.map(payment => {
+      const enrichedItems = (payment.items || []).map(item => {
+        const product = productMap.get(item.productId?.toString());
+        return {
+          ...item,
+          itemCode: product?.itemCode || 'NoItemCode',
+          category: product?.category || 'Uncategorized',
+          buyingPrice: product?.buyingPrice || 0,
+          stock: product?.stock || 0
+        };
+      });
+      return { ...payment, items: enrichedItems };
+    });
+
+    res.json(enrichedPayments);
+  } catch (error) {
+    console.error('Error in /with-categories:', error);
+    res.status(500).json({ message: 'Failed to fetch payments with categories' });
+  }
+});
+
 // routes/payments.js
 router.get('/with-categories', async (req, res) => {
   try {
@@ -222,7 +326,7 @@ router.get('/with-categories', async (req, res) => {
     const productMap = new Map(products.map(p => [p._id.toString(), p]));
 
     // Step 2: Fetch all payments
-    const payments = await Payment.find().lean();
+    const payments = (await Payment.find().lean().sort({ createdAt: -1 }));
 
     // Step 3: Enrich each payment item with category, buyingPrice, and stock
     const enrichedPayments = payments.map(payment => {
@@ -347,17 +451,25 @@ router.patch('/:id', authMiddleware, async (req, res) => {
         if (update.retquantity !== undefined && item.retquantity !== update.retquantity) {
           const oldVal = formatValue(item.retquantity);
           const newVal = formatValue(update.retquantity);
+          const deltaret = update.retquantity - item.retquantity;
           itemChanges.push(`Item "${item.itemName}" retquantity: ${oldVal} → ${newVal}`);
+
+          if (item.retquantity < update.retquantity) {
+            if (update.productId) {
+              await Product.findByIdAndUpdate(update.productId, { $inc: { returnstock: deltaret } });
+            }
+          }
+          else if (update.retquantity < item.retquantity){
+            if (update.productId) {
+              await Product.findByIdAndUpdate(update.productId, { $inc: { returnstock: deltaret } });
+            }
+          }
           item.retquantity = update.retquantity;
           itemsUpdated = true;
-
-          if (update.productId) {
-            await Product.findByIdAndUpdate(update.productId, { $set: { returnstock: update.retquantity } });
-          }
         }
 
         if (update.givenQty !== undefined) {
-          const delta = update.givenQty;
+          const delta = update.givenQty - item.givenQty;
           if (delta > 0 && update.productId) {
             const product = await Product.findById(update.productId);
             if (!product) {
@@ -367,6 +479,13 @@ router.patch('/:id', authMiddleware, async (req, res) => {
               return res.status(400).json({
                 message: `Insufficient stock for "${item.itemName}". Available: ${product.stock}, Requested: ${delta}`
               });
+            }
+            await Product.findByIdAndUpdate(update.productId, { $inc: { stock: -delta } });
+          }
+          else if (delta < 0 && update.productId){
+            const product = await Product.findById(update.productId);
+            if (!product) {
+              return res.status(404).json({ message: `Product not found for item: ${item.itemName}` });
             }
             await Product.findByIdAndUpdate(update.productId, { $inc: { stock: -delta } });
           }

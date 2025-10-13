@@ -625,6 +625,7 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
 
       const data = await response.json();
       console.log('Payment response:', data); // Debug log
+      alert("Payment Saved");
       setLoading(false);
 
       // ✅ Open the popup immediately (before API call)
@@ -643,7 +644,7 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
         // });
         // popup.document.write(receiptHTML);
         // popup.document.close();
-        generateCustomBill();
+        // generateCustomBill();
 
         alert(`Payment successful!\nTotal: Rs.${totalAmount.toFixed(2)}\nPaid: Rs.${totalPaidNum.toFixed(2)}\nChange: Rs.${(totalPaidNum - totalAmount).toFixed(2)}\nInvoice: ${data.invoiceNumber}`);
         onClose(data.invoiceNumber);

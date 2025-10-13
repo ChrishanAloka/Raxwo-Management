@@ -67,18 +67,18 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
   }, [payment]);
 
   // 🔁 Reset givenQty to 0 if stock becomes 0
-  useEffect(() => {
-    setItemAssignments(prev => 
-      prev.map(item => {
-        const stock = productStocks[item.productId] || 0;
-        // If stock is 0, but givenQty > 0, reset it
-        if (stock === 0 && (item.givenQty || 0) > 0) {
-          return { ...item, givenQty: 0 };
-        }
-        return item;
-      })
-    );
-  }, [productStocks]);
+  // useEffect(() => {
+  //   setItemAssignments(prev => 
+  //     prev.map(item => {
+  //       const stock = productStocks[item.productId] || 0;
+  //       // If stock is 0, but givenQty > 0, reset it
+  //       if (stock === 0 && (item.givenQty || 0) > 0) {
+  //         return { ...item, givenQty: 0 };
+  //       }
+  //       return item;
+  //     })
+  //   );
+  // }, [productStocks]);
 
   // 🧮 Compute totals with givenQty considered
   const { totalAmount, rettotalAmount } = useMemo(() => {
