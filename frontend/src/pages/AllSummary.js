@@ -406,7 +406,7 @@ const AllSummary = ({ darkMode }) => {
       setFilteredSalaries(filtered);
       return;
     }
-
+    
     if (filterType === 'range') {
       if (!startDate || !endDate) {
         setFilteredSalaries(salaries);
@@ -488,7 +488,7 @@ const AllSummary = ({ darkMode }) => {
       setFilteredMaintenance(filtered);
       return;
     }
-
+    
     if (filterType === 'range') {
       if (!startDate || !endDate) {
         setFilteredMaintenance(maintenance);
@@ -577,14 +577,26 @@ const AllSummary = ({ darkMode }) => {
       return false;
     };
 
+    
+
     const matchesPaymentMethod = (record) => {
       if (!paymentMethodFilter) return true;
-      if (Array.isArray(record.paymentBreakdown)) {
-        return record.paymentBreakdown.some(pb => 
-          pb.method?.toLowerCase() === paymentMethodFilter.toLowerCase()
+        // console.log("🔍 Checking record:", record._id);
+        // console.log("   paymentMethod:", record.paymentMethod);
+        // console.log("   paymentBreakdown:", record.paymentBreakdown);
+        // console.log("   Filter:", paymentMethodFilter);
+      if (Array.isArray(record.paymentBreakdown) && record.paymentBreakdown.length > 0) {
+        const hasMatch = record.paymentBreakdown.some(pb => 
+          pb?.method?.toLowerCase() === paymentMethodFilter.toLowerCase()
         );
+        // console.log("   → Match result (from paymentBreakdown):", hasMatch);
+        return hasMatch;
       }
-      return record.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase();
+      else{
+        const match = record.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase();
+        // console.log("   → Match result (from paymentMethod):", match);
+        return match;
+      }
     };
 
     const matchesAssignee = (record) => {
@@ -675,9 +687,9 @@ const AllSummary = ({ darkMode }) => {
 
     const matchesPaymentMethod = (record) => {
       if (!paymentMethodFilter) return true;
-      if (Array.isArray(record.paymentBreakdown)) {
+      if (Array.isArray(record.paymentBreakdown) && record.paymentBreakdown.length > 0) {
         return record.paymentBreakdown.some(pb => 
-          pb.method?.toLowerCase() === paymentMethodFilter.toLowerCase()
+          pb?.method?.toLowerCase() === paymentMethodFilter.toLowerCase()
         );
       }
       return record.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase();
@@ -696,6 +708,7 @@ const AllSummary = ({ darkMode }) => {
       setFilteredExtraIncome(filtered);
       return;
     }
+    
 
     if (filterType === 'range') {
       if (!startDate || !endDate) {
@@ -761,9 +774,9 @@ const AllSummary = ({ darkMode }) => {
     
     const matchesPaymentMethod = (record) => {
       if (!paymentMethodFilter) return true;
-      if (Array.isArray(record.paymentMethods)) {
+      if (Array.isArray(record.paymentMethods) && record.paymentMethods.length > 0) {
         return record.paymentMethods.some(pm => 
-          pm?.toLowerCase() === paymentMethodFilter.toLowerCase()
+          pm?.method?.toLowerCase() === paymentMethodFilter.toLowerCase()
         );
       }
       return record.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase();
@@ -787,7 +800,7 @@ const AllSummary = ({ darkMode }) => {
       filtered = filtered.filter(matchesCategory);
       setFilteredPayments(filtered);
       return;
-    }
+    }    
 
     if (filterType === 'range') {
       if (!startDate || !endDate) {
@@ -902,7 +915,7 @@ const AllSummary = ({ darkMode }) => {
 
 
   const totalCash = filteredPayments.reduce((sum, payment) => {
-    if (Array.isArray(payment.paymentMethods)) {
+    if (Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0) {
       // Sum only Cash amounts from split payments
       const cashAmount = payment.paymentMethods
         .filter(pm => pm.method?.toLowerCase() === 'cash')
@@ -916,7 +929,7 @@ const AllSummary = ({ darkMode }) => {
   }, 0);
 
   const totalCard = filteredPayments.reduce((sum, payment) => {
-    if (Array.isArray(payment.paymentMethods)) {
+    if (Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0) {
       const cardAmount = payment.paymentMethods
         .filter(pm => pm.method?.toLowerCase() === 'card')
         .reduce((acc, pm) => acc + (pm.amount || 0), 0);
@@ -928,7 +941,7 @@ const AllSummary = ({ darkMode }) => {
   }, 0);
 
   const totalBankTransfer = filteredPayments.reduce((sum, payment) => {
-    if (Array.isArray(payment.paymentMethods)) {
+    if (Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0) {
       const cardAmount = payment.paymentMethods
         .filter(pm => pm.method?.toLowerCase() === 'bank-transfer')
         .reduce((acc, pm) => acc + (pm.amount || 0), 0);
@@ -944,7 +957,7 @@ const AllSummary = ({ darkMode }) => {
   //   .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
 
   const totalBankCheck = filteredPayments.reduce((sum, payment) => {
-    if (Array.isArray(payment.paymentMethods)) {
+    if (Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0) {
       const checkAmount = payment.paymentMethods
         .filter(pm => pm.method?.toLowerCase() === 'bank-check')
         .reduce((acc, pm) => acc + (pm.amount || 0), 0);
@@ -957,9 +970,22 @@ const AllSummary = ({ darkMode }) => {
 
   const totalExpenses = totalSalaryExpenses + totalMaintenanceExpenses + totalSupplierPayments;
 
-  const totalRepairIncome = filteredRepairs.reduce((sum, repair) => {
-    return sum + (repair.totalAdditionalServicesAmount + repair.checkingCharge + repair.totalRepairCost - repair.totalDiscountAmount || 0);
-  }, 0);
+  // const totalRepairIncomewithoutReturned = filteredRepairs.reduce((sum, repair) => {
+  //   return sum + (repair.totalAdditionalServicesAmount + repair.checkingCharge + repair.totalRepairCost - repair.totalDiscountAmount || 0);
+  // }, 0);
+
+  const totalRepairIncomewithoutReturned =  filteredRepairs.reduce((sum, repair) => {
+    let cashAmount = 0;
+    if (Array.isArray(repair.paymentBreakdown) && repair.paymentBreakdown.length > 0) {
+      // Sum cash amounts from paymentBreakdown
+      cashAmount = repair.paymentBreakdown
+        .reduce((acc, pb) => acc + (pb.amount || 0), 0);
+    } else {
+      // Fallback to full amount
+      cashAmount = repair.checkingCharge + repair.totalRepairCost + repair.totalAdditionalServicesAmount - repair.totalDiscountAmount;
+    }
+    return sum + cashAmount;
+  }, 0)
 
   // const totalPayments = filteredPayments
   //   .reduce((sum, payment) => {
@@ -973,7 +999,7 @@ const AllSummary = ({ darkMode }) => {
   //   }, 0);
 
   const totalPayments = filteredPayments.reduce((sum, payment) => {
-    if (Array.isArray(payment.paymentMethods)) {
+    if (Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0) {
       // Sum all non-credit methods
       const nonCreditAmount = payment.paymentMethods
         .filter(pm => pm.method?.toLowerCase() !== 'refund')
@@ -1009,7 +1035,7 @@ const AllSummary = ({ darkMode }) => {
 
   // Helper: Is a repair paid on credit?
   const isRepairOnCredit = (repair) => {
-    if (Array.isArray(repair.paymentBreakdown)) {
+    if (Array.isArray(repair.paymentBreakdown) && repair.paymentBreakdown.length > 0) {
       return repair.paymentBreakdown.some(pb => 
         pb.method?.toLowerCase() === 'credit'
       );
@@ -1019,7 +1045,7 @@ const AllSummary = ({ darkMode }) => {
 
   // Helper: Is a payment on credit?
   const isPaymentOnCredit = (payment) => {
-    if (Array.isArray(payment.paymentMethods)) {
+    if (Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0) {
       return payment.paymentMethods.some(pm => 
         pm.method?.toLowerCase() === 'credit'
       );
@@ -1029,7 +1055,7 @@ const AllSummary = ({ darkMode }) => {
 
   // Helper: Is an extra income record paid on credit?
   const isExtraIncomeOnCredit = (record) => {
-    if (Array.isArray(record.paymentBreakdown)) {
+    if (Array.isArray(record.paymentBreakdown) && record.paymentBreakdown.length > 0) {
       return record.paymentBreakdown.some(pb => 
         pb.method?.toLowerCase() === 'credit'
       );
@@ -1049,7 +1075,7 @@ const AllSummary = ({ darkMode }) => {
     }, 0);
 
   const totalCredit = filteredPayments.reduce((sum, payment) => {
-    if (Array.isArray(payment.paymentMethods)) {
+    if (Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0) {
       const creditAmount = payment.paymentMethods
         .filter(pm => pm.method?.toLowerCase() === 'credit')
         .reduce((acc, pm) => acc + (pm.amount || 0), 0);
@@ -1068,9 +1094,7 @@ const AllSummary = ({ darkMode }) => {
     return sum + calculateCartTotal(repair.repairCart);
   }, 0);
 
-  const totalIncome = totalRepairIncome + totalPayments + totalExtraIncome ;
-
-  const totalCreditIncome = creditRepairs + totalCredit + totalExtraCreditIncome ;
+  
 
   // Returned Extra Income: where returnAlert === "returned"
   const returnedExtraIncome = filteredExtraIncome.filter(ei => 
@@ -1091,8 +1115,8 @@ const AllSummary = ({ darkMode }) => {
 
   // Total returned amount = sum of (totalAmount - serviceCharge)
   const totalReturnedPayments = returnedPayments.reduce((sum, p) => {
-    const totalAmount = p.totalAmount || 0;
-    const serviceCharge = p.serviceCharge || 0;
+    const totalAmount = p.rettotalAmount || 0;
+    const serviceCharge = 0;
     return sum + (totalAmount - serviceCharge);
   }, 0);
 
@@ -1165,9 +1189,15 @@ const AllSummary = ({ darkMode }) => {
     }, 0)
   , 0);
 
+  const totalRepairIncome = totalRepairIncomewithoutReturned + totalReturnedRepairs;
+
+  const totalIncome = totalRepairIncome + totalPayments + totalExtraIncome ;
+
+  const totalCreditIncome = creditRepairs + totalCredit + totalExtraCreditIncome ;
+
   const totalReturnRefund = totalReturnedRepairs + totalReturnedExtraIncome + totalReturnedPayments;
   
-  const netProfit = totalIncome - totalExpenses;
+  const netProfit = totalIncome - totalExpenses - totalReturnRefund - totalCreditIncome;
   
   // 🔹 Calculate Cash Inflows (only 'Cash' payments)
   // const cashInflows = [
@@ -1193,11 +1223,12 @@ const AllSummary = ({ darkMode }) => {
   //   return sum;
   // }, 0);
 
-  const cashInflows = 
+  const cashInflows =   
+    
   // 1. Repairs paid in cash
-  filteredRepairs.reduce((sum, repair) => {
+  repairs.reduce((sum, repair) => {
     let cashAmount = 0;
-    if (Array.isArray(repair.paymentBreakdown)) {
+    if (Array.isArray(repair.paymentBreakdown) && repair.paymentBreakdown.length > 0) {
       // Sum cash amounts from paymentBreakdown
       cashAmount = repair.paymentBreakdown
         .filter(pb => pb.method?.toLowerCase() === 'cash')
@@ -1209,38 +1240,31 @@ const AllSummary = ({ darkMode }) => {
     return sum + cashAmount;
   }, 0) -
 
-  filteredRepairs.reduce((sum, repair) => {
+  repairs.reduce((sum, repair) => {
     let cashAmount = 0;
-    if (Array.isArray(repair.paymentBreakdown)) {
-      // Sum cash amounts from paymentBreakdown
-      cashAmount = repair.paymentBreakdown
-        .filter(pb => pb.method?.toLowerCase() === 'cash')
-        .reduce((acc, pb) => acc + (pb.amount || 0), 0);
-    } else if (repair.paymentMethod?.toLowerCase() === 'cash') {
-      // Fallback to full amount
-      cashAmount =  repair.totalReturnCost + repair.rettotalAdditionalServicesAmount;
-    }
+    cashAmount =  repair.totalReturnCost + repair.rettotalAdditionalServicesAmount
     return sum + cashAmount;
   }, 0) +
   
   // 2. Payments paid in cash
-  filteredPayments.reduce((sum, payment) => {
+  payments.reduce((sum, payment) => {
     let cashAmount = 0;
-    if (Array.isArray(payment.paymentMethods)) {
+    
+    if (Array.isArray(payment.paymentMethods) && payment.paymentMethods.length > 0) {
       // Sum cash amounts from paymentMethods
       cashAmount = payment.paymentMethods
         .filter(pm => pm.method?.toLowerCase() === 'cash')
         .reduce((acc, pm) => acc + (pm.amount || 0), 0);
     } else if (payment.paymentMethod?.toLowerCase() === 'cash') {
       // Fallback to totalAmount (exclude refunds)
-      if (payment.paymentMethod?.toLowerCase() !== 'refund') {
+      if (payment.paymentMethod?.toLowerCase() === 'cash') {
         cashAmount = payment.totalAmount || 0;
       }
     }
     return sum + cashAmount;
   }, 0) -
 
-   filteredPayments.reduce((sum, payment) => {
+   payments.reduce((sum, payment) => {
     let cashAmount = 0;
     if (payment.returnAlert === "returned") {
       // Sum cash amounts from paymentMethods
@@ -1250,9 +1274,9 @@ const AllSummary = ({ darkMode }) => {
   }, 0) +
   
   // 3. Extra Income received in cash
-  filteredExtraIncome.reduce((sum, ei) => {
+  extraIncome.reduce((sum, ei) => {
     let cashAmount = 0;
-    if (Array.isArray(ei.paymentBreakdown)) {
+    if (Array.isArray(ei.paymentBreakdown) && ei.paymentBreakdown.length > 0 ) {
       // Sum cash amounts from paymentBreakdown
       cashAmount = ei.paymentBreakdown
         .filter(pb => pb.method?.toLowerCase() === 'cash')
@@ -1264,7 +1288,7 @@ const AllSummary = ({ darkMode }) => {
     return sum + cashAmount;
   }, 0) - 
 
-  filteredExtraIncome.reduce((sum, ei) => {
+  extraIncome.reduce((sum, ei) => {
     let cashAmount = 0;
     if (ei.returnAlert === "returned") {
       // Sum cash amounts from paymentMethods
@@ -1277,11 +1301,11 @@ const AllSummary = ({ darkMode }) => {
   // 🔹 Calculate Cash Outflows (only 'Cash' expenses)
   const cashOutflows = [
     // 1. Salaries paid in cash
-    ...filteredSalaries.filter(s => s.paymentMethod?.toLowerCase() === 'cash'),
+    ...salaries.filter(s => s.paymentMethod?.toLowerCase() === 'cash'),
     // 2. Maintenance paid in cash
-    ...filteredMaintenance.filter(m => m.paymentMethod?.toLowerCase() === 'cash'),
+    ...maintenance.filter(m => m.paymentMethod?.toLowerCase() === 'cash'),
     // 3. Supplier Payments made in cash
-    ...filteredSupplierPayments.filter(sp => sp.paymentMethod?.toLowerCase() === 'cash')
+    ...supplierPayments.filter(sp => sp.paymentMethod?.toLowerCase() === 'cash')
   ]
   .reduce((sum, expense) => {
     return sum + (expense.advance || expense.price || Number(expense.currentPayment || 0));
@@ -2743,10 +2767,10 @@ const AllSummary = ({ darkMode }) => {
                 </tr>
               </thead>
               <tbody>
-                {filteredRepairs.filter(p => p.paymentMethod?.toLowerCase() === 'credit').length === 0 ? (
+                {filteredRepairs.filter(isRepairOnCredit).length === 0 ? (
                   <tr><td colSpan={11} className="no-products">No income found.</td></tr>
                 ) : (
-                  filteredRepairs.filter(p => p.paymentMethod?.toLowerCase() === 'credit').map((r, idx) => (
+                  filteredRepairs.filter(isRepairOnCredit).map((r, idx) => (
                     <tr key={r._id || idx}>
                       <td>{r.repairInvoice || r.repairCode || '-'}</td>
                       <td>{r.customerName || '-'}</td>
@@ -3004,8 +3028,17 @@ const AllSummary = ({ darkMode }) => {
                         <td>{p.invoiceNumber || '-'}</td>
                         <td style={{ color: '#000' }}>Rs. {originalAmount.toFixed(2)}</td>
                         <td style={{ color: '#d32f2f' }}>Rs. {serviceCharge.toFixed(2)}</td>
-                        <td style={{ color: '#1976d2', fontWeight: 'bold' }}>Rs. {returnedAmount.toFixed(2)}</td>
-                        <td>{p.items.map(item => item.itemName).join(', ')}</td>
+                        <td style={{ color: '#1976d2', fontWeight: 'bold' }}>Rs. {p.rettotalAmount.toFixed(2)}</td>
+                        <td style={{ 
+                            whiteSpace: 'normal', 
+                            wordWrap: 'break-word', 
+                            maxWidth: '200px' // optional: limit width to force wrap
+                          }}>
+                            {p.items
+                          .filter(item => item.retquantity > 0 && !(item.givenQty > 0))
+                          .map(item => `${item.itemName} (${item.category || 'No Category'})`)
+                          .join(', ')}
+                        </td>
                       </tr>
                     );
                   })
@@ -3050,7 +3083,11 @@ const AllSummary = ({ darkMode }) => {
                       <tr key={repair._id || idx}>
                         <td>{repair.repairInvoice || repair.repairCode || '-'}</td>
                         <td>{repair.customerName || '-'}</td>
-                        <td>
+                        <td style={{ 
+                            whiteSpace: 'normal', 
+                            wordWrap: 'break-word', 
+                            maxWidth: '200px' // optional: limit width to force wrap
+                          }}>
                           {Array.isArray(repair.returnCart) && repair.returnCart.length > 0 ? (
                             repair.returnCart.map((item, i) => (
                               <div key={i}>
@@ -3060,7 +3097,11 @@ const AllSummary = ({ darkMode }) => {
                             ))
                           ) : '—'}
                         </td>
-                        <td>
+                        <td style={{ 
+                            whiteSpace: 'normal', 
+                            wordWrap: 'break-word', 
+                            maxWidth: '200px' // optional: limit width to force wrap
+                          }}>
                           {Array.isArray(repair.returnedadditionalServices) && repair.returnedadditionalServices.length > 0 ? (
                             repair.returnedadditionalServices.map((svc, i) => (
                               <div key={i}>{svc.serviceName}: Rs. {svc.serviceAmount}</div>

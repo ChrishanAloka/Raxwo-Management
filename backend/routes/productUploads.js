@@ -23,6 +23,17 @@ const upload = multer({
   }
 });
 
+function getTimestamp() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const h = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  return `${y}${m}${d}${h}${min}${s}`;
+}
+
 // POST /api/product-uploads/bulk-upload
 router.post('/bulk-upload', authMiddleware, upload.single('file'), async (req, res) => {
   try {
@@ -101,7 +112,8 @@ router.post('/bulk-upload', authMiddleware, upload.single('file'), async (req, r
         const itemNameNoSpaces = item.itemName.replace(/\s+/g, ''); // remove spaces
         const itemNameCode = itemNameNoSpaces.slice(0, 4).toUpperCase(); // first 4 letters
 
-        let baseCode = `Ite${categoryCode}${itemNameCode}`;
+        const timestamp = getTimestamp(); // e.g. "20251011175055"
+        let baseCode = `Ite${categoryCode}${itemNameCode}${timestamp}`;
         let counter = 1;
         let candidate = baseCode + String(counter).padStart(2, '0');
 

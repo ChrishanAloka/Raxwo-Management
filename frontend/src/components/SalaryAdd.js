@@ -133,6 +133,7 @@ const SalaryAdd = ({ isOpen, onClose, refreshSalaries, darkMode }) => {
                 name="advance"
                 value={salary.advance}
                 onChange={handleChange}
+                onFocus={(e) => e.target.select()}
                 required
                 min="0"
                 step="0.01"

@@ -242,6 +242,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
                   max={availableStock}
                   onWheel={(e) => e.target.blur()}
                   value={itemData.returnstock}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => handleItemChange(index, 'returnstock', e.target.value)}
                   placeholder="0"
                   required

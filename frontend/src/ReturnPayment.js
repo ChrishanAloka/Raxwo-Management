@@ -265,10 +265,10 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
               <label className={`edit-label ${darkMode ? "dark" : ""}`}>INVOICE NUMBER</label>
               <input className={`edit-input ${darkMode ? "dark" : ""}`} value={formData.invoiceNumber} readOnly />
             </div>
-            <div className="right-column">
+            {/* <div className="right-column">
               <label className={`edit-label ${darkMode ? "dark" : ""}`}>PAYMENT METHOD</label>
               <input className={`edit-input ${darkMode ? "dark" : ""}`} value={formData.paymentMethod} readOnly />
-            </div>
+            </div> */}
           </div>
 
           {/* Items Table */}
@@ -297,6 +297,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                           min="0"
                           max={item.quantity}
                           value={item.retquantity}
+                          onFocus={(e) => e.target.select()}
                           onWheel={(e) => e.target.blur()}
                           onChange={(e) => handleItemChange(item._id, 'retquantity', e.target.value)}
                           className={`edit-input small-input ${darkMode ? "dark" : ""}`}
@@ -310,6 +311,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                             <>
                               <input
                                 type="number"
+                                onFocus={(e) => e.target.select()}
                                 onWheel={(e) => e.target.blur()}
                                 min="0"
                                 max={Math.min(productStocks[item.productId], item.retquantity || 0)}

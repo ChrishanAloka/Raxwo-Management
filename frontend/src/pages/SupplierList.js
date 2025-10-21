@@ -332,12 +332,29 @@ const SupplierList = ({ darkMode }) => {
     const businessName = normalize(supplier.businessName);
     const phoneNumber = normalize(supplier.phoneNumber);
 
+    const matchesStandard =
+      supplierName.includes(query) ||
+      businessName.includes(query) ||
+      phoneNumber.includes(query);
+
+    // If standard match, include
+    if (matchesStandard) return true;
+
+    // Otherwise, check if any item in supplier.items has grnNumber matching query
+    if (Array.isArray(supplier.items)) {
+      return supplier.items.some(item =>
+        normalize(item.grnNumber).includes(query)
+      );
+    }
+
+    return false;
+
     // Check if each query word matches *anywhere* in either field
-    return queryWords.every(word =>
-      supplierName.includes(word) ||
-      businessName.includes(word) ||
-      phoneNumber.includes(word)
-    );
+    // return queryWords.every(word =>
+    //   supplierName.includes(word) ||
+    //   businessName.includes(word) ||
+    //   phoneNumber.includes(word)
+    // );
   }); 
 
   const handleClearSearch = () => {

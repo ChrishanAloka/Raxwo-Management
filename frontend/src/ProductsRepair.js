@@ -3231,6 +3231,11 @@ const ProductRepairList = ({ darkMode }) => {
               </div>
 
               <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
+                <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Payment Method:</strong>
+                <span style={{ color: darkMode ? "#fff" : "#333" }}>{selectedRepair.paymentMethod}</span>
+              </div>
+
+              <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
                 <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Repair Status:</strong>
                 <select
                   value={selectedRepair.repairStatus}
@@ -3518,6 +3523,7 @@ const ProductRepairList = ({ darkMode }) => {
                               type="number"
                               step="0.01"
                               min="0"
+                              onFocus={(e) => e.target.select()}
                               defaultValue={item.sellingPrice || 0}
                               onWheel={(e) => e.target.blur()}
                               onBlur={(e) => {
@@ -3836,6 +3842,7 @@ const ProductRepairList = ({ darkMode }) => {
                         name="discountAmount"
                         min="0"
                         value={newService.discountAmount}
+                        onFocus={(e) => e.target.select()}
                         onWheel={(e) => e.target.blur()}
                         onChange={handleNewServiceChange}
                         style={{
@@ -4153,6 +4160,7 @@ const ProductRepairList = ({ darkMode }) => {
                         type="number"
                         name="serviceAmount"
                         min="0"
+                        onFocus={(e) => e.target.select()}
                         onWheel={(e) => e.target.blur()}
                         value={newAdditionalService.serviceAmount}
                         onChange={handleNewAdditionalServiceChange}
@@ -4562,6 +4570,7 @@ const ProductRepairList = ({ darkMode }) => {
                       step="0.01"
                       placeholder="Amount"
                       value={entry.amount}
+                      onFocus={(e) => e.target.select()}
                       onWheel={(e) => e.target.blur()}
                       onChange={(e) => {
                         const newBreakdown = [...paymentBreakdown];
@@ -4875,6 +4884,7 @@ const ProductRepairList = ({ darkMode }) => {
                             type="number"
                             step="0.01"
                             min="0"
+                            onFocus={(e) => e.target.select()}
                             onWheel={(e) => e.target.blur()}
                             value={item.sellingPrice || ""}
                             onChange={(e) => {
@@ -4964,6 +4974,7 @@ const ProductRepairList = ({ darkMode }) => {
                           <input
                             type="number"
                             min="0"
+                            onFocus={(e) => e.target.select()}
                             max={item.maxQuantity}
                             value={item.quantity}
                             onWheel={(e) => e.target.blur()}

@@ -112,6 +112,7 @@ const BankPassbookAdd = ({ onClose, onUpdate, darkMode }) => {
             value={amount}
             onWheel={(e) => e.target.blur()}
             onChange={(e) => setAmount(e.target.value)}
+            onFocus={(e) => e.target.select()}
             placeholder="Enter amount"
             required
           />

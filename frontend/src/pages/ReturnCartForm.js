@@ -230,6 +230,7 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
                   className={`pro-edit-input ${darkMode ? 'dark' : ''}`}
                   type="number"
                   min="0"
+                  onFocus={(e) => e.target.select()}
                   max={availableStock}
                   onWheel={(e) => e.target.blur()}
                   value={itemData.returnstock}

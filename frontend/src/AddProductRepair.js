@@ -709,6 +709,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
                 name="checkingCharge"
                 value={formData.checkingCharge}
                 onChange={handleChange}
+                onFocus={(e) => e.target.select()}
                 onWheel={(e) => e.target.blur()}
                 min="0"
                 step="0.01"

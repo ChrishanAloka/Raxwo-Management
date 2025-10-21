@@ -524,6 +524,7 @@ const Payment = ({ darkMode }) => {
                     <input
                       type="number"
                       min="1"
+                      onFocus={(e) => e.target.select()}
                       onWheel={(e) => e.target.blur()}
                       value={item.quantity}
                       onChange={(e) => handleQuantityChange(index, e.target.value)}
@@ -535,9 +536,11 @@ const Payment = ({ darkMode }) => {
                       type="number"
                       step="0.01"
                       min="0"
+                      placeholder="0.00"
                       onWheel={(e) => e.target.blur()}
                       value={item.sellingPrice}
-                      onChange={(e) => handlePriceChange(index, parseFloat(e.target.value))}
+                      onChange={(e) => {handlePriceChange(index, parseFloat(e.target.value))}}
+                      onFocus={(e) => e.target.select()}
                       className={`price-input ${darkMode ? 'dark' : ''}`}
                       style={{ width: "90px", padding: "4px", textAlign: "center" }}
                     />
@@ -549,6 +552,7 @@ const Payment = ({ darkMode }) => {
                       onWheel={(e) => e.target.blur()}
                       value={item.discount}
                       onChange={(e) => applyDiscount(index, e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       className={darkMode ? 'dark' : ''}
                     />
                   </td>

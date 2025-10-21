@@ -235,6 +235,17 @@ router.delete('/:id', authMiddleware, getSupplier, async (req, res) => {
   }
 });
 
+function getFormattedTimestamp() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0'); // months are 0-indexed
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${year}${month}${day}${hours}${minutes}${seconds}`;
+}
+
 // POST: Add an item to a supplier's cart
 router.post('/:id/items', authMiddleware, getSupplier, async (req, res) => {
 
@@ -244,7 +255,9 @@ router.post('/:id/items', authMiddleware, getSupplier, async (req, res) => {
     const itemNameNoSpaces = resitem.itemName.replace(/\s+/g, ''); // remove spaces
     const itemNameCode = itemNameNoSpaces.slice(0, 4).toUpperCase(); // first 4 letters
 
-    const baseCode = `Ite${categoryCode}${itemNameCode}${Date.now().toString().slice(-3)}`;
+    const timestamp = getFormattedTimestamp();
+    // const baseCode = `Ite${categoryCode}${itemNameCode}${Date.now().toString().slice(-3)}`;
+    const baseCode = `Ite${categoryCode}${itemNameCode}${timestamp}`;
     let counter = 1;
     let candidate = baseCode + String(counter).padStart(2, '0');
 
@@ -541,6 +554,15 @@ router.delete('/:id/items/:itemIndex', authMiddleware, getSupplier, async (req, 
 router.post('/:id/payments', authMiddleware, getSupplier, async (req, res) => {
   const { paymentAmount, paymentMethod, assignedTo, returnedProductsValue, grnNumber, description, paymentDate} = req.body;
 
+  // Validate paymentDate if provided
+  let parsedPaymentDate;
+  if (paymentDate) {
+    parsedPaymentDate = new Date(paymentDate);
+    if (isNaN(parsedPaymentDate.getTime())) {
+      return res.status(400).json({ message: 'Invalid paymentDate format' });
+    }
+  }
+  
   if (typeof paymentAmount !== 'number' || paymentAmount <= 0) {
     return res.status(400).json({ message: 'Payment amount must be a positive number' });
   }
@@ -579,6 +601,7 @@ router.post('/:id/payments', authMiddleware, getSupplier, async (req, res) => {
   
 
   const paymenthistory = {
+    date: parsedPaymentDate || new Date(),
     uptodateCost: amountDue || 0,
     currentPayment: paymentAmount || 0,
     amountDue: amountDue - paymentAmount,

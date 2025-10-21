@@ -154,6 +154,7 @@ const EditProduct = ({ product, closeModal, darkMode, showGRN }) => {
                 name="stock"
                 value={formData.stock}
                 onChange={handleChange}
+                onFocus={(e) => e.target.select()}
                 onWheel={(e) => e.target.blur()}
                 required
                 min="0"
@@ -167,6 +168,7 @@ const EditProduct = ({ product, closeModal, darkMode, showGRN }) => {
                 name="buyingPrice"
                 value={formData.buyingPrice}
                 onChange={handleChange}
+                onFocus={(e) => e.target.select()}
                 onWheel={(e) => e.target.blur()}
                 required
                 min="0"
@@ -179,6 +181,7 @@ const EditProduct = ({ product, closeModal, darkMode, showGRN }) => {
                 name="sellingPrice"
                 value={formData.sellingPrice}
                 onChange={handleChange}
+                onFocus={(e) => e.target.select()}
                 onWheel={(e) => e.target.blur()}
                 required
                 min="0"

@@ -140,6 +140,7 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
             type="number"
             className={`me-input ${darkMode ? "dark" : ""}`}
             value={editedRecord.price}
+            onFocus={(e) => e.target.select()}
             onWheel={(e) => e.target.blur()}
             onChange={(e) => setEditedRecord({ ...editedRecord, price: e.target.value })}
             required

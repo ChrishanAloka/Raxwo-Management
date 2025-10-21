@@ -436,6 +436,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
                     <input
                       type="number"
                       min="1"
+                      onFocus={(e) => e.target.select()}
                       value={item.quantity}
                       onChange={(e) => handleQuantityChange(index, e.target.value)}
                       onWheel={(e) => e.target.blur()}
@@ -447,6 +448,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
                       type="number"
                       min="0"
                       step="0.01"
+                      onFocus={(e) => e.target.select()}
                       value={item.returnPrice}
                       onWheel={(e) => e.target.blur()}
                       onChange={(e) => {

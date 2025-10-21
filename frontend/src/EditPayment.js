@@ -298,16 +298,18 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                     <option value="Bank-Transfer">Bank Transfer</option>
                     <option value="Bank-Check">Bank Check</option>
                     <option value="Credit">Credit</option>
-                    <option value="PayHere">PayHere</option>
+                    {/* <option value="PayHere">PayHere</option>
                     <option value="Genie">Genie</option>
                     <option value="mCash">mCash</option>
-                    <option value="Other">Other</option>
+                    <option value="Other">Other</option> */}
                   </select>
                   <input
                     type="number"
                     step="0.01"
                     placeholder="Amount"
                     value={pm.amount}
+                    onFocus={(e) => e.target.select()}
+                    onWheel={(e) => e.target.blur()}
                     onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
                     className={`edit-input ${darkMode ? "dark" : ""}`}
                     style={{ width: '120px' }}
@@ -380,6 +382,7 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                           type="number"
                           step="0.01"
                           min="0"
+                          onWheel={(e) => e.target.blur()}
                           value={item.discount}
                           className={`edit-input ${darkMode ? "dark" : ""}`}
                           style={{ width: '80px' }}

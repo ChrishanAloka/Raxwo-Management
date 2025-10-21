@@ -1433,7 +1433,6 @@ const ProductList = ({ darkMode }) => {
                         {product.createdAt 
                           ? new Date(product.createdAt).toISOString().split('T')[0].replace(/-/g, '/') 
                           : 'N/A'}
-                          
                       </span>
                     </td>
                     {/*

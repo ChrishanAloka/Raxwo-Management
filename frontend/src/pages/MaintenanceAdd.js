@@ -128,6 +128,7 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
             className={`madd-input ${darkMode ? "dark" : ""}`}
             type="number"
             value={price}
+            onFocus={(e) => e.target.select()}
             onWheel={(e) => e.target.blur()}
             onChange={(e) => setPrice(e.target.value)}
             required

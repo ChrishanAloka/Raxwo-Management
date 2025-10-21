@@ -143,7 +143,7 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
             returnedValue,
             totalDiscounts: totalDiscs,
             isPaid: false,
-            isDisabled: false,
+            isDisabled: isPaid,
           };
         });
 
@@ -245,6 +245,23 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
   const totalPayments = paymentHistory || 0;
   const totalAmountDue = (totalCost || 0) - (totalPayments || 0) - (returnedProductsValue || 0) - (discounts || 0);
   const remainingDue = (totalAmountDue || 0) - (parseFloat(paymentAmount) || 0);
+
+  // ====== NEW: Calculate paid amounts per category ======
+const paidForItems = supplier.paymentHistory
+  .filter(p => 
+    p.grnNumber && 
+    p.grnNumber !== '__PAST_PAYMENT__' && 
+    p.grnNumber !== '__REPAIR_SERVICE__'
+  )
+  .reduce((sum, p) => sum + parseFloat(p.currentPayment || 0), 0);
+
+const paidForRepairServices = supplier.paymentHistory
+  .filter(p => p.grnNumber === '__REPAIR_SERVICE__')
+  .reduce((sum, p) => sum + parseFloat(p.currentPayment || 0), 0);
+
+const paidForPastPayments = supplier.paymentHistory
+  .filter(p => p.grnNumber === '__PAST_PAYMENT__')
+  .reduce((sum, p) => sum + parseFloat(p.currentPayment || 0), 0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -367,9 +384,18 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
               borderRadius: '6px',
               fontSize: '0.95rem'
             }}>
-              <div><strong>Items Cost:</strong> {totalitemCost.toFixed(2)}</div>
-              <div><strong>Repair Services Cost:</strong> Rs. {pastcharges.toFixed(2)}</div>
-              <div><strong>Past Payments:</strong> Rs. {repairServicecharges.toFixed(2)}</div>
+              <div>
+                <strong>Items Cost:</strong> {totalitemCost.toFixed(2)}
+                {paidForItems > 0 && <span style={{ color: '#38a169' }}> (Paid: Rs. {paidForItems.toFixed(2)})</span>}
+              </div>
+              <div>
+                <strong>Repair Services Cost:</strong> Rs. {pastcharges.toFixed(2)}
+                {paidForRepairServices > 0 && <span style={{ color: '#38a169' }}> (Paid: Rs. {paidForRepairServices.toFixed(2)})</span>}
+              </div>
+              <div>
+                <strong>Past Payments:</strong> Rs. {repairServicecharges.toFixed(2)}
+                {paidForPastPayments > 0 && <span style={{ color: '#38a169' }}> (Paid: Rs. {paidForPastPayments.toFixed(2)})</span>}
+              </div>
             </div>
           </div>
           <div style={{ position: 'relative' }}>

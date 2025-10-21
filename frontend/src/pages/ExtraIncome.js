@@ -893,6 +893,7 @@ const ExtraIncome = ({ darkMode }) => {
                         step="0.01"
                         placeholder="Amount"
                         onWheel={(e) => e.target.blur()}
+                        onFocus={(e) => e.target.select()}
                         value={entry.amount}
                         onChange={(e) => {
                           const newBreakdown = [...paymentBreakdown];
@@ -1181,6 +1182,7 @@ const ExtraIncome = ({ darkMode }) => {
                         type="number"
                         step="0.01"
                         placeholder="Amount"
+                        onFocus={(e) => e.target.select()}
                         onWheel={(e) => e.target.blur()}
                         value={entry.amount}
                         onChange={(e) => {
@@ -1299,6 +1301,7 @@ const ExtraIncome = ({ darkMode }) => {
               <input
                 className={`madd-input ${darkMode ? "dark" : ""}`}
                 type="number"
+                onFocus={(e) => e.target.select()}
                 onWheel={(e) => e.target.blur()}
                 value={returningRecord.amount}
                 readOnly
@@ -1343,6 +1346,7 @@ const ExtraIncome = ({ darkMode }) => {
               <input
                 className={`madd-input ${darkMode ? "dark" : ""}`}
                 type="number"
+                onFocus={(e) => e.target.select()}
                 onWheel={(e) => e.target.blur()}
                 value={returningRecord.totalAmount}
                 readOnly

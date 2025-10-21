@@ -133,6 +133,7 @@ const CartForm = ({ supplier, closeModal, darkMode, refreshProducts }) => {
                   type="number"
                   onWheel={(e) => e.target.blur()}
                   name="paymentCharge"
+                  onFocus={(e) => e.target.select()}
                   value={items.paymentCharge}
                   onChange={handleItemChange}
                   required

@@ -721,6 +721,7 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
                       step="0.01"
                       placeholder="Amount"
                       value={entry.amount}
+                      onFocus={(e) => e.target.select()}
                       onWheel={(e) => e.target.blur()}
                       onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
                       className={`customer-input ${darkMode ? 'dark' : ''}`}

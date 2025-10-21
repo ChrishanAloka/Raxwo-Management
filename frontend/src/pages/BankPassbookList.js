@@ -94,7 +94,7 @@ const fetchSupplierPayments = async () => {
           BANK_PAYMENT_METHODS.includes(payment.paymentMethod)
         )
         .forEach(payment => {
-          const createdAt = new Date(payment.createdAt);
+          const createdAt = new Date(payment.date);
           const date = createdAt.toISOString().split("T")[0];
           const time = createdAt.toTimeString().slice(0, 5); // HH:MM
 
