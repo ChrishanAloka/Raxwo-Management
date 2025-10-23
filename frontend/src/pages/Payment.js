@@ -45,6 +45,9 @@ const Payment = ({ darkMode }) => {
   const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);  
 
+  const [focusedField, setFocusedField] = useState({ index: null, field: null });
+  // e.g., { index: 2, field: 'sellingPrice' }
+
   // Get all unique categories from products
   const allCategories = [...new Set(products.map(p => p.category).filter(Boolean))];
 
@@ -155,7 +158,7 @@ const Payment = ({ darkMode }) => {
   
 
   const addToCart = (product) => {
-    setCart([...cart, { ...product, quantity: 1, discount: 0, assignedTo: "", }]);
+    setCart([...cart, { ...product, quantity: 1, sellingPrice: 0, discount: 0, assignedTo: "", }]);
     localStorage.setItem('paymentCart', JSON.stringify(cart));
   };
 
@@ -422,6 +425,13 @@ const Payment = ({ darkMode }) => {
 
   const [isCartSearchVisible, setIsCartSearchVisible] = useState(false);
 
+  const getDisplayValue = (value, rowIndex, fieldName) => {
+    if (focusedField.index === rowIndex && focusedField.field === fieldName && value === 0) {
+      return ""; // hide zero when focused
+    }
+    return value;
+  };
+
   return (
     <div className={`payment-container ${darkMode ? 'dark' : ''}`}>
       {error && <p className="error-message">{error}</p>}
@@ -524,10 +534,18 @@ const Payment = ({ darkMode }) => {
                     <input
                       type="number"
                       min="1"
-                      onFocus={(e) => e.target.select()}
+                      // placeholder="1"
+                      onFocus={(e) => {
+                        setFocusedField({ index, field: 'quantity' });
+                        e.target.select();
+                      }}
+                      onBlur={() => setFocusedField({ index: null, field: null })}
                       onWheel={(e) => e.target.blur()}
-                      value={item.quantity}
-                      onChange={(e) => handleQuantityChange(index, e.target.value)}
+                      value={getDisplayValue(item.quantity, index, 'quantity')}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        handleQuantityChange(index, val);
+                      }}
                       className={darkMode ? 'dark' : ''}
                     />
                   </td>
@@ -536,11 +554,18 @@ const Payment = ({ darkMode }) => {
                       type="number"
                       step="0.01"
                       min="0"
-                      placeholder="0.00"
+                      // placeholder="0"
+                      onFocus={(e) => {
+                        setFocusedField({ index, field: 'sellingPrice' });
+                        e.target.select();
+                      }}
+                      onBlur={() => setFocusedField({ index: null, field: null })}
                       onWheel={(e) => e.target.blur()}
-                      value={item.sellingPrice}
-                      onChange={(e) => {handlePriceChange(index, parseFloat(e.target.value))}}
-                      onFocus={(e) => e.target.select()}
+                      value={getDisplayValue(item.sellingPrice, index, 'sellingPrice')}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
+                        handlePriceChange(index, val);
+                      }}
                       className={`price-input ${darkMode ? 'dark' : ''}`}
                       style={{ width: "90px", padding: "4px", textAlign: "center" }}
                     />
@@ -549,10 +574,18 @@ const Payment = ({ darkMode }) => {
                     <input
                       type="number"
                       min="0"
+                      // placeholder="0"
+                      onFocus={(e) => {
+                        setFocusedField({ index, field: 'discount' });
+                        e.target.select();
+                      }}
+                      onBlur={() => setFocusedField({ index: null, field: null })}
                       onWheel={(e) => e.target.blur()}
-                      value={item.discount}
-                      onChange={(e) => applyDiscount(index, e.target.value)}
-                      onFocus={(e) => e.target.select()}
+                      value={getDisplayValue(item.discount, index, 'discount')}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        applyDiscount(index, val);
+                      }}
                       className={darkMode ? 'dark' : ''}
                     />
                   </td>
