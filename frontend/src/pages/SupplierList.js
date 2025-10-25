@@ -499,6 +499,7 @@ const SupplierList = ({ darkMode }) => {
           suppliers={suppliers}
           closeModal={() => setShowSummaryModal(false)}
           darkMode={darkMode}
+          fetchGrnReturnStocks={fetchGrnReturnStocks}
         />
       )}
       {showPaymentModal && selectedSupplier && (

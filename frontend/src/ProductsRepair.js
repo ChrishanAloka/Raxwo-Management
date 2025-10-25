@@ -2292,6 +2292,13 @@ const ProductRepairList = ({ darkMode }) => {
             <div class="notes-title">Additional Notes</div>
             <div style="height: 60px; border: 1px dashed #000; padding: 5px; font-size: 9px; color: #777;">
               <!-- Empty space for user notes -->
+              ${
+                repair.additionalNotes &&
+                repair.additionalNotes.trim() !== "" &&
+                repair.additionalNotes.trim().toUpperCase() !== "N/A"
+                  ? repair.additionalNotes.trim()
+                  : "—"
+              }
             </div>
           </div>
 
