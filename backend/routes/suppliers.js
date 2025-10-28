@@ -590,9 +590,9 @@ router.post('/:id/payments', authMiddleware, getSupplier, async (req, res) => {
     0
   );
 
-  const totalCost = totalitemCost + pastcharges + repairServicecharges - discounts - returnedProductsValue;
+  const totalCost = parseFloat(totalitemCost + pastcharges + repairServicecharges - discounts - returnedProductsValue).toFixed(2);
   const currentPayments = parseFloat(paymentHistory).toFixed(2) || 0;
-  amountDue = parseFloat(totalCost).toFixed(2) - parseFloat(currentPayments).toFixed(2);
+  const amountDue = parseFloat(totalCost).toFixed(2) - parseFloat(currentPayments).toFixed(2);
 
   if (paymentAmount > amountDue) {
     return res.status(400).json({ message: 'Payment amount cannot exceed amount due' });
@@ -603,8 +603,8 @@ router.post('/:id/payments', authMiddleware, getSupplier, async (req, res) => {
   const paymenthistory = {
     date: parsedPaymentDate || new Date(),
     uptodateCost: amountDue || 0,
-    currentPayment: paymentAmount || 0,
-    amountDue: amountDue - paymentAmount,
+    currentPayment: parseFloat(paymentAmount).toFixed(2),
+    amountDue: parseFloat(amountDue - paymentAmount).toFixed(2),
     assignedTo,
     paymentMethod,
     ...(grnNumber && { grnNumber }),      // Only add if exists
