@@ -257,7 +257,7 @@ router.post('/:id/items', authMiddleware, getSupplier, async (req, res) => {
 
     const timestamp = getFormattedTimestamp();
     // const baseCode = `Ite${categoryCode}${itemNameCode}${Date.now().toString().slice(-3)}`;
-    const baseCode = `Ite${categoryCode}${itemNameCode}${timestamp}`;
+    const baseCode = `Ite${timestamp}${categoryCode}${itemNameCode}`;
     let counter = 1;
     let candidate = baseCode + String(counter).padStart(2, '0');
 
@@ -266,6 +266,7 @@ router.post('/:id/items', authMiddleware, getSupplier, async (req, res) => {
     //   counter++;
     //   candidate = baseCode + String(counter).padStart(2, '0');
     // }
+
   const now = new Date();
 
   const item = {
@@ -592,7 +593,7 @@ router.post('/:id/payments', authMiddleware, getSupplier, async (req, res) => {
 
   const totalCost = parseFloat(totalitemCost + pastcharges + repairServicecharges - discounts - returnedProductsValue).toFixed(2);
   const currentPayments = parseFloat(paymentHistory).toFixed(2) || 0;
-  const amountDue = parseFloat(totalCost).toFixed(2) - parseFloat(currentPayments).toFixed(2);
+  const amountDue = parseFloat(totalCost - currentPayments).toFixed(2);
 
   if (paymentAmount > amountDue) {
     return res.status(400).json({ message: 'Payment amount cannot exceed amount due' });
