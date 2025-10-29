@@ -42,6 +42,8 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   const [damagedStocks, setDamagedStocks] = useState({});
   const [productStocks, setProductStocks] = useState({});
 
+  const [itemLoadingStates, setItemLoadingStates] = useState({});
+
   const fetchItems = async () => {
     setLoading(true);
     setError('');
@@ -116,24 +118,48 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   }, [supplierId]);
 
   useEffect(() => {
-    const loadReturnStocks = async () => {
-      const stocks = {};
-      const avlstocks = {};
-      const dmgstocks = {};
-      for (const item of items) {
-        if (item.itemCode) {
-          stocks[item.itemCode] = await fetchReturnStock(item.itemCode);
-          avlstocks[item.itemCode] = await fetchProductStock(item.itemCode);
-          dmgstocks[item.itemCode] = await fetchProductDamagedStock(item.itemCode);
-        }
+    const loadStocksForItem = async (itemCode) => {
+      // Mark as loading
+      setItemLoadingStates(prev => ({ ...prev, [itemCode]: true }));
+
+      try {
+        const [returnStock, productStock, damagedStock] = await Promise.all([
+          fetchReturnStock(itemCode),
+          fetchProductStock(itemCode),
+          fetchProductDamagedStock(itemCode)
+        ]);
+
+        setReturnStocks(prev => ({ ...prev, [itemCode]: returnStock }));
+        setProductStocks(prev => ({ ...prev, [itemCode]: productStock }));
+        setDamagedStocks(prev => ({ ...prev, [itemCode]: damagedStock }));
+      } catch (err) {
+        console.error(`Error loading stocks for ${itemCode}:`, err);
+        // Optionally set defaults on error
+        setReturnStocks(prev => ({ ...prev, [itemCode]: 0 }));
+        setProductStocks(prev => ({ ...prev, [itemCode]: 0 }));
+        setDamagedStocks(prev => ({ ...prev, [itemCode]: 0 }));
+      } finally {
+        // Mark as done loading
+        setItemLoadingStates(prev => ({ ...prev, [itemCode]: false }));
       }
-      setReturnStocks(stocks);
-      setDamagedStocks(dmgstocks);
-      setProductStocks(avlstocks);
     };
 
     if (items.length > 0) {
-      loadReturnStocks();
+      // Reset loading states for all current items
+      const initialLoading = {};
+      items.forEach(item => {
+        if (item.itemCode) {
+          initialLoading[item.itemCode] = true;
+        }
+      });
+      setItemLoadingStates(initialLoading);
+
+      // Fetch all
+      items.forEach(item => {
+        if (item.itemCode) {
+          loadStocksForItem(item.itemCode);
+        }
+      });
     }
   }, [items]);
 
@@ -395,26 +421,32 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                 <td>{item.category || 'N/A'}</td>
                 <td>{item.quantity || '0'}</td>
                 <td>
-                  <span style={{
-                    color: (returnStocks[item.itemCode] || 0) > 0 ? '#e74c3c' : 'inherit',
-                    fontWeight: 'bold' 
-                  }}>
-                    {returnStocks[item.itemCode] || 0}
-                  </span>
-                  <span> / </span>
-                  <span style={{
-                    color: (damagedStocks[item.itemCode] || 0) > 0 ? '#e74c3c' : 'inherit',
-                    fontWeight: 'bold' 
-                  }}>
-                    {damagedStocks[item.itemCode] || 0}
-                  </span>
-                  <span> / </span>
-                  <span style={{
-                    color: (productStocks[item.itemCode] || 0) > 0 ? "#28a745" : "#e74c3c",
-                    fontWeight: 'bold' 
-                  }}>
-                    {productStocks[item.itemCode] || 0}
-                  </span>
+                  {itemLoadingStates[item.itemCode] ? (
+                    <span>Loading...</span> // or a spinner like <FontAwesomeIcon icon={faSpinner} spin />
+                  ) : (
+                    <>
+                      <span style={{
+                        color: (returnStocks[item.itemCode] || 0) > 0 ? '#e74c3c' : 'inherit',
+                        fontWeight: 'bold' 
+                      }}>
+                        {returnStocks[item.itemCode] || 0}
+                      </span>
+                      <span> / </span>
+                      <span style={{
+                        color: (damagedStocks[item.itemCode] || 0) > 0 ? '#e74c3c' : 'inherit',
+                        fontWeight: 'bold' 
+                      }}>
+                        {damagedStocks[item.itemCode] || 0}
+                      </span>
+                      <span> / </span>
+                      <span style={{
+                        color: (productStocks[item.itemCode] || 0) > 0 ? "#28a745" : "#e74c3c",
+                        fontWeight: 'bold' 
+                      }}>
+                        {productStocks[item.itemCode] || 0}
+                      </span>
+                    </>
+                  )}
                 </td>
                 <td>Rs. {item.buyingPrice || '0'}</td>
                 {/* <td>Rs. {item.sellingPrice || '0'}</td> */}

@@ -265,7 +265,7 @@ router.get('/', async (req, res) => {
         $match: {
           deleted: { $ne: true },
           visible: { $ne: false },
-          stock: { $gt: 0 } 
+          // stock: { $gt: 0 } 
         }
       },
 
@@ -307,13 +307,15 @@ router.get('/', async (req, res) => {
 
     // Optionally add total count
     const total = uniqueRecords.length + uniqueRecords2.length;
-    
+
+    const total4 = uniqueRecords4.length;
 
     const records = [...uniqueRecords, ...uniqueRecords2 ];
 
     res.json({
       success: true,
       total,
+      total4,
       records,
       records4: uniqueRecords4,
       records3: uniqueRecords3

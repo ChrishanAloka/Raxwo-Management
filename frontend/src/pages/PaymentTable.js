@@ -818,7 +818,7 @@ const PaymentTable = ({ darkMode }) => {
     });
   };
 
-  const normalize = str => (str || '').toLowerCase().replace(/\s+/g, '');
+  const normalize = str => (str || '').toLowerCase().trim().replace(/\s+/g, '');
 
   const paymentMethods = [...new Set(payments.map(p => p.paymentMethod).filter(Boolean))];
 
@@ -852,11 +852,18 @@ const PaymentTable = ({ darkMode }) => {
     let result = payments;
 
     if (searchQuery.trim() !== '') {
-    const normalizedQuery = normalize(searchQuery);
+    // const normalizedQuery = normalize(searchQuery);
+
+    const normalizedQuery = searchQuery
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '');
 
     result = payments.filter(payment => {
       // Combine all searchable fields properly
       const invoice = normalize(payment.invoiceNumber || '');
+      const customerName = normalize(payment.customerName || '');
+      const contactNumber = normalize(payment.contactNumber || '');
       const cashierName = normalize(payment.cashierName || '');
       const cashierId = normalize(payment.cashierId || '');
       const paymentMethod = normalize(payment.paymentMethod || '');
@@ -868,12 +875,20 @@ const PaymentTable = ({ darkMode }) => {
         .map(item => normalize(item.itemName || ''))
         .join(' ');
 
-      const fullText = [invoice, cashierName, cashierId, paymentMethod, dateStr, timeStr, itemNames]
-        .join(' ')
-        .toLowerCase();
+      const fullText = (invoice + customerName + contactNumber + cashierName + cashierId + paymentMethod + dateStr + timeStr + itemNames)
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '');
 
+      const search1 = fullText.includes(normalizedQuery);
+      const search2 = fuzzyIncludes(fullText, normalizedQuery);
+
+      if (search1.length === 0){
+        return search2;
+      }
+      return search1;
       // Use fuzzy or simple substring match
-      return fuzzyIncludes(fullText, normalizedQuery);
+       
     });
   }
 
@@ -1038,8 +1053,9 @@ const PaymentTable = ({ darkMode }) => {
             <col style={{ width: '8%' }} />   {/* Date */}
             <col style={{ width: '8%' }} />   {/* Time */}
             <col style={{ width: '10%' }} />  {/* Invoice No. */}
+            <col style={{ width: '6%' }} />  {/* Contact No. */}
             <col style={{ width: '38%' }} />  {/* Item Name ← main focus */}
-            <col style={{ width: '12%' }} />  {/* Payment Method ← treated as "category" */}
+            <col style={{ width: '6%' }} />  {/* Payment Method ← treated as "category" */}
             <col style={{ width: '10%' }} />  {/* Cashier Name */}
             <col style={{ width: '8%' }} />   {/* Discount */}
             <col style={{ width: '10%' }} />  {/* Total Amount */}
@@ -1070,6 +1086,9 @@ const PaymentTable = ({ darkMode }) => {
                     {sortConfig.direction === 'asc' ? ' 🔽' : ' 🔼'}
                   </span>
                 )}
+              </th>
+              <th>
+                Contact No
               </th>
               <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'normal', wordBreak: 'break-word'  }}>
                 Item Name
@@ -1211,7 +1230,8 @@ const PaymentTable = ({ darkMode }) => {
                 <tr key={payment._id}>
                   <td>{new Date(payment.date).toLocaleDateString()}</td>
                   <td>{new Date(payment.date).toLocaleTimeString()}</td>
-                  <td>{payment.invoiceNumber} {payment.returnAlert === "returned" ? "(Ret)" : ""}</td>
+                  <td style={{whiteSpace: 'normal', wordBreak: 'break-word'}}>{payment.invoiceNumber} {payment.returnAlert === "returned" ? "(Ret)" : ""} {payment.customerName}</td>
+                  <td>{payment.contactNumber}</td>
                   <td style={{whiteSpace: 'normal', wordBreak: 'break-word'}}>{/* Combine all item names */}
                     {payment.items.map((item, idx) => (
                       <div key={idx}>{item.itemName} ({item.category || '—'} / {item.quantity || '—'}),</div>

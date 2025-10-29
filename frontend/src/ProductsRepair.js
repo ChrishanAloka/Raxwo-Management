@@ -17,7 +17,7 @@ import edticon from "./icon/edit.png";
 import viewicon from "./icon/statistics.png";
 import selecticon from "./icon/sucess.png";
 import { useMemo } from "react";
-
+import gelogo from './icon/Ge.logo.jpg';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile, faFilePdf, faFileExcel, faSearch, faPlus, faTimes, faHistory } from '@fortawesome/free-solid-svg-icons';
@@ -2219,12 +2219,13 @@ const ProductRepairList = ({ darkMode }) => {
 
         <div class="container">
           <div class="header">
-            <h1 class="company-name">EXXPLAN Repair Services</h1>
+           <!-- <h1 class="company-name">EXXPLAN Repair Services</h1> -->
+            <img src=${gelogo} alt="GE Logo" style="height: 40px; margin-bottom: 0px;" />
             <p class="tagline">Your Trusted Repair Partner</p>
           </div>
 
           <div class="contact-info">
-            EXXPLAN Repair Services Pvt Ltd<br>
+            I Genius Pvt Ltd<br>
             No 422, Thimbirigasyaya Road, Colombo 05<br>
             (+94)77 2025 330
           </div>
