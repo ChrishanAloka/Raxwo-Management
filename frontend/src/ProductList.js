@@ -69,6 +69,7 @@ const ProductList = ({ darkMode }) => {
   const [hideLowStockOnly, setHideLowStockOnly] = useState(false);
   const [show0StockOnly, setShow0StockOnly] = useState(false);
   const [hide0StockOnly, setHide0StockOnly] = useState(false);
+  const [showStockUnbalance, setShowStockUnbalance] = useState(false);
 
   const [trackItemData, setTrackItemData] = useState(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
@@ -689,6 +690,27 @@ const ProductList = ({ darkMode }) => {
       result = result.filter(product => (product.stock || 0) <= 2 );
     }
 
+    if (showStockUnbalance) {
+
+      result = result.filter(product => {
+        // Skip if Supplier is "SYSTEM" (or 'Unknown' mapped to SYSTEM)
+        const displaySupplier = product.Supplier === 'Unknown' ? 'SYSTEM' : product.Supplier;
+        if (displaySupplier === 'SYSTEM') {
+          return false;
+        }
+
+        // Calculate Real Balance
+        const realBalance = (supplierQuantities[product.itemCode] || 0) 
+                          - (usedQuantities[product.itemCode] || 0) 
+                          - (product.returnstock || 0) 
+                          - (product.damagedstock || 0);
+
+        // Only include if Real Balance ≠ Stock
+        return realBalance !== (product.stock || 0);
+      });
+    }
+    
+
     if (hideLowStockOnly) {
       result = result.filter(product => (product.stock || 0) > 2 );
     }
@@ -765,7 +787,7 @@ const ProductList = ({ darkMode }) => {
     }
 
     return result;
-  }, [products, searchQuery, sortConfig, showLowStockOnly, show0StockOnly, hide0StockOnly, hideLowStockOnly, selectedCategories]);
+  }, [products, searchQuery, sortConfig, showLowStockOnly, show0StockOnly, hide0StockOnly, hideLowStockOnly, showStockUnbalance, selectedCategories]);
 
   // First, filter out "SYSTEM" suppliers AND keep only items where Real Balance ≠ Stock
   const filteredBySupplierAndBalance = sortedAndFilteredProducts.filter(product => {
@@ -1372,9 +1394,21 @@ const ProductList = ({ darkMode }) => {
             </div>
           )}
         </div>
-          <span style={{ fontSize: 14, color: '#666', marginRight: 8 }}>
-            Products: {totalProducts}
-          </span>
+          <div className='filter-action-row' style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: 14, color: '#666', marginRight: 8 }}>
+              Products: {totalProducts}
+            </span>
+            <span style={{ fontSize: 14, color: '#666' }}>
+              Check Stock Unbalace:
+            </span>
+            <span style={{ fontSize: 14, color: '#666', marginLeft: 2, marginTop: 8, marginRight: 8 }}>
+              <input
+                type="checkbox"
+                checked={showStockUnbalance}
+                onChange={(e) => {setShowStockUnbalance(e.target.checked);}}
+              />
+            </span>
+          </div>
         {/* <div style={{ 
           fontSize: '12px', 
           color: '#666', 
@@ -1503,14 +1537,14 @@ const ProductList = ({ darkMode }) => {
                   )}
                 </th> */}
                 <th onClick={() => handleSort('stock')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  Stock / Returned / Damaged
+                  Stock / Real Balance
                   {sortConfig.key === 'stock' && (
                     <span style={{ marginLeft: '8px' }}>
                       {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
                     </span>
                   )}
                 </th>
-                <th>Real Balance</th>
+                <th>Returned / Damaged / Released</th>
                 <th>( Repair U / Invoice U) - Supplier Qty</th>
                 {/* <th>Supplier</th> */}
                 {/* <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
@@ -1565,19 +1599,27 @@ const ProductList = ({ darkMode }) => {
                       </span>
                     </td> */}
                     <td>
-                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
-                        {product.stock} / {(product.returnstock) || 0}  / {(product.damagedstock)|| 0} 
-                      </span>
-                    </td>
-                    <td>
-                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
-                        {product.Supplier === 'Unknown' ? '-' : ((supplierQuantities[product.itemCode]||0) - (usedQuantities[product.itemCode]||0) - (product.returnstock||0) - (product.damagedstock||0))} 
-                      </span>
-                    </td>
-                    <td>
-                      {usageLoading && supplierLoading ? (
+                      {(usageLoading && supplierLoading) ? (
                         <span>⋯</span>
-                      ) : usedQuantities[product.itemCode] !== undefined ? (
+                      ) : (
+                        <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
+                          {product.stock} / {product.Supplier === 'Unknown' ? '-' : ((supplierQuantities[product.itemCode]||0) - (usedQuantities[product.itemCode]||0) - (product.returnstock||0) - (product.damagedstock||0) + (product.returnRelease|| 0))}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {(usageLoading && supplierLoading) ? (
+                        <span>⋯</span>
+                      ) : (
+                        <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
+                          {(product.returnstock) || 0}  / {(product.damagedstock)|| 0} / {(product.returnRelease)|| 0} 
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {(usageLoading && supplierLoading) ? (
+                        <span>⋯</span>
+                      ) : (usedQuantities[product.itemCode] !== undefined || supplierQuantities[product.itemCode] !== undefined) ? (
                         <span style={{ color: product.stock <= 2 ? (product.stock === 0 ? 'red' : '#2957F0') : 'black', fontWeight: 'bold' }}>
                           {usedQuantities[product.itemCode] || 0} ( {usedrQuantities[product.itemCode] || 0} / {usedpQuantities[product.itemCode] || 0} ) - {supplierQuantities[product.itemCode] || 0}
                         </span>

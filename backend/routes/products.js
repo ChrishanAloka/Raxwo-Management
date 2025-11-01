@@ -879,6 +879,22 @@ router.post('/', authMiddleware, async (req, res) => {
 router.patch('/:id', authMiddleware, getProduct, async (req, res) => {
   const updates = req.body;
   const changes = [];
+  const changeDescriptions = []; // For human-readable log
+
+  // Helper to format values for logs
+  function formatValue(val) {
+    if (val === null || val === undefined) return 'null';
+    if (typeof val === 'number') return val.toFixed(2);
+    if (typeof val === 'string') return `"${val}"`;
+    if (typeof val === 'object') {
+      try {
+        return JSON.stringify(val);
+      } catch {
+        return '[object]';
+      }
+    }
+    return String(val);
+  }
   
   // Handle soft delete
   if (updates.isDeleted === true) {
@@ -965,20 +981,46 @@ router.patch('/:id', authMiddleware, getProduct, async (req, res) => {
     return;
   }
   
-  // Handle regular updates
-  for (const [field, newValue] of Object.entries(updates)) {
-    if (["itemName", "category", "buyingPrice", "sellingPrice", "stock"].includes(field) && res.product[field] != newValue) {
+  // Handle regular field updates
+  const watchFields = ["itemName", "category", "buyingPrice", "sellingPrice", "stock"];
+  
+  for (const field of watchFields) {
+    if (updates[field] !== undefined && res.product[field] !== updates[field]) {
+      const oldValue = res.product[field];
+      const newValue = updates[field];
+
+      // Push to changeHistory (for audit trail in DB)
       changes.push({
         field,
-        oldValue: res.product[field],
+        oldValue,
         newValue,
         changedBy: req.body.changedBy || 'system',
         changedAt: new Date(),
         changeType: 'update'
       });
+
+      // Push human-readable string for activity log
+      changeDescriptions.push(`${field}: ${formatValue(oldValue)} → ${formatValue(newValue)}`);
+
+      // Apply update
       res.product[field] = newValue;
     }
   }
+
+  // Handle regular updates
+  // for (const [field, newValue] of Object.entries(updates)) {
+  //   if (["itemName", "category", "buyingPrice", "sellingPrice", "stock"].includes(field) && res.product[field] != newValue) {
+  //     changes.push({
+  //       field,
+  //       oldValue: res.product[field],
+  //       newValue,
+  //       changedBy: req.body.changedBy || 'system',
+  //       changedAt: new Date(),
+  //       changeType: 'update'
+  //     });
+  //     res.product[field] = newValue;
+  //   }
+  // }
   if (changes.length > 0) {
     res.product.changeHistory = [...(res.product.changeHistory || []), ...changes];
   }
@@ -989,7 +1031,7 @@ router.patch('/:id', authMiddleware, getProduct, async (req, res) => {
       req,
       action: 'edit',
       resource: 'Product',
-      description: `Updated product "${res.product.itemName}" (Code: ${res.product.itemCode}): ${changes.join(', ')}`
+      description: `Updated product "${res.product.itemName}" (Code: ${res.product.itemCode}): ${changeDescriptions.join(', ')}`
     });
     
     res.json(updatedProduct);

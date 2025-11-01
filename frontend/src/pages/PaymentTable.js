@@ -362,7 +362,7 @@ const PaymentTable = ({ darkMode }) => {
     const shopAddress = localStorage.getItem('shopAddress') || '123 Main St, City, Country';
     const shopPhone = localStorage.getItem('shopPhone') || '(123) 456-7890';
     const shopLogo = localStorage.getItem('shopLogo') || '';
-    const currentDate = new Date().toLocaleString();
+    const currentDate = new Date(paymentData.date).toLocaleString();
 
     const customerName = paymentData.customerName || "N/A";
     const contactNumber = paymentData.contactNumber || "N/A";
