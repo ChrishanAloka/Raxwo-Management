@@ -155,6 +155,12 @@ const Payment = ({ darkMode }) => {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [showCategoryFilter]);
+
+  useEffect(() => {
+    if (error) {  
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
   
 
   const addToCart = (product) => {
@@ -432,9 +438,66 @@ const Payment = ({ darkMode }) => {
     return value;
   };
 
+  const validateBeforePayment = () => {
+    // 1. Cart not empty
+    if (cart.length === 0) {
+      setError('Cart is empty. Please add items before proceeding.');
+      return false;
+    }
+
+    // 2. Customer details
+    if (!customerName.trim()) {
+      setError('Please enter customer name.');
+      return false;
+    }
+
+    if (!contactNumber.trim()) {
+      setError('Please enter contact number.');
+      return false;
+    }
+
+    // Optional: basic phone validation
+    // if (!/^\d{10,15}$/.test(contactNumber.replace(/\D/g, ''))) {
+    //   setError('Please enter a valid contact number (10–15 digits).');
+    //   return false;
+    // }
+
+    // 3. Check each cart item
+    for (let i = 0; i < cart.length; i++) {
+      const item = cart[i];
+
+      // Price must be > 0
+      if (item.sellingPrice <= 0) {
+        setError(`Price for "${item.itemName}" must be greater than 0.`);
+        return false;
+      }
+
+      // Quantity must be >= 1
+      if (item.quantity < 1) {
+        setError(`Quantity for "${item.itemName}" must be at least 1.`);
+        return false;
+      }
+
+      // Assigned to must be selected
+      if (!item.assignedTo || item.assignedTo.trim() === '') {
+        setError(`Please assign "${item.itemName}" to a technician.`);
+        return false;
+      }
+    }
+
+    // 4. Cashier validation (you already disable button, but double-check)
+    if (!cashierId || cashierId === 'N/A') {
+      setError('Cashier information is missing. Please log in again.');
+      return false;
+    }
+
+    // Clear any previous error if validation passes
+    setError(null);
+    return true;
+  };
+
   return (
     <div className={`payment-container ${darkMode ? 'dark' : ''}`}>
-      {error && <p className="error-message">{error}</p>}
       {/* Debug: Show current state */}
     
       <br/><br/>
@@ -443,6 +506,7 @@ const Payment = ({ darkMode }) => {
       <div className={`cart ${darkMode ? 'dark' : ''}`}>
         <div className="cart-header">
           <h2 className={`salary-list-title ${darkMode ? 'dark' : ''}`}>Cart</h2>
+          {error && <p className="error-message">{error}</p>}
           
           <div className="cart-search-container">
 
@@ -686,14 +750,20 @@ const Payment = ({ darkMode }) => {
           <div className="summary-row">
           <button
             className={`pay-btn ${darkMode ? 'dark' : ''}`}
-            onClick={() => setShowPopup(true)}
-            disabled={
-              cart.length === 0 ||
-              !isCartFullyAssigned() || // ← ADD THIS
-              !cashierId ||
-              !cashierName ||
-              cashierId === 'N/A'
-            }
+            onClick={() => {
+              if (validateBeforePayment()) {
+                setShowPopup(true);
+              }
+              // If validation fails, error is already shown via setError
+            }}
+            // disabled={
+            //   cart.length === 0 ||
+            //   !isCartFullyAssigned() || // ← ADD THIS
+            //   !cashierId ||
+            //   !contactNumber ||
+            //   !cashierName ||
+            //   cashierId === 'N/A'
+            // }
           >
             Complete Payment
           </button>

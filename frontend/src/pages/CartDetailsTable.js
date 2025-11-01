@@ -41,6 +41,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   const [returnStocks, setReturnStocks] = useState({});
   const [damagedStocks, setDamagedStocks] = useState({});
   const [productStocks, setProductStocks] = useState({});
+  const [releaseStocks, setReleaseStocks] = useState({});
 
   const [itemLoadingStates, setItemLoadingStates] = useState({});
 
@@ -98,6 +99,21 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
     }
   };
 
+  const fetchReleaseStocks = async (itemCode) => {
+    try {
+      const response = await fetch(`${PRODUCT_API_URL}/${encodeURIComponent(itemCode)}`);
+      if (!response.ok) {
+        console.warn(`Product ${itemCode} not found`);
+        return 0;
+      }
+      const product = await response.json();
+      return product.returnRelease || 0;
+    } catch (err) {
+      console.error(`Error fetching stock for ${itemCode}:`, err);
+      return 0;
+    }
+  };
+
   const fetchProductDamagedStock = async (itemCode) => {
     try {
       const response = await fetch(`${PRODUCT_API_URL}/${encodeURIComponent(itemCode)}`);
@@ -123,21 +139,25 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
       setItemLoadingStates(prev => ({ ...prev, [itemCode]: true }));
 
       try {
-        const [returnStock, productStock, damagedStock] = await Promise.all([
+        const [returnStock, productStock, damagedStock, releaseStocks] = await Promise.all([
           fetchReturnStock(itemCode),
           fetchProductStock(itemCode),
-          fetchProductDamagedStock(itemCode)
+          fetchProductDamagedStock(itemCode),
+          fetchReleaseStocks(itemCode),
         ]);
 
         setReturnStocks(prev => ({ ...prev, [itemCode]: returnStock }));
         setProductStocks(prev => ({ ...prev, [itemCode]: productStock }));
         setDamagedStocks(prev => ({ ...prev, [itemCode]: damagedStock }));
+        setReleaseStocks(prev => ({ ...prev, [itemCode]: releaseStocks }));
+        
       } catch (err) {
         console.error(`Error loading stocks for ${itemCode}:`, err);
         // Optionally set defaults on error
         setReturnStocks(prev => ({ ...prev, [itemCode]: 0 }));
         setProductStocks(prev => ({ ...prev, [itemCode]: 0 }));
         setDamagedStocks(prev => ({ ...prev, [itemCode]: 0 }));
+        setReleaseStocks(prev => ({ ...prev, [itemCode]: 0 }));
       } finally {
         // Mark as done loading
         setItemLoadingStates(prev => ({ ...prev, [itemCode]: false }));
@@ -404,8 +424,8 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
               <th>Item Code</th>
               <th>Item Name</th>
               <th>Category</th>
-              <th>Stock</th>
-              <th>Returns / Damaged / Avl Sto.</th>
+              <th>Stock / Avl Sto.</th>
+              <th>Returns / Damaged / Release Sto.</th>
               <th>Buying Price</th>
               {/* <th>Selling Price</th> */}
               <th>Action</th>
@@ -419,7 +439,7 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                 <td>{item.itemCode || 'N/A'}</td>
                 <td>{item.itemName || 'N/A'}</td>
                 <td>{item.category || 'N/A'}</td>
-                <td>{item.quantity || '0'}</td>
+                <td>{item.quantity || '0'} / {productStocks[item.itemCode] || 0}</td>
                 <td>
                   {itemLoadingStates[item.itemCode] ? (
                     <span>Loading...</span> // or a spinner like <FontAwesomeIcon icon={faSpinner} spin />
@@ -440,10 +460,10 @@ const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
                       </span>
                       <span> / </span>
                       <span style={{
-                        color: (productStocks[item.itemCode] || 0) > 0 ? "#28a745" : "#e74c3c",
+                        color: (releaseStocks[item.itemCode] || 0) > 0 ? "#28a745" : "#e74c3c",
                         fontWeight: 'bold' 
                       }}>
-                        {productStocks[item.itemCode] || 0}
+                        {releaseStocks[item.itemCode] || 0}
                       </span>
                     </>
                   )}

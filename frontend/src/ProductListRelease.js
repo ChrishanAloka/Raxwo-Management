@@ -91,6 +91,11 @@ const ProductList = ({ darkMode }) => {
   const [categorySearch, setCategorySearch] = useState('');
   const categoryFilterRef = useRef(null);
 
+  const [showReturnStockModal, setShowReturnStockModal] = useState(false);
+  const [showReturnReleaseModal, setShowReturnReleaseModal] = useState(false);
+  const [selectedProductForAction, setSelectedProductForAction] = useState(null);
+  const [returnQuantity, setReturnQuantity] = useState('');
+
   const userRole = localStorage.getItem('role');
   
   const filteredCategoriesForSearch = categorySearch.trim() === ''
@@ -425,15 +430,117 @@ const ProductList = ({ darkMode }) => {
     setShowModal(true);
   };
 
-  const handleReturn = (product) => {
-    setSelectedProduct(product);
-    setShowReturnModal(true);
+  const handleReturnStock = (product) => {
+    setSelectedProductForAction(product);
+    setReturnQuantity('');
+    setShowReturnStockModal(true);
   };
 
-  const handleBarcode = (product) => {
-    setBarcodeProduct(product);
-    setShowBarcodeModal(true);
+  const handleReturnRelease = (product) => {
+    setSelectedProductForAction(product);
+    setReturnQuantity('');
+    setShowReturnReleaseModal(true);
   };
+
+  const handleQuantityChange = (e, max) => {
+    let val = e.target.value;
+    if (val === '') {
+      setReturnQuantity('');
+      return;
+    }
+    let num = parseInt(val, 10);
+    if (isNaN(num)) num = 0;
+    if (num > max) num = max;
+    if (num < 0) num = 0;
+    setReturnQuantity(num.toString());
+  };
+
+  const handleConfirmReturnStock = async () => {
+    const qty = parseInt(returnQuantity);
+    if (!qty || qty <= 0) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${API_URL}/update-returnstockitem/${encodeURIComponent(selectedProductForAction.itemCode)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ returnstock: qty })
+        }
+      );
+
+      if (!response.ok) throw new Error((await response.json()).message || 'Failed to return stock');
+
+      // Optimistically update local state
+      setProducts(prev =>
+        prev.map(p =>
+          p.itemCode === selectedProductForAction.itemCode
+            ? { ...p, stock: p.stock - qty, returnstock: (p.returnstock || 0) + qty }
+            : p
+        )
+      );
+
+      alert('✅ Stock returned successfully!');
+      setShowReturnStockModal(false);
+    } catch (err) {
+      alert('❌ Error: ' + err.message);
+    }
+  };
+
+  const handleConfirmReturnRelease = async () => {
+    const qty = parseInt(returnQuantity);
+    if (!qty || qty <= 0) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${API_URL}/increase-return-release/${encodeURIComponent(selectedProductForAction.itemCode)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ quantity: qty })
+        }
+      );
+
+      if (!response.ok) throw new Error((await response.json()).message || 'Failed to release return');
+
+      // Optimistically update local state
+      setProducts(prev =>
+        prev.map(p =>
+          p.itemCode === selectedProductForAction.itemCode
+            ? { 
+                ...p, 
+                stock: p.stock + qty, 
+                returnRelease: (p.returnRelease || 0) + qty ,
+                returnstock: Math.max(0, (p.returnstock || 0) - qty)
+              }
+            : p
+        )
+      );
+
+      alert('✅ Return release increased successfully!');
+      setShowReturnReleaseModal(false);
+    } catch (err) {
+      alert('❌ Error: ' + err.message);
+    }
+  };
+
+  // const handleReturn = (product) => {
+  //   setSelectedProduct(product);
+  //   setShowReturnModal(true);
+  // };
+
+  // const handleBarcode = (product) => {
+  //   setBarcodeProduct(product);
+  //   setShowBarcodeModal(true);
+  // };
 
   // const handleAddProductClick = async (product) => {
   //   // Show confirmation dialog
@@ -702,6 +809,7 @@ const ProductList = ({ darkMode }) => {
     }
 
     else{
+      result = result.filter(product => (product.returnstock || 0) > 0);
       result = result;
       
     }
@@ -1186,7 +1294,7 @@ const ProductList = ({ darkMode }) => {
           </span>
 
           {/* <button onClick={handleClearAll} className="btn-primary" style={{ background: '#dc3545', color: '#fff' }}>Clear All</button> */}
-          <button onClick={() => setSummaryModalOpen(true)} className="btn-summary">
+          {/* <button onClick={() => setSummaryModalOpen(true)} className="btn-summary">
             <FontAwesomeIcon icon={faChartSimple} /> Summary
           </button>
           <button onClick={() => setShowReportOptions(true)} className="btn-report">
@@ -1199,7 +1307,7 @@ const ProductList = ({ darkMode }) => {
             title="Bulk Upload Excel (separate system)"
           >
             <FontAwesomeIcon icon={faUpload} /> Upload Excel
-          </button>
+          </button> */}
           {/* <button
             onClick={handleOpenUploadedRecords}
             className="btn-primary"
@@ -1503,14 +1611,14 @@ const ProductList = ({ darkMode }) => {
                   )}
                 </th> */}
                 <th onClick={() => handleSort('stock')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  Stock / Returned / Damaged
+                  Stock / Real Balance
                   {sortConfig.key === 'stock' && (
                     <span style={{ marginLeft: '8px' }}>
                       {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
                     </span>
                   )}
                 </th>
-                <th>Real Balance</th>
+                <th>Returned / Damaged / Released</th>
                 <th>( Repair U / Invoice U) - Supplier Qty</th>
                 {/* <th>Supplier</th> */}
                 {/* <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
@@ -1565,19 +1673,27 @@ const ProductList = ({ darkMode }) => {
                       </span>
                     </td> */}
                     <td>
-                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
-                        {product.stock} / {(product.returnstock) || 0}  / {(product.damagedstock)|| 0} 
-                      </span>
-                    </td>
-                    <td>
-                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
-                        {product.Supplier === 'Unknown' ? '-' : ((supplierQuantities[product.itemCode]||0) - (usedQuantities[product.itemCode]||0) - (product.returnstock||0) - (product.damagedstock||0))} 
-                      </span>
-                    </td>
-                    <td>
-                      {usageLoading && supplierLoading ? (
+                      {(usageLoading && supplierLoading) ? (
                         <span>⋯</span>
-                      ) : usedQuantities[product.itemCode] !== undefined ? (
+                      ) : (
+                        <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
+                          {product.stock} / {product.Supplier === 'Unknown' ? '-' : ((supplierQuantities[product.itemCode]||0) - (usedQuantities[product.itemCode]||0) - (product.returnstock||0) - (product.damagedstock||0) + (product.returnRelease|| 0))}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {(usageLoading && supplierLoading) ? (
+                        <span>⋯</span>
+                      ) : (
+                        <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold'  }}>
+                          {(product.returnstock) || 0}  / {(product.damagedstock)|| 0} / {(product.returnRelease)|| 0} 
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {(usageLoading && supplierLoading) ? (
+                        <span>⋯</span>
+                      ) : (usedQuantities[product.itemCode] !== undefined || supplierQuantities[product.itemCode] !== undefined) ? (
                         <span style={{ color: product.stock <= 2 ? (product.stock === 0 ? 'red' : '#2957F0') : 'black', fontWeight: 'bold' }}>
                           {usedQuantities[product.itemCode] || 0} ( {usedrQuantities[product.itemCode] || 0} / {usedpQuantities[product.itemCode] || 0} ) - {supplierQuantities[product.itemCode] || 0}
                         </span>
@@ -1655,7 +1771,7 @@ const ProductList = ({ darkMode }) => {
                           <>
                             <div className="action-menu-overlay" onClick={() => setShowActionMenu(null)} />
                             <div className="action-menu">
-                              <button
+                              {/* <button
                                 onClick={() => {
                                   setShowActionMenu(null);
                                   handleTrackItem(product);
@@ -1665,6 +1781,30 @@ const ProductList = ({ darkMode }) => {
                                 <div className="action-btn-content">
                                   <span style={{ fontSize: '18px', marginRight: '8px' }}>🔍</span>
                                   <span>Track Usage</span>
+                                </div>
+                              </button> */}
+                              
+                              {/* <button
+                                onClick={() => {
+                                  setShowActionMenu(null);
+                                  handleReturnStock(product);
+                                }}
+                                className="p-return-btn"
+                              >
+                                <div className="action-btn-content">
+                                  <span>↩️ Return Stock</span>
+                                </div>
+                              </button> */}
+
+                              <button
+                                onClick={() => {
+                                  setShowActionMenu(null);
+                                  handleReturnRelease(product);
+                                }}
+                                className="p-return-btn"
+                              >
+                                <div className="action-btn-content">
+                                  <span>🔓 Release Return</span>
                                 </div>
                               </button>
                               {/* <button onClick={() => handleReturn(product)} className="p-return-btn">
@@ -1681,7 +1821,7 @@ const ProductList = ({ darkMode }) => {
                               </button> */}
                               {userRole === 'admin' && (
                                 <>
-                                  <button onClick={() => handleEdit(product)} className="p-edit-btn">
+                                  {/* <button onClick={() => handleEdit(product)} className="p-edit-btn">
                                     <div className="action-btn-content">
                                       <img src={editicon} alt="edit" width="30" height="30" className="p-edit-btn-icon" />
                                       <span>Edit</span>
@@ -1696,7 +1836,7 @@ const ProductList = ({ darkMode }) => {
                                       <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
                                       <span>Delete</span>
                                     </div>
-                                  </button>
+                                  </button> */}
                                 </>
                               )}
                             </div>
@@ -1718,6 +1858,125 @@ const ProductList = ({ darkMode }) => {
           <button onClick={() => setCurrentPage(p => Math.min(totalProductPages, p + 1))} disabled={currentPage === totalProductPages}>Next</button>
         </div>
       )}
+
+      {/* RETURN STOCK MODAL */}
+      {showReturnStockModal && selectedProductForAction && (
+        <div className="modal-overlay" onClick={() => setShowReturnStockModal(false)}>
+          <div className={`modal-content ${darkMode ? 'dark' : ''}`} onClick={e => e.stopPropagation()}>
+            <h3>↩️ Return Stock</h3>
+            <div style={{ background: darkMode ? '#1e293b' : '#f1f5f9', padding: '12px', borderRadius: '6px', marginBottom: '12px', color:"black" }}>
+              <p><strong>GRN:</strong> {selectedProductForAction.grnNumber || 'N/A'}</p>
+              <p><strong>Item:</strong> {selectedProductForAction.itemName}</p>
+              <p><strong>Code:</strong> {selectedProductForAction.itemCode}</p>
+              <p><strong>Available Stock:</strong> {selectedProductForAction.stock}</p>
+            </div>
+            <label>Quantity to return (max: {selectedProductForAction.stock})</label>
+            <input
+              type="number"
+              min="1"
+              max={selectedProductForAction.stock}
+              value={returnQuantity}
+              onFocus={(e) => e.target.select()}
+              onWheel={(e) => e.target.blur()}
+              onChange={(e) => handleQuantityChange(e, selectedProductForAction.stock)}
+              placeholder="Enter quantity"
+              style={{ width: '100%', padding: '8px', margin: '8px 0' }}
+            />
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <button onClick={() => setShowReturnStockModal(false)}>Cancel</button>
+              <button 
+                className="btn-primary"
+                onClick={handleConfirmReturnStock}
+                disabled={
+                  !returnQuantity ||
+                  parseInt(returnQuantity) <= 0 ||
+                  parseInt(returnQuantity) > selectedProductForAction.stock
+                }
+                style={{
+                  opacity: (
+                  !returnQuantity ||
+                  parseInt(returnQuantity) <= 0 ||
+                  parseInt(returnQuantity) > selectedProductForAction.stock
+                ) ? 0.5 : 1,
+                  filter: (
+                  !returnQuantity ||
+                  parseInt(returnQuantity) <= 0 ||
+                  parseInt(returnQuantity) > selectedProductForAction.stock
+                ) ? 'grayscale(40%)' : 'none',
+                  cursor: (
+                  !returnQuantity ||
+                  parseInt(returnQuantity) <= 0 ||
+                  parseInt(returnQuantity) > selectedProductForAction.stock
+                ) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Confirm Return
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RETURN RELEASE MODAL */}
+      {showReturnReleaseModal && selectedProductForAction && (
+        <div className="modal-overlay" onClick={() => setShowReturnReleaseModal(false)}>
+          <div className={`modal-content ${darkMode ? 'dark' : ''}`} onClick={e => e.stopPropagation()}>
+            <h3>🔓 Release Return to Stock</h3>
+            <div style={{ background: darkMode ? '#1e293b' : '#f1f5f9', padding: '12px', borderRadius: '6px', marginBottom: '12px', color:"black" }}>
+              <p><strong>GRN:</strong> {selectedProductForAction.grnNumber || 'N/A'}</p>
+              <p><strong>Item:</strong> {selectedProductForAction.itemName}</p>
+              <p><strong>Code:</strong> {selectedProductForAction.itemCode}</p>
+              <p><strong>Return Stock Available:</strong> {selectedProductForAction.returnstock || 0}</p>
+            </div>
+            <label>Quantity to release (max: {selectedProductForAction.returnstock || 0})</label>
+            <input
+              type="number"
+              min="1"
+              max={selectedProductForAction.returnstock || 0}
+              value={returnQuantity}
+              onChange={(e) => handleQuantityChange(e, selectedProductForAction.returnstock || 0)}
+              onFocus={(e) => e.target.select()}
+              onWheel={(e) => e.target.blur()}
+              placeholder="Enter quantity"
+              style={{ width: '100%', padding: '8px', margin: '8px 0' }}
+            />
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <button onClick={() => setShowReturnReleaseModal(false)}>Cancel</button>
+              <button 
+                className="btn-primary"
+                onClick={handleConfirmReturnRelease}
+                disabled={
+                (
+                  !returnQuantity ||
+                  parseInt(returnQuantity) <= 0 ||
+                  parseInt(returnQuantity) > (selectedProductForAction.returnstock || 0)
+                )
+                }
+                style={{
+                  opacity: (
+                  !returnQuantity ||
+                  parseInt(returnQuantity) <= 0 ||
+                  parseInt(returnQuantity) > (selectedProductForAction.returnstock || 0)
+                ) ? 0.5 : 1,
+                  filter: (
+                  !returnQuantity ||
+                  parseInt(returnQuantity) <= 0 ||
+                  parseInt(returnQuantity) > (selectedProductForAction.returnstock || 0)
+                ) ? 'grayscale(40%)' : 'none',
+                  cursor: (
+                  !returnQuantity ||
+                  parseInt(returnQuantity) <= 0 ||
+                  parseInt(returnQuantity) > (selectedProductForAction.returnstock || 0)
+                ) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Confirm Release
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TRACK ITEM MODAL */}
       {showTrackModal && trackItemData && (
         <div className="track-modal-overlay" onClick={() => setShowTrackModal(false)}>

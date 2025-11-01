@@ -35,6 +35,11 @@ const productSchema = new mongoose.Schema({
     default: 0,
     min: [0, 'Stock cannot be negative']
   },
+  returnRelease: {
+    type: Number,
+    default: 0,
+    min: [0, 'Stock cannot be negative']
+  },
   damagedstock:{
     type: Number,
     default: 0,

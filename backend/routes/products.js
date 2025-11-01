@@ -1434,12 +1434,20 @@ router.patch('/update-returnstockitem/*', authMiddleware, async (req, res) => {
     let product = await Product.findOne({ itemCode: decodedItemCode });
 
     const oldStock = product.stock;
+    const oldReturnStock = product.returnstock;
+    const oldReturnRelease = product.returnRelease || 0;
       
-      if (returnstock > 0){
-        product.stock -= parseInt(returnstock);
-      }
+    if (returnstock > 0){
+      product.stock -= parseInt(returnstock);
+    }
 
-      product.returnstock += parseInt(returnstock);
+    product.returnstock += parseInt(returnstock);
+
+    // ✅ Reduce returnRelease, but only if > 0 and only up to qty
+    if (oldReturnRelease > 0) {
+      const reduceBy = Math.min(oldReturnRelease, returnstock);
+      product.returnRelease = oldReturnRelease - reduceBy;
+    } // else: leave returnRelease unchanged (already 0)
     
     const updatedProduct = await product.save();
 
@@ -1458,6 +1466,48 @@ router.patch('/update-returnstockitem/*', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Item Code already exists. Please use a unique Item Code." });
     }
     res.status(400).json({ message: err.message });
+  }
+});
+
+// POST or PATCH /api/products/increase-return-release/:itemCode
+router.patch('/increase-return-release/:itemCode', authMiddleware, async (req, res) => {
+  try {
+    const { itemCode } = req.params;
+    const { quantity } = req.body;
+
+    if (!quantity || quantity <= 0) {
+      return res.status(400).json({ message: 'Valid positive quantity required' });
+    }
+
+    const product = await Product.findOne({ itemCode });
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    const qty = parseInt(quantity, 10);
+
+    const currentReturnStock = product.returnstock || 0;
+    if (qty > currentReturnStock) {
+      return res.status(400).json({ 
+        message: `Cannot release ${qty} items — only ${currentReturnStock} in return stock` 
+      });
+    }
+
+    // Increase BOTH stock and returnRelease
+    product.stock += qty;
+    product.returnRelease = (product.returnRelease || 0) + qty;
+    product.returnstock = currentReturnStock - qty;
+
+    await product.save();
+
+    await logActivity({
+      req,
+      action: 'Edit',
+      resource: 'Product',
+      description: `Increased returnRelease and stock by ${qty} for "${product.itemName}" (Code: ${itemCode})`
+    });
+
+    res.json({ message: 'Return release increased successfully', product });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

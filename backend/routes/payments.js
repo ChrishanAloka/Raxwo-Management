@@ -464,6 +464,17 @@ router.patch('/:id', authMiddleware, async (req, res) => {
               await Product.findByIdAndUpdate(update.productId, { $inc: { returnstock: deltaret } });
             }
           }
+
+          if (deltaret > 0) {
+            const product = await Product.findById(update.productId);
+            if (product && (product.returnRelease || 0) > 0) {
+              // Reduce returnRelease by min(deltaRet, current returnRelease)
+              const reduceBy = Math.min(product.returnRelease, deltaret);
+              product.returnRelease = Math.max(0, product.returnRelease - reduceBy);
+              console.log(`Reduced returnRelease by ${reduceBy} for ${product.itemCode}`);
+            }
+          }
+          
           item.retquantity = update.retquantity;
           itemsUpdated = true;
         }

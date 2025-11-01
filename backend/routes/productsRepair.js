@@ -791,6 +791,11 @@ router.patch("/:id", authMiddleware, getRepair, async (req, res) => {
           if (product) {
             product.returnstock += item.quantity;
             // if (product.stock < 0) product.stock = 0;
+            
+            // ✅ Reduce returnRelease, but not below 0
+            const qtyToReduce = Math.min(product.returnRelease || 0, item.quantity);
+            product.returnRelease = Math.max(0, (product.returnRelease || 0) - qtyToReduce);
+            
             await product.save();
             console.log(`Deducted ${item.quantity} from stock for ${item.itemCode}`);
           }

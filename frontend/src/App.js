@@ -42,6 +42,7 @@ import AddProductRepair from './AddProductRepair';
 import EditProductRepair from './EditProductRepair';
 import ProductRepairList from './ProductsRepair';
 import ProductList from './ProductList';
+import ProductListRelease from './ProductListRelease';
 import CartDetailsPage from './pages/CartDetailsPage';
 import InputHandler from './InputHandler';
 import SalaryList from './components/SalaryList';
@@ -420,6 +421,15 @@ const App = () => {
               </PrivateRoute>
             }
           />
+          <Route
+            path="/productsRelease"
+            element={
+              <PrivateRoute>
+                <ProductListRelease darkMode={darkMode} />
+              </PrivateRoute>
+            }
+          />
+          
           <Route
             path="/SupplierList"
             element={
