@@ -20,11 +20,14 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
   const [assignedTo, setAssignedTo] = useState("");
 
   const [serviceTypes, setServiceTypes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingservice, setLoadingService] = useState(false);
 
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchServiceTypes = async () => {
+      setLoadingService(true); // ← Start loading
       try {
         const response = await fetch(`${API_URL}`);
         if (!response.ok) throw new Error('Failed to fetch records');
@@ -33,6 +36,8 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
         setServiceTypes(uniqueTypes.map(type => ({ value: type, label: type })));
       } catch (err) {
         console.error('Error fetching service types:', err);
+      } finally {
+        setLoadingService(false); // ← End loading
       }
     };
     fetchServiceTypes();
@@ -41,6 +46,7 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
+    setLoading(true);
     try {
       const response = await fetch(API_URL, {
         method: "POST",
@@ -57,6 +63,8 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
     } catch (error) {
       console.error("Error adding Bills and Other Expences record:", error);
       setError(error.message);
+    } finally {
+      setLoading(false); // ← Stop loading
     }
   };
 
@@ -65,6 +73,11 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
       <div className={`m-a-modal-container ${darkMode ? "dark" : ""}`} onClick={(e) => e.stopPropagation()}>
         <h3 className={`m-a-modal-title ${darkMode ? "dark" : ""}`} onClick={(e) => e.stopPropagation()}>Add Bills and Other Expences Record</h3>
         {error && <p className="error-message">{error}</p>}
+        {(loading && loadingservice) && (
+          <div className="loading-overlay">
+            <div className="spinner"></div>
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <label className={`madd-label ${darkMode ? "dark" : ""}`}>Date</label>
           <input
@@ -172,8 +185,12 @@ const MaintenanceAdd = ({ onClose, onUpdate, darkMode }) => {
             onChange={(e) => setRemarks(e.target.value)}
           />
           <div className="button-group">
-            <button type="submit" className="me-submit-btn">Submit</button>
-            <button type="button" className="me-cancel-btn" onClick={onClose}>Cancel</button>
+            <button type="submit" className="me-submit-btn" disabled={(loading || loadingservice)}>
+              {loadingservice ? "Loading..." : loading ? "Submitting..." : "Submit"}
+            </button>
+            <button type="button" className="me-cancel-btn" onClick={onClose} disabled={(loading)}>
+              Cancel
+            </button>
           </div>
         </form>
       </div>

@@ -8,6 +8,7 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
   const [editedRecord, setEditedRecord] = useState({ ...record });
   const [error, setError] = useState(null);
   const [serviceTypes, setServiceTypes] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Helper to format time to HH:mm for input[type="time"]
@@ -40,6 +41,7 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
 
   useEffect(() => {
     const fetchServiceTypes = async () => {
+       setLoading(true);
       try {
         const response = await fetch(`${API_URL}`);
         if (!response.ok) throw new Error('Failed to fetch records');
@@ -48,6 +50,8 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
         setServiceTypes(uniqueTypes.map(type => ({ value: type, label: type })));
       } catch (err) {
         console.error('Error fetching service types:', err);
+      } finally {
+        setLoading(false); // ← End loading
       }
     };
     fetchServiceTypes();
@@ -56,6 +60,7 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
+    setLoading(true);
     try {
       const response = await fetch(`${API_URL}/${editedRecord._id}`, {
         method: "PUT",
@@ -67,6 +72,8 @@ const MaintenanceEdit = ({ record, onClose, onUpdate, darkMode }) => {
       onClose();
     } catch (error) {
       setError(error.message);
+    } finally {
+      setLoading(false); // ← Stop loading
     }
   };
 

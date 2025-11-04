@@ -21,6 +21,7 @@ const MaintenanceList = ({ darkMode }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [editingRecord, setEditingRecord] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -52,11 +53,23 @@ const MaintenanceList = ({ darkMode }) => {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this maintenance record?")) {
       try {
-        await fetch(`${API_URL}/${id}`, { method: "DELETE" }, {headers: {
+        const response = await fetch(`${API_URL}/${id}`, { 
+          method: "DELETE", 
+          headers: {
           'Authorization': `Bearer ${token}`
-        }});
+          }
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          // Handle 404, 500, etc.
+          throw new Error(data.message || "Failed to delete the record");
+        }
+        
         setMaintenanceRecords(maintenanceRecords.filter(record => record._id !== id));
         setShowActionMenu(null);
+        setSuccess("Record deleted successfully!");
+        setTimeout(() => setSuccess(null), 2000);
       } catch (error) {
         setError(error.message);
       }
@@ -306,6 +319,7 @@ const MaintenanceList = ({ darkMode }) => {
         </div>
       )}
       {error && <p className="error-message">{error}</p>}
+      {success && <p className="success-message">{success}</p>}
       {loading ? (
         <p className="loading">Loading Bills and Other Expences...</p>
       ) : filteredRecords.length === 0 ? (

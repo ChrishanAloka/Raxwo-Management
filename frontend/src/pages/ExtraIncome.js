@@ -37,6 +37,7 @@ const ExtraIncome = ({ darkMode }) => {
   const [searchQuery, setSearchQuery] = useState("");
   // State for loading and error
   const [loading, setLoading] = useState(true);
+  const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const [returningRecord, setReturningRecord] = useState(null);
@@ -147,7 +148,8 @@ const ExtraIncome = ({ darkMode }) => {
     }
 
     const totalAmount = validPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-    
+    setFormLoading(true);
+
     try {
       const payload = {
         date: `${formData.date}T${formData.time}:00.000Z`,
@@ -192,6 +194,8 @@ const ExtraIncome = ({ darkMode }) => {
     } catch (err) {
       console.error("Error adding extra income:", err);
       setError(err.message);
+    } finally {
+      setFormLoading(false); // ✅ Stop loading
     }
   };
 
@@ -295,7 +299,7 @@ const ExtraIncome = ({ darkMode }) => {
     }
 
     const totalAmount = validPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-    
+    setFormLoading(true);
     try {
       const payload = {
         date: `${editingRecord.date}T${editingRecord.time}:00.000Z`,
@@ -336,6 +340,8 @@ const ExtraIncome = ({ darkMode }) => {
     } catch (err) {
       console.error("Error updating extra income:", err);
       setError(err.message);
+    } finally {
+      setFormLoading(false); // ✅ Stop loading
     }
   };
 
@@ -709,6 +715,12 @@ const ExtraIncome = ({ darkMode }) => {
           }}>
             <h3 className={`m-a-modal-title ${darkMode ? "dark" : ""}`}>Add Extra Income Record</h3>
             {error && <p className="error-message">{error}</p>}
+            {formLoading && (
+              <div className="form-loading">
+                <div className="spinner"></div>
+                <p>Processing...</p>
+              </div>
+            )}
             <form onSubmit={handleSubmit}>
               <label className={`madd-label ${darkMode ? "dark" : ""}`}>Date</label>
               <input
@@ -969,8 +981,14 @@ const ExtraIncome = ({ darkMode }) => {
                 </div>
               {/* === END NEW FIELD === */}
               <div className="button-group">
-                <button type="submit" className="me-submit-btn">Submit</button>
-                <button type="button" className="me-cancel-btn" onClick={() => setShowAddModal(false)}>
+                <button 
+                  type="submit" 
+                  className="me-submit-btn"
+                  disabled={formLoading}
+                >
+                  {formLoading ? "Processing..." : "Submit"}
+                </button>
+                <button type="button" className="me-cancel-btn" onClick={() => setShowAddModal(false)} disabled={formLoading}>
                   Cancel
                 </button>
               </div>
@@ -984,6 +1002,12 @@ const ExtraIncome = ({ darkMode }) => {
           <div className={`m-a-modal-container ${darkMode ? "dark" : ""}`} onClick={(e) => e.stopPropagation()}>
             <h3 className={`m-a-modal-title ${darkMode ? "dark" : ""}`}>Edit Extra Income Record</h3>
             {error && <p className="error-message">{error}</p>}
+            {formLoading && (
+              <div className="form-loading">
+                <div className="spinner"></div>
+                <p>Processing...</p>
+              </div>
+            )}
             <form onSubmit={handleEditSubmit}>
               <label className={`madd-label ${darkMode ? "dark" : ""}`}>Date</label>
               <input
@@ -1259,8 +1283,14 @@ const ExtraIncome = ({ darkMode }) => {
                 </div>
               {/* === END NEW FIELD === */}
               <div className="button-group">
-                <button type="submit" className="me-submit-btn">Submit</button>
-                <button type="button" className="me-cancel-btn" onClick={() => setEditingRecord(null)}>
+                <button 
+                  type="submit" 
+                  className="me-submit-btn"
+                  disabled={formLoading}
+                >
+                  {formLoading ? "Processing..." : "Submit"}
+                </button>
+                <button type="button" className="me-cancel-btn" onClick={() => setEditingRecord(null)} disabled={formLoading}>
                   Cancel
                 </button>
               </div>

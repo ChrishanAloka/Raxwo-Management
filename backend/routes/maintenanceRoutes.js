@@ -72,7 +72,7 @@ router.post("/", authMiddleware, async (req, res) => {
 // Get All Maintenance Records
 router.get("/", async (req, res) => {
     try {
-        const maintenanceRecords = await Maintenance.find();
+        const maintenanceRecords = await Maintenance.find().sort({ no: -1 });
         res.status(200).json(maintenanceRecords);
     } catch (error) {
         console.error("Error fetching maintenance records:", error);
