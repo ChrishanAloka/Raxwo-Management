@@ -1073,8 +1073,9 @@ const ProductRepairList = ({ darkMode }) => {
       setError("");
 
       const username = localStorage.getItem('username') || 'System';
+      const collectedAt = new Date().toISOString(); // ✅ New collected date 
       const changeEntry = {
-        changedAt: new Date().toISOString(),
+        changedAt: collectedAt,
         changedBy: username,
         field: 'repairStatus',
         oldValue: selectedRepair.repairStatus,
@@ -1090,6 +1091,7 @@ const ProductRepairList = ({ darkMode }) => {
         },
         body: JSON.stringify({
           repairStatus: "Completed-Collected",
+          collectedAt,
           changeHistory: [...(selectedRepair.changeHistory || []), changeEntry]
         }),
       });
@@ -4513,6 +4515,10 @@ const ProductRepairList = ({ darkMode }) => {
                 <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Completed At:</strong>
                 <span style={{ color: darkMode ? "#fff" : "#333" }}>
                   {new Date(selectedRepair.completedAt).toLocaleString()}
+                </span>
+                <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Collected At:</strong>
+                <span style={{ color: darkMode ? "#fff" : "#333" }}>
+                  {new Date(selectedRepair.collectedAt).toLocaleString()}
                 </span>
               </div>
             )}
