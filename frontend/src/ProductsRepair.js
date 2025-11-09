@@ -1886,7 +1886,7 @@ const ProductRepairList = ({ darkMode }) => {
               <p><strong>Phone:</strong> ${repair.customerPhone}</p>
               <p><strong>Device:</strong> ${repair.deviceType || repair.itemName}</p>
               <p><strong>Issue:</strong> ${repair.issueDescription}</p>
-              <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+              <p><strong>Date:</strong> ${new Date(repair.collectedAt).toLocaleDateString()}</p>
             </div>
             <table>
               <thead>
