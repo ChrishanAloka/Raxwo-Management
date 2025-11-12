@@ -1485,13 +1485,14 @@ const ProductList = ({ darkMode }) => {
               <col style={{ width: '8%' }} />   {/* Date */}
               <col style={{ width: '30%' }} />  {/* Item Name ← main focus */}
               <col style={{ width: '16%' }} />  {/* Payment Method ← treated as "category" */}
-              <col style={{ width: '12%' }} />   {/* Time */}
-              <col style={{ width: '8%' }} />   {/* Time */}
-              <col style={{ width: '15%' }} />  {/* Invoice No. */}
+              <col style={{ width: '8%' }} />   {/* buying price */}
+              <col style={{ width: '10%' }} />   {/* stock / real bala */}
+              <col style={{ width: '10%' }} />   {/* r/d/re */}
+              <col style={{ width: '12%' }} />  {/* Used */}
               
-              <col style={{ width: '8%' }} />  {/* Payment Method ← treated as "category" */}
-              <col style={{ width: '10%' }} />  {/* Cashier Name */}
-              <col style={{ width: '4%' }} />   {/* Discount */}
+              <col style={{ width: '10%' }} />  {/* Supplier Name */}
+              <col style={{ width: '5%' }} />  {/* Date */}
+              <col style={{ width: '4%' }} />   {/*Action */}
             </colgroup>
             <thead>
               <tr>
@@ -1515,6 +1516,14 @@ const ProductList = ({ darkMode }) => {
                 <th onClick={() => handleSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'normal', wordBreak: 'break-word' }}>
                   Category
                   {sortConfig.key === 'category' && (
+                    <span style={{ marginLeft: '8px' }}>
+                      {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSort('buyingPrice')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'normal', wordBreak: 'break-word'  }}>
+                  Buying Price
+                  {sortConfig.key === 'buyingPrice' && (
                     <span style={{ marginLeft: '8px' }}>
                       {sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽'}
                     </span>
@@ -1586,6 +1595,11 @@ const ProductList = ({ darkMode }) => {
                     <td>
                       <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight: 'bold' , whiteSpace: 'normal', wordBreak: 'break-word' }}>
                         {product.category} 
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: product.stock <= 2 ? product.stock == 0 ? 'red' : '#2957F0' : 'black', fontWeight:  'bold'  }}>
+                       Rs.{parseFloat(product.buyingPrice)} 
                       </span>
                     </td>
                     {/* <td>
