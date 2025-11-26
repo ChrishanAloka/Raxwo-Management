@@ -16,6 +16,7 @@ const CashierAdd = ({ isOpen, onClose, refreshCashiers, darkMode }) => {
     id: "",
     jobRole: "Cashier", // Default value
     remarks: "",
+    basicSalary: "",
   });
 
   const handleChange = (e) => {
@@ -27,16 +28,17 @@ const CashierAdd = ({ isOpen, onClose, refreshCashiers, darkMode }) => {
     
     const token = localStorage.getItem('token');
     try {
-      await axios.post(API_URL, {
+      await axios.post(API_URL, cashier, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
-      }, cashier);
+      });
       alert("Cashier added successfully");
       refreshCashiers();
       onClose();
     } catch (err) {
-      alert("Error adding cashier");
+      console.error(err);
+      alert("Error adding cashier: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -81,6 +83,17 @@ const CashierAdd = ({ isOpen, onClose, refreshCashiers, darkMode }) => {
 
               <label className={`cash-add-lable ${darkMode ? "dark" : ""}`}>Remarks</label>
               <input className={`cash-add-input ${darkMode ? "dark" : ""}`} type="text" name="remarks" value={cashier.remarks} onChange={handleChange} />
+
+              <label className={`cash-add-lable ${darkMode ? "dark" : ""}`}>Basic Salary</label>
+              <input
+                className={`cash-add-input ${darkMode ? "dark" : ""}`}
+                type="number"
+                name="basicSalary"
+                value={cashier.basicSalary}
+                onChange={handleChange}
+                min="0"
+                step="0.01" // or step="1" if only whole numbers
+              />
               
             </div>
           </div>

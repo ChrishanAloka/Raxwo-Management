@@ -32,10 +32,17 @@ const SalaryList = ({ darkMode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [groupBy, setGroupBy] = useState('employee'); // 'date' or 'employee'
+  const [chartType, setChartType] = useState('advance'); // 'advance' or 'due'
 
   useEffect(() => {
     fetchSalaries();
   }, []);
+
+  useEffect(() => {
+    if (chartType === 'due') {
+      setGroupBy('employee');
+    }
+  }, [chartType]);
 
   useEffect(() => {
     if ( !startDate && !endDate) {
@@ -173,18 +180,21 @@ const SalaryList = ({ darkMode }) => {
   };
 
   const chartData = {
-    labels: groupBy === 'employee'
-      ? Object.keys(summaryData.groupedByEmployee)
-      : Object.keys(summaryData.groupedByDate).sort(), // Sort dates chronologically
+    labels: chartType === 'due'
+      ? Object.values(summaryData.dueByEmployee || {}).map(emp => emp.employeeName)
+      : (groupBy === 'employee'
+          ? Object.keys(summaryData.groupedByEmployee || {})
+          : Object.keys(summaryData.groupedByDate || {}).sort()),
     datasets: [
       {
-        label: 'Advance Amount',
-        data:
-        groupBy === 'employee'
-          ? Object.values(summaryData.groupedByEmployee)
-          : Object.values(summaryData.groupedByDate),
-        backgroundColor: darkMode ? 'rgba(54, 162, 235, 0.6)' : 'rgba(75, 192, 192, 0.6)',
-        borderColor: darkMode ? 'rgba(54, 162, 235, 1)' : 'rgba(75, 192, 192, 1)',
+        label: chartType === 'due' ? 'Due Amount' : 'Advance Amount',
+        data: chartType === 'due'
+          ? Object.values(summaryData.dueByEmployee || {}).map(emp => emp.due)
+          : (groupBy === 'employee'
+              ? Object.values(summaryData.groupedByEmployee || {})
+              : Object.values(summaryData.groupedByDate || [])),
+        backgroundColor: darkMode ? 'rgba(255, 99, 132, 0.6)' : chartType === 'due' ? 'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 0.6)',
+        borderColor: darkMode ? 'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 1)',
         borderWidth: 1,
       },
     ],
@@ -352,18 +362,38 @@ const SalaryList = ({ darkMode }) => {
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               className={`date-range-input ${darkMode ? 'dark' : ''}`}
-            />            
-            <label className={`date-range-label ${darkMode ? 'dark' : ''}`}>
-              Group By:
-            </label>
-            <select
-              value={groupBy}
-              onChange={(e) => setGroupBy(e.target.value)}
-              className={`date-range-input-select ${darkMode ? 'dark' : ''}`}
-            >
-              <option value="employee">Employee</option>
-              <option value="date">Date</option>
-            </select>
+            /> 
+            {groupBy !== 'date' && (
+              <>         
+                <label className={`date-range-label ${darkMode ? 'dark' : ''}`}>
+                  View:
+                </label>
+                <select
+                  value={chartType}
+                  onChange={(e) => setChartType(e.target.value)}
+                  className={`date-range-input-select ${darkMode ? 'dark' : ''}`}
+                >
+                  <option value="advance">Advance</option>
+                  <option value="due">Due Amount</option>
+                </select>
+              </>
+            )}
+            {chartType !== 'due' && (
+                <>
+                  <label className={`date-range-label ${darkMode ? 'dark' : ''}`}>
+                    Group By:
+                  </label>
+                  <select
+                    value={groupBy}
+                    onChange={(e) => setGroupBy(e.target.value)}
+                    className={`date-range-input-select ${darkMode ? 'dark' : ''}`}
+                    disabled={chartType === 'due'}
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="date">Date</option>
+                  </select>
+                </>
+              )}
             <button onClick={fetchSummary} className="fetch-summary-btn">
               Fetch Summary
             </button>

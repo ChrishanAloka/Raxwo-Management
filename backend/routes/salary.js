@@ -116,30 +116,73 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 router.get("/summary/:startDate/:endDate", async (req, res) => {
   try {
     const { startDate, endDate } = req.params;
+
+    // Fetch ALL cashiers (employees) — this is key
+    const cashiers = await Cashier.find({}, "id basicSalary cashierName");
+    const cashierMap = {};
+    cashiers.forEach(c => {
+      cashierMap[c.id] = {
+        id: c.id,
+        cashierName: c.cashierName,
+        basicSalary: c.basicSalary || 0
+      };
+    });
+
+    // Fetch salaries in date range
     const salaries = await Salary.find({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate),
       },
     });
-    const totalCost = salaries.reduce((sum, salary) => sum + salary.advance, 0);
 
+    // Group advances by employeeId
+    const advanceByEmployee = {};
+    salaries.forEach(salary => {
+      const empId = salary.employeeId;
+      advanceByEmployee[empId] = (advanceByEmployee[empId] || 0) + salary.advance;
+    });
+
+    // Build dueByEmployee for ALL cashiers
+    const dueByEmployee = {};
+    cashiers.forEach(cashier => {
+      const empId = cashier.id;
+      const basicSalary = cashier.basicSalary || 0;
+      const totalAdvance = advanceByEmployee[empId] || 0;
+      const due = basicSalary - totalAdvance;
+
+      dueByEmployee[empId] = {
+        employeeName: cashier.cashierName,
+        basicSalary,
+        totalAdvance,
+        due: due > 0 ? due : 0 // optional: clamp to 0
+      };
+    });
+
+    // (Optional) Keep legacy groupedByEmployee for backward compatibility
+    const groupedByEmployee = {};
+    Object.keys(dueByEmployee).forEach(id => {
+      groupedByEmployee[dueByEmployee[id].employeeName] = dueByEmployee[id].totalAdvance;
+    });
+
+    // Group by date (unchanged)
     const groupedByDate = salaries.reduce((acc, salary) => {
       const date = new Date(salary.date).toISOString().split('T')[0];
       acc[date] = (acc[date] || 0) + salary.advance;
       return acc;
     }, {});
 
-    // Group by employeeId
-    const groupedByEmployee = salaries.reduce((acc, salary) => {
-      const { employeeName, advance } = salary;
-      acc[employeeName] = (acc[employeeName] || 0) + advance;
-      return acc;
-    }, {});
+    const totalCost = salaries.reduce((sum, s) => sum + s.advance, 0);
 
+    res.json({
+      totalCost,
+      groupedByDate,
+      groupedByEmployee, // for "Advance" chart (employee name → advance)
+      dueByEmployee      // for "Due" chart (includes ALL employees)
+    });
 
-    res.json({ totalCost, groupedByDate, groupedByEmployee });
   } catch (err) {
+    console.error("Summary error:", err);
     res.status(500).json({ message: err.message });
   }
 });

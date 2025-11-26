@@ -204,6 +204,7 @@ const CashierList = ({ darkMode }) => {
               <th>Name</th>
               <th>Phone</th>
               <th>NIC</th>
+              <th>Basic Salary</th>
               <th>Email</th>
               <th>Remarks</th>
               <th>Action</th>
@@ -217,6 +218,7 @@ const CashierList = ({ darkMode }) => {
                 <td>{cashier.cashierName}</td>
                 <td>{cashier.phone}</td>
                 <td>{cashier.nic}</td>
+                <td>Rs. {cashier.basicSalary||0.00}</td>
                 <td>{cashier.email}</td>
                 <td>{cashier.remarks || 'N/A'}</td>
                 <td>

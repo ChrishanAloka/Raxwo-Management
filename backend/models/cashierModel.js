@@ -9,6 +9,7 @@ const cashierSchema = new mongoose.Schema(
     id: { type: String, required: true, unique: true },
     jobRole: { type: String, required: true },
     remarks: { type: String },
+    basicSalary: { type: Number }, // 👈 Added field
   },
   { timestamps: true }
 );

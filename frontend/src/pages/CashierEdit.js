@@ -19,16 +19,17 @@ const CashierEdit = ({ isOpen, onClose, cashier, refreshCashiers, darkMode }) =>
     e.preventDefault();
     const token = localStorage.getItem('token');
     try {
-      await axios.put(`${API_URL}/${updatedCashier._id}`, {
+      await axios.put(`${API_URL}/${updatedCashier._id}`, updatedCashier, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
-      } ,updatedCashier);
+      });
       alert("Cashier updated successfully");
       refreshCashiers();
       onClose();
     } catch (err) {
-      alert("Error updating cashier");
+      console.error(err);
+      alert("Error updating cashier: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -69,6 +70,17 @@ const CashierEdit = ({ isOpen, onClose, cashier, refreshCashiers, darkMode }) =>
 
               <label className={`ce-input-group-label ${darkMode ? "dark" : ""}`}>Remarks</label>
               <input className={`ce-input-group-input ${darkMode ? "dark" : ""}`} type="text" name="remarks" value={updatedCashier.remarks} onChange={handleChange} />
+
+              <label className={`ce-input-group-label ${darkMode ? "dark" : ""}`}>Basic Salary</label>
+              <input
+                className={`ce-input-group-input ${darkMode ? "dark" : ""}`}
+                type="number"
+                name="basicSalary"
+                value={updatedCashier.basicSalary || ""}
+                onChange={handleChange}
+                min="0"
+                step="0.01"
+              />
              
             </div>
           </div>
