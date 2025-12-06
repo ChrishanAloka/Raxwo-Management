@@ -488,12 +488,21 @@ const ProductRepairList = ({ darkMode }) => {
       setError("Only admins can delete repair records.");
       return;
     }
+    // 🔒 Prevent deletion if repairCart has items
+    const repair = repairs.find(r => r._id === id);
+    if (repair && repair.repairCart && repair.repairCart.length > 0) {
+      setError("Cannot delete this repair: it contains items in the cart.");
+      return;
+    }
+    
     if (window.confirm("Are you sure you want to delete this repair record?")) {
       try {
-        const response = await fetch(`${API_URL}/${id}`, { method: "DELETE" }, {headers: {
-          'Authorization': `Bearer ${token}`
-        }});
+        const response = await fetch(`${API_URL}/${id}`, { 
+          method: "DELETE", 
+          headers: {'Authorization': `Bearer ${token}`}
+        });
         if (!response.ok) throw new Error("Failed to delete repair record");
+        fetchRepairs();
         setRepairs(repairs.filter((repair) => repair._id !== id));
       } catch (err) {
         setError(err.message);
@@ -2957,14 +2966,17 @@ const ProductRepairList = ({ darkMode }) => {
                             </div>
                           </button>
                           {userRole === 'admin' && (
-                            <>
-                              <button onClick={() => handleDelete(repair._id)} className="p-delete-btn">
-                                <div className="action-btn-content">
-                                  <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
-                                  <span>Delete</span>
-                                </div>
-                              </button>
-                            </>
+                            <button
+                              onClick={() => handleDelete(repair._id)}
+                              className="p-delete-btn"
+                              disabled={repair.repairCart?.length > 0}
+                              title={repair.repairCart?.length > 0 ? "Cannot delete: items exist in repair cart" : "Delete repair"}
+                            >
+                              <div className="action-btn-content">
+                                <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
+                                <span>Delete</span>
+                              </div>
+                            </button>
                           )}
                           <button onClick={() => generateBill(repair)} className="p-bill-btn">
                             <div className="action-btn-content">
@@ -3127,7 +3139,12 @@ const ProductRepairList = ({ darkMode }) => {
                                   <span>Edit</span>
                                 </div>
                               </button>
-                              <button onClick={() => handleDelete(repair._id)} className="p-delete-btn">
+                              <button
+                                onClick={() => handleDelete(repair._id)}
+                                className="p-delete-btn"
+                                disabled={repair.repairCart?.length > 0}
+                                title={repair.repairCart?.length > 0 ? "Cannot delete: items exist in repair cart" : "Delete repair"}
+                              >
                                 <div className="action-btn-content">
                                   <img src={deleteicon} alt="delete" width="30" height="30" className="p-delete-btn-icon" />
                                   <span>Delete</span>
@@ -3372,8 +3389,8 @@ const ProductRepairList = ({ darkMode }) => {
                   }}
                 >
                   <option value="" disabled>Select Person/Team</option>
-                  <option value="Prabath">Prabath</option>
-                  <option value="Nadeesh">Nadeesh</option>
+                  <option value="Prabath">Prabath - 2nd Floor</option>
+                  <option value="Nadeesh">Nadeesh - 1st Floor</option>
                   <option value="Accessories">Accessories</option>
                   <option value="Genex-EX">Genex EX</option>
                   <option value="I-Device">I Device</option>
@@ -3519,8 +3536,8 @@ const ProductRepairList = ({ darkMode }) => {
                             }}
                           >
                             <option value="" disabled>Select Person/Team</option>
-                            <option value="Prabath">Prabath</option>
-                            <option value="Nadeesh">Nadeesh</option>
+                            <option value="Prabath">Prabath - 2nd Floor</option>
+                            <option value="Nadeesh">Nadeesh - 1st Floor</option>
                             <option value="Accessories">Accessories</option>
                             <option value="Genex-EX">Genex EX</option>
                             <option value="I-Device">I Device</option>

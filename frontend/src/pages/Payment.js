@@ -671,8 +671,8 @@ const Payment = ({ darkMode }) => {
                       required
                     >
                       <option value="" disabled>Select Technician</option>
-                      <option value="Prabath">Prabath</option>
-                      <option value="Nadeesh">Nadeesh</option>
+                      <option value="Prabath">Prabath - 2nd Floor</option>
+                      <option value="Nadeesh">Nadeesh - 1st Floor</option>
                       <option value="Accessories">Accessories</option>
                       <option value="Genex-EX">Genex EX</option>
                       <option value="I-Device">I Device</option>
