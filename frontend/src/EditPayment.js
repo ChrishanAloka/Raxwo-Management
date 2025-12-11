@@ -67,6 +67,26 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
     }
   }, [payment]);
 
+  useEffect(() => {
+    if (payment) {
+      // Format date for datetime-local input (local time, not UTC)
+      const localDate = new Date(payment.date);
+      const offset = localDate.getTimezoneOffset() * 60000;
+      const localISO = new Date(localDate - offset).toISOString().slice(0, 16);
+
+      setFormData({
+        customerName: payment.customerName || '',
+        contactNumber: payment.contactNumber || '',
+        address: payment.address || '',
+        description: payment.description || '',
+        assignedTo: payment.assignedTo || '',
+        date: localISO, // ✅ Add this
+      });
+
+      // ... rest of your initialization (paymentMethods, items)
+    }
+  }, [payment]);
+
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -138,10 +158,20 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
     };
 
     // Top-level changes
-    const topLevelFields = ['customerName', 'contactNumber', 'address', 'description', 'assignedTo'];
+    const topLevelFields = ['customerName', 'contactNumber', 'address', 'description', 'assignedTo','date'];
     topLevelFields.forEach(field => {
-      if (formData[field] !== (payment[field] || '')) {
-        payload[field] = formData[field];
+      if (field === 'date') {
+        if (formData.date) {
+          // Convert local datetime to UTC ISO string
+          const utcDate = new Date(formData.date).toISOString();
+          if (utcDate !== new Date(payment.date).toISOString()) {
+            payload.date = utcDate;
+          }
+        }
+      } else {
+        if (formData[field] !== (payment[field] || '')) {
+          payload[field] = formData[field];
+        }
       }
     });
 
@@ -216,6 +246,18 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
         {message && <p className="success-message">{message}</p>}
 
         <form className="edit-payment-form" onSubmit={handleSubmit}>
+          <div className="form-row">
+            <div className="left-column">
+              <label className={`edit-label ${darkMode ? "dark" : ""}`}>Payment Date</label>
+              <input
+                type="datetime-local"
+                name="date"
+                value={formData.date}
+                onChange={handleFormChange}
+                className={`edit-input ${darkMode ? "dark" : ""}`}
+              />
+            </div>
+          </div>
           {/* Customer Info */}
           <div className="form-row">
             <div className="left-column">
@@ -396,8 +438,8 @@ const EditPayment = ({ payment, closeModal, darkMode }) => {
                           className={`assign-select ${darkMode ? "dark" : ""}`}
                         >
                           <option value="">Select</option>
-                          <option value="Prabath">Prabath - 2nd Floor</option>
-                          <option value="Nadeesh">Nadeesh - 1st Floor</option>
+                          <option value="Prabath">2nd Floor</option>
+                          <option value="Nadeesh">1st Floor</option>
                           <option value="Accessories">Accessories</option>
                           <option value="Genex-EX">Genex EX</option>
                           <option value="I-Device">I Device</option>

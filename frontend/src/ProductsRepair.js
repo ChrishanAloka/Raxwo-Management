@@ -3235,6 +3235,74 @@ const ProductRepairList = ({ darkMode }) => {
               gap: "15px",
               marginBottom: "20px"
             }}>
+              {/* Job Date Field */}
+              {/* <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
+                <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Job Date:</strong>
+                <input
+                  type="datetime-local"
+                  value={selectedRepair.date ? new Date(selectedRepair.date).toISOString().slice(0, 16) : ''}
+                  onChange={async (e) => {
+                    const newDate = e.target.value ? new Date(e.target.value) : null;
+                    // Optimistic UI update
+                    setSelectedRepair(prev => ({ ...prev, date: newDate }));
+                    try {
+                      await fetch(`${API_URL}/${selectedRepair._id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                        body: JSON.stringify({ date: newDate }),
+                      });
+                      // Optionally refresh or show success
+                    } catch (err) {
+                      console.error("Failed to update job date", err);
+                      setError("Failed to update job date");
+                      // Revert on error
+                      setSelectedRepair(prev => ({ ...prev, date: prev.date }));
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                    backgroundColor: darkMode ? "#444" : "#fff",
+                    color: darkMode ? "#fff" : "#333",
+                  }}
+                />
+              </div> */}
+
+              {/* Completed At Field (only if completed or admin) */}
+              {userRole === 'admin' && (
+                <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
+                  <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Completed At:</strong>
+                  <input
+                    type="datetime-local"
+                    value={selectedRepair.completedAt ? new Date(selectedRepair.completedAt).toISOString().slice(0, 16) : ''}
+                    onChange={async (e) => {
+                      const newDate = e.target.value ? new Date(e.target.value) : null;
+                      setSelectedRepair(prev => ({ ...prev, completedAt: newDate }));
+                      try {
+                        await fetch(`${API_URL}/${selectedRepair._id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                          body: JSON.stringify({ completedAt: newDate }),
+                        });
+                      } catch (err) {
+                        console.error("Failed to update completedAt", err);
+                        setError("Failed to update completion time");
+                        setSelectedRepair(prev => ({ ...prev, completedAt: prev.completedAt }));
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "8px",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd",
+                      backgroundColor: darkMode ? "#444" : "#fff",
+                      color: darkMode ? "#fff" : "#333",
+                    }}
+                  />
+                </div>
+              )}
               <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
                 <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Customer Name:</strong>
                 <span style={{ color: darkMode ? "#fff" : "#333" }}>{selectedRepair.customerName}</span>
@@ -3257,10 +3325,10 @@ const ProductRepairList = ({ darkMode }) => {
                 <span style={{ color: darkMode ? "#fff" : "#333" }}>{selectedRepair.repairStatus}</span>
               </div>
 
-              <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
+              {/* <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
                 <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Payment Method:</strong>
                 <span style={{ color: darkMode ? "#fff" : "#333" }}>{selectedRepair.paymentMethod}</span>
-              </div>
+              </div> */}
 
               <div style={{ backgroundColor: darkMode ? "#555" : "#fff", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)" }}>
                 <strong style={{ color: darkMode ? "#ddd" : "#555", display: "block", marginBottom: "5px" }}>Repair Status:</strong>
@@ -3389,8 +3457,8 @@ const ProductRepairList = ({ darkMode }) => {
                   }}
                 >
                   <option value="" disabled>Select Person/Team</option>
-                  <option value="Prabath">Prabath - 2nd Floor</option>
-                  <option value="Nadeesh">Nadeesh - 1st Floor</option>
+                  <option value="Prabath">2nd Floor</option>
+                  <option value="Nadeesh">1st Floor</option>
                   <option value="Accessories">Accessories</option>
                   <option value="Genex-EX">Genex EX</option>
                   <option value="I-Device">I Device</option>
@@ -3536,8 +3604,8 @@ const ProductRepairList = ({ darkMode }) => {
                             }}
                           >
                             <option value="" disabled>Select Person/Team</option>
-                            <option value="Prabath">Prabath - 2nd Floor</option>
-                            <option value="Nadeesh">Nadeesh - 1st Floor</option>
+                            <option value="Prabath">2nd Floor</option>
+                            <option value="Nadeesh">1st Floor</option>
                             <option value="Accessories">Accessories</option>
                             <option value="Genex-EX">Genex EX</option>
                             <option value="I-Device">I Device</option>

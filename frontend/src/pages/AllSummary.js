@@ -43,6 +43,8 @@ const AllSummary = ({ darkMode }) => {
   const [error, setError] = useState(null);
   const [dateField, setDateField] = useState('createdAt');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [itemNameFilter, setItemNameFilter] = useState('');
+  const [isItemDropdownOpen, setItemDropdownOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'expenses', 'income'
   const [assignedToFilter, setAssignedToFilter] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
@@ -63,7 +65,15 @@ const AllSummary = ({ darkMode }) => {
     filterPayments();
     filterSupplierPayments();
     // eslint-disable-next-line
-  }, [products, grnExpenses.raw, salaries, maintenance, repairs, extraIncome, payments, supplierPayments, filterType, filterDate, startDate, endDate, dateField, categoryFilter, assignedToFilter, paymentMethodFilter]);
+  }, [products, grnExpenses.raw, salaries, maintenance, repairs, extraIncome, payments, supplierPayments, filterType, filterDate, startDate, endDate, dateField, categoryFilter, itemNameFilter, assignedToFilter, paymentMethodFilter]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setItemDropdownOpen(false);
+    if (isItemDropdownOpen) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [isItemDropdownOpen]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -164,6 +174,8 @@ const AllSummary = ({ darkMode }) => {
     if (filterType === 'all') {
       let filtered = products;
       if (categoryFilter) filtered = filtered.filter(p => p.category === categoryFilter);
+      if (itemNameFilter) filtered = filtered.filter(p => p.itemName === itemNameFilter);
+      
       setFilteredProducts(filtered);
       return;
     }
@@ -175,6 +187,7 @@ const AllSummary = ({ darkMode }) => {
       }
       let filtered = products.filter(p => !!p[dateField]);
       if (categoryFilter) filtered = filtered.filter(p => p.category === categoryFilter);
+      if (itemNameFilter) filtered = filtered.filter(p => p.itemName === itemNameFilter);
       
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -196,6 +209,7 @@ const AllSummary = ({ darkMode }) => {
     const dateObj = new Date(filterDate);
     let filtered = products.filter(p => !!p[dateField]);
     if (categoryFilter) filtered = filtered.filter(p => p.category === categoryFilter);
+    if (itemNameFilter) filtered = filtered.filter(p => p.itemName === itemNameFilter);
     
     if (filterType === 'daily') {
       filtered = filtered.filter(p => {
@@ -224,6 +238,7 @@ const AllSummary = ({ darkMode }) => {
         if (Array.isArray(grn.items)) {
           for (const item of grn.items) {
             if (categoryFilter && item.category !== categoryFilter) continue;
+            if (itemNameFilter && item.itemName !== itemNameFilter) continue;
             filtered.push({
               grnNumber: grn.grnNumber,
               supplierName: grn.supplierName,
@@ -258,6 +273,7 @@ const AllSummary = ({ darkMode }) => {
         if (grnDateObj >= start && grnDateObj <= end && Array.isArray(grn.items)) {
           for (const item of grn.items) {
             if (categoryFilter && item.category !== categoryFilter) continue;
+            if (itemNameFilter && item.itemName !== itemNameFilter) continue;
             filtered.push({
               grnNumber: grn.grnNumber,
               supplierName: grn.supplierName,
@@ -296,6 +312,7 @@ const AllSummary = ({ darkMode }) => {
       if (match && Array.isArray(grn.items)) {
         for (const item of grn.items) {
           if (categoryFilter && item.category !== categoryFilter) continue;
+          if (itemNameFilter && item.itemName !== itemNameFilter) continue;
           filtered.push({
             grnNumber: grn.grnNumber,
             supplierName: grn.supplierName,
@@ -320,6 +337,9 @@ const AllSummary = ({ darkMode }) => {
       }
       if (categoryFilter) {
         filtered = filtered.filter(p => p.assignedTo === categoryFilter);
+      }
+      if (itemNameFilter) {
+        filtered = filtered.filter(p => p.assignedTo === itemNameFilter);
       }
       if (paymentMethodFilter) {
         filtered = filtered.filter(p => p.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
@@ -348,6 +368,9 @@ const AllSummary = ({ darkMode }) => {
       if (categoryFilter) {
         filtered = filtered.filter(p => p.assignedTo === categoryFilter);
       }
+      if (itemNameFilter) {
+        filtered = filtered.filter(p => p.assignedTo === itemNameFilter);
+      }
       if (paymentMethodFilter) {
         filtered = filtered.filter(p => p.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
       }
@@ -369,6 +392,9 @@ const AllSummary = ({ darkMode }) => {
     }
     if (categoryFilter) {
         filtered = filtered.filter(p => p.assignedTo === categoryFilter);
+      }
+    if (itemNameFilter) {
+        filtered = filtered.filter(p => p.assignedTo === itemNameFilter);
       }
     if (paymentMethodFilter) {
       filtered = filtered.filter(p => p.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
@@ -400,6 +426,9 @@ const AllSummary = ({ darkMode }) => {
       if (categoryFilter) {
         filtered = filtered.filter(salary => salary.assignedTo === categoryFilter);
       }
+      if (itemNameFilter) {
+        filtered = filtered.filter(p => p.assignedTo === itemNameFilter);
+      }
       if (paymentMethodFilter) {
         filtered = filtered.filter(salary => salary.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
       }
@@ -426,6 +455,9 @@ const AllSummary = ({ darkMode }) => {
       if (categoryFilter) {
         filtered = filtered.filter(salary => salary.assignedTo === categoryFilter);
       }
+      if (itemNameFilter) {
+        filtered = filtered.filter(p => p.assignedTo === itemNameFilter);
+      }
       if (paymentMethodFilter) {
         filtered = filtered.filter(salary => salary.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
       }
@@ -447,6 +479,9 @@ const AllSummary = ({ darkMode }) => {
     }
     if (categoryFilter) {
         filtered = filtered.filter(salary => salary.assignedTo === categoryFilter);
+      }
+    if (itemNameFilter) {
+        filtered = filtered.filter(p => p.assignedTo === itemNameFilter);
       }
     if (paymentMethodFilter) {
       filtered = filtered.filter(salary => salary.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
@@ -482,6 +517,9 @@ const AllSummary = ({ darkMode }) => {
       if (categoryFilter) {
         filtered = filtered.filter(m => m.assignedTo === categoryFilter);
       }
+      if (itemNameFilter) {
+        filtered = filtered.filter(p => p.assignedTo === itemNameFilter);
+      }
       if (paymentMethodFilter) {
         filtered = filtered.filter(m => m.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
       }
@@ -509,6 +547,9 @@ const AllSummary = ({ darkMode }) => {
       if (categoryFilter) {
         filtered = filtered.filter(m => m.assignedTo === categoryFilter);
       }
+      if (itemNameFilter) {
+        filtered = filtered.filter(p => p.assignedTo === itemNameFilter);
+      }
       if (paymentMethodFilter) {
         filtered = filtered.filter(m => m.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
       }
@@ -530,6 +571,9 @@ const AllSummary = ({ darkMode }) => {
     }
     if (categoryFilter) {
         filtered = filtered.filter(m => m.assignedTo === categoryFilter);
+      }
+    if (itemNameFilter) {
+        filtered = filtered.filter(p => p.assignedTo === itemNameFilter);
       }
     if (paymentMethodFilter) {
       filtered = filtered.filter(m => m.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase());
@@ -560,18 +604,22 @@ const AllSummary = ({ darkMode }) => {
     // Inside filterRepairs(), add this helper:
     const matchesCategory = (record) => {
       if (!categoryFilter) return true;
+      if (!itemNameFilter) return true
 
       // Check root category
       if (record.category === categoryFilter) return true;
+      if (record.itemName === itemNameFilter) return true;
 
       // Check repairCart
       if (Array.isArray(record.repairCart)) {
         if (record.repairCart.some(item => item.category === categoryFilter)) return true;
+        if (record.repairCart.some(item => item.itemName === itemNameFilter)) return true;
       }
 
       // Check returnCart
       if (Array.isArray(record.returnCart)) {
         if (record.returnCart.some(item => item.category === categoryFilter)) return true;
+        if (record.returnCart.some(item => item.itemName === itemNameFilter)) return true;
       }
 
       return false;
@@ -615,7 +663,7 @@ const AllSummary = ({ darkMode }) => {
     };
 
     if (filterType === 'all') {
-      let filtered = repairs.filter(r => !!r[dateField]);
+      let filtered = repairs.filter(r => (r.completedAt ? !!r.completedAt : !!r[dateField] ));
       filtered = filtered.filter(matchesAssignee);
       filtered = filtered.filter(matchesPaymentMethod);
       filtered = filtered.filter(matchesCategory);
@@ -625,7 +673,7 @@ const AllSummary = ({ darkMode }) => {
 
     if (filterType === 'range') {
       if (!startDate || !endDate) {
-        let filtered = repairs.filter(r => !!r[dateField]);
+        let filtered = repairs.filter(r => (r.completedAt ? !!r.completedAt : !!r[dateField] ));
         filtered = filtered.filter(matchesAssignee);
         filtered = filtered.filter(matchesPaymentMethod);
         filtered = filtered.filter(matchesCategory);
@@ -636,8 +684,8 @@ const AllSummary = ({ darkMode }) => {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       let filtered = repairs.filter(r => {
-        const d = new Date(r[dateField]);
-        return !!r[dateField] && d >= start && d <= end;
+        const d = new Date((r.completedAt ? !!r.completedAt : !!r[dateField] ));
+        return (r.completedAt ? !!r.completedAt : !!r[dateField] ) && d >= start && d <= end;
       });
       filtered = filtered.filter(matchesAssignee);
       filtered = filtered.filter(matchesPaymentMethod);
@@ -647,7 +695,7 @@ const AllSummary = ({ darkMode }) => {
     }
 
     if (!filterDate) {
-      let filtered = repairs.filter(r => !!r[dateField]);
+      let filtered = repairs.filter(r => (r.completedAt ? !!r.completedAt : !!r[dateField] ));
       filtered = filtered.filter(matchesAssignee);
       filtered = filtered.filter(matchesPaymentMethod);
       filtered = filtered.filter(matchesCategory);
@@ -656,21 +704,22 @@ const AllSummary = ({ darkMode }) => {
     }
 
     const dateObj = new Date(filterDate);
-    let filtered = repairs.filter(r => !!r[dateField]);
+    let filtered = repairs.filter(r => (r.completedAt ? !!r.completedAt : !!r[dateField] ));
     filtered = filtered.filter(matchesAssignee);
     filtered = filtered.filter(matchesPaymentMethod);
     filtered = filtered.filter(matchesCategory);
+    
 
     if (filterType === 'daily') {
-      filtered = filtered.filter(r => getLocalDateKey(r[dateField]) === getLocalDateKey(filterDate));
+      filtered = filtered.filter(r => getLocalDateKey((r.completedAt ? !!r.completedAt : !!r[dateField] )) === getLocalDateKey(filterDate));
     } else if (filterType === 'monthly') {
       filtered = filtered.filter(r => {
-        const d = new Date(r[dateField]);
+        const d = new Date((r.completedAt ? !!r.completedAt : !!r[dateField] ));
         return d.getFullYear() === dateObj.getFullYear() && d.getMonth() === dateObj.getMonth();
       });
     } else if (filterType === 'yearly') {
       filtered = filtered.filter(r => {
-        const d = new Date(r[dateField]);
+        const d = new Date((r.completedAt ? !!r.completedAt : !!r[dateField] ));
         return d.getFullYear() === dateObj.getFullYear();
       });
     }
@@ -681,8 +730,16 @@ const AllSummary = ({ darkMode }) => {
   const filterExtraIncome = () => {
     const matchesCategory = (record) => {
       if (!categoryFilter) return true;
+      
       if (!Array.isArray(record.items)) return false;
       return record.items.some(item => item.category === categoryFilter);
+    };
+
+    const matchesItemName = (record) => {
+      if (!itemNameFilter) return true;
+      
+      if (!Array.isArray(record.items)) return false;
+      return record.items.some(item => item.itemName === itemNameFilter);
     };
 
     const matchesPaymentMethod = (record) => {
@@ -705,6 +762,8 @@ const AllSummary = ({ darkMode }) => {
       filtered = filtered.filter(matchesAssignee);
       filtered = filtered.filter(matchesPaymentMethod);
       filtered = filtered.filter(matchesCategory);
+      filtered = filtered.filter(matchesItemName);
+      
       setFilteredExtraIncome(filtered);
       return;
     }
@@ -716,6 +775,7 @@ const AllSummary = ({ darkMode }) => {
         filtered = filtered.filter(matchesAssignee);
         filtered = filtered.filter(matchesPaymentMethod);
         filtered = filtered.filter(matchesCategory);
+        filtered = filtered.filter(matchesItemName);
         setFilteredExtraIncome(filtered);
         return;
       }
@@ -729,6 +789,7 @@ const AllSummary = ({ darkMode }) => {
       filtered = filtered.filter(matchesAssignee);
       filtered = filtered.filter(matchesPaymentMethod);
       filtered = filtered.filter(matchesCategory);
+      filtered = filtered.filter(matchesItemName);
       setFilteredExtraIncome(filtered);
       return;
     }
@@ -738,6 +799,7 @@ const AllSummary = ({ darkMode }) => {
       filtered = filtered.filter(matchesAssignee);
       filtered = filtered.filter(matchesPaymentMethod);
       filtered = filtered.filter(matchesCategory);
+      filtered = filtered.filter(matchesItemName);
       setFilteredExtraIncome(filtered);
       return;
     }
@@ -747,6 +809,7 @@ const AllSummary = ({ darkMode }) => {
     filtered = filtered.filter(matchesAssignee);
     filtered = filtered.filter(matchesPaymentMethod);
     filtered = filtered.filter(matchesCategory);
+    filtered = filtered.filter(matchesItemName);
 
     if (filterType === 'daily') {
       filtered = filtered.filter(ei => getLocalDateKey(ei.date) === getLocalDateKey(filterDate));
@@ -771,7 +834,12 @@ const AllSummary = ({ darkMode }) => {
       if (!Array.isArray(record.items)) return false;
       return record.items.some(item => item.category === categoryFilter);
     };
-    
+    const matchesItemName = (record) => {
+      if (!itemNameFilter) return true;
+      
+      if (!Array.isArray(record.items)) return false;
+      return record.items.some(item => item.itemName === itemNameFilter);
+    };
     const matchesPaymentMethod = (record) => {
       if (!paymentMethodFilter) return true;
       if (Array.isArray(record.paymentMethods) && record.paymentMethods.length > 0) {
@@ -798,6 +866,7 @@ const AllSummary = ({ darkMode }) => {
       filtered = filtered.filter(matchesAssignee);
       filtered = filtered.filter(matchesPaymentMethod);
       filtered = filtered.filter(matchesCategory);
+      filtered = filtered.filter(matchesItemName);
       setFilteredPayments(filtered);
       return;
     }    
@@ -808,6 +877,7 @@ const AllSummary = ({ darkMode }) => {
         filtered = filtered.filter(matchesAssignee);
         filtered = filtered.filter(matchesPaymentMethod);
         filtered = filtered.filter(matchesCategory);
+        filtered = filtered.filter(matchesItemName);
         setFilteredPayments(filtered);
         return;
       }
@@ -821,6 +891,7 @@ const AllSummary = ({ darkMode }) => {
       filtered = filtered.filter(matchesAssignee);
       filtered = filtered.filter(matchesPaymentMethod);
       filtered = filtered.filter(matchesCategory);
+      filtered = filtered.filter(matchesItemName);
       setFilteredPayments(filtered);
       return;
     }
@@ -830,6 +901,7 @@ const AllSummary = ({ darkMode }) => {
       filtered = filtered.filter(matchesAssignee);
       filtered = filtered.filter(matchesPaymentMethod);
       filtered = filtered.filter(matchesCategory);
+      filtered = filtered.filter(matchesItemName);
       setFilteredPayments(filtered);
       return;
     }
@@ -839,6 +911,7 @@ const AllSummary = ({ darkMode }) => {
     filtered = filtered.filter(matchesAssignee);
     filtered = filtered.filter(matchesPaymentMethod);
     filtered = filtered.filter(matchesCategory);
+    filtered = filtered.filter(matchesItemName);
 
     if (filterType === 'daily') {
       filtered = filtered.filter(p => getLocalDateKey(p.date) === getLocalDateKey(filterDate));
@@ -862,6 +935,10 @@ const AllSummary = ({ darkMode }) => {
     ...products.map(p => p.category),
     ...(grnExpenses.raw ? grnExpenses.raw.flatMap(grn => grn.items.map(i => i.category)) : [])
   ].filter(Boolean)));
+  
+  const allItemNames = Array.from(new Set(
+      products.filter(p => p.category === (categoryFilter ?  categoryFilter : p.category)).map(p => p.itemName)
+    )).sort();
 
   // Collect all statuses from repairs
   const allStatuses = Array.from(new Set(
@@ -1197,7 +1274,7 @@ const AllSummary = ({ darkMode }) => {
 
   const totalReturnRefund = totalReturnedRepairs + totalReturnedExtraIncome + totalReturnedPayments;
   
-  const netProfit = totalIncome - totalExpenses - totalReturnRefund - totalCreditIncome;
+  const netProfit = totalIncome - totalExpenses - totalReturnRefund - totalCreditIncome - totalActualRepairCost - totalPaymentRealCost;
   
   // 🔹 Calculate Cash Inflows (only 'Cash' payments)
   // const cashInflows = [
@@ -1359,6 +1436,10 @@ const AllSummary = ({ darkMode }) => {
     // Add category filter if present
     if (categoryFilter) {
       baseName += `_${categoryFilter}`;
+    }
+
+    if (itemNameFilter) {
+      baseName += `_${itemNameFilter}`;
     }
     
     // 1. Overview Summary Sheet
@@ -1657,7 +1738,8 @@ const AllSummary = ({ darkMode }) => {
             onChange={e => setCategoryFilter(e.target.value)} 
             style={{ 
               minWidth: '150px',
-              padding: '6px 10px',
+              maxWidth:'300px',
+              padding: '6px 6px',
               borderRadius: '6px',
               border: darkMode ? '1px solid #4a5568' : '1px solid #ccc',
               backgroundColor: darkMode ? '#374151' : '#fff',
@@ -1669,6 +1751,82 @@ const AllSummary = ({ darkMode }) => {
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
+        </div>
+
+        <div style={{ position: 'relative', display: 'inline-block', minWidth: '180px' }}>
+          <label style={{ marginRight: '8px', fontWeight: '500' }}>Item Name:</label>
+          <input
+            type="text"
+            value={itemNameFilter}
+            onFocus={() => setItemDropdownOpen(true)}
+            onChange={(e) => {
+              setItemNameFilter(e.target.value);
+              setItemDropdownOpen(true);
+            }}
+            placeholder="Search items..."
+            style={{
+              width: '100%',
+              padding: '6px 10px',
+              borderRadius: '6px',
+              border: darkMode ? '1px solid #4a5568' : '1px solid #ccc',
+              backgroundColor: darkMode ? '#374151' : '#fff',
+              color: darkMode ? '#e2e8f0' : '#333'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          {isItemDropdownOpen && (
+            <ul
+              style={{
+                position: 'absolute',
+                zIndex: 10,
+                top: '100%',
+                left: 0,
+                right: 0,
+                maxHeight: '180px',
+                overflowY: 'auto',
+                backgroundColor: darkMode ? '#2d3748' : '#fff',
+                border: darkMode ? '1px solid #4a5568' : '1px solid #ccc',
+                borderRadius: '4px',
+                marginTop: '4px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                fontSize: '14px'
+              }}
+              onMouseDown={(e) => e.preventDefault()} // Prevent input blur on scroll
+            >
+              {allItemNames
+                .filter(name =>
+                  name?.toLowerCase().includes(itemNameFilter.toLowerCase())
+                )
+                .map((name) => (
+                  <li
+                    key={name}
+                    onClick={() => {
+                      setItemNameFilter(name);
+                      setItemDropdownOpen(false);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      color: darkMode ? '#e2e8f0' : '#333',
+                      backgroundColor: 'transparent'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = darkMode ? '#374151' : '#f1f1f1'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  >
+                    {name}
+                  </li>
+                ))
+              }
+              {allItemNames.filter(n => n?.toLowerCase().includes(itemNameFilter.toLowerCase())).length === 0 && (
+                <li style={{ padding: '8px 12px', color: '#999', fontStyle: 'italic' }}>
+                  No items found
+                </li>
+              )}
+            </ul>
+          )}
         </div>
 
         <div>
@@ -1686,8 +1844,8 @@ const AllSummary = ({ darkMode }) => {
             }}
           >
             <option value="">All</option>
-            <option value="Prabath">Prabath - 2nd Floor</option>
-            <option value="Nadeesh">Nadeesh - 1st Floor</option>
+            <option value="Prabath">2nd Floor</option>
+            <option value="Nadeesh">1st Floor</option>
             <option value="Accessories">Accessories</option>
             <option value="Genex-EX">Genex EX</option>
             <option value="I-Device">I Device</option>
