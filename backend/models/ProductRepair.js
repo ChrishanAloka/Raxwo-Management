@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const productRepairSchema = new mongoose.Schema({
+  date: { type: Date, default: Date.now },
   // Customer Details
   customerType: { type: String, required: true },
   customerName: { type: String, required: true },

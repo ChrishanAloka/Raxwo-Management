@@ -378,7 +378,8 @@ router.patch('/:id', authMiddleware, async (req, res) => {
       // New split-payment fields (optional)
       'paymentMethods',
       'totalPaid',
-      'changeGiven'
+      'changeGiven',
+      'date'
     ];
 
     const topLevelChanges = [];

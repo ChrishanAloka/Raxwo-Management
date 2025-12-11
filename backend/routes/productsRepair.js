@@ -96,6 +96,7 @@ router.post("/", authMiddleware, async (req, res) => {
       // NIC and address fields kept but not displayed in UI as per requirements
       customerNIC: req.body.customerNIC || "N/A",
       customerAddress: req.body.customerAddress || "N/A",
+      date: req.body.date ? new Date(req.body.date) : new Date(), // Use provided date or now
 
       // Job Details
       repairInvoice,
@@ -733,6 +734,7 @@ router.patch("/:id", authMiddleware, getRepair, async (req, res) => {
       "changeGiven",
       "completedAt", // ✅ ADD THIS
       "collectedAt",
+      "date",
     ];
 
     const updates = {};
