@@ -15,8 +15,8 @@ import EditPayment from '../EditPayment';
 import ReturnPayment from '../ReturnPayment';
 import { useMemo } from 'react'; // Make sure this is imported
 
-const API_URL = 'https://raxwo-management.onrender.com/api/payments';
-const PAYMENT_WITH_CATEGORY_API_URL = 'https://raxwo-management.onrender.com/api/payments/with-itemcodes';
+const API_URL = 'https://igeniusmobileshopapp.onrender.com/api/payments';
+const PAYMENT_WITH_CATEGORY_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/payments/with-itemcodes';
 
 const PaymentTable = ({ darkMode }) => {
   const [payments, setPayments] = useState([]);
@@ -358,9 +358,9 @@ const PaymentTable = ({ darkMode }) => {
   };
 
   const generateCustomBill = (paymentData) => {
-    const shopName = localStorage.getItem('shopName') || 'Default Shop';
-    const shopAddress = localStorage.getItem('shopAddress') || '123 Main St, City, Country';
-    const shopPhone = localStorage.getItem('shopPhone') || '(123) 456-7890';
+    const shopName = localStorage.getItem('shopName') || 'I Genius Pvt Ltdp';
+    const shopAddress = localStorage.getItem('shopAddress') || 'No 422, Thimbirigasyaya Road, Colombo 05';
+    const shopPhone = localStorage.getItem('shopPhone') || '(+94)77 2025 330';
     const shopLogo = localStorage.getItem('shopLogo') || '';
     const currentDate = new Date(paymentData.date).toLocaleString();
 

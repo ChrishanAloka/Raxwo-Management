@@ -194,7 +194,7 @@ const PaymentForm = ({ supplier, closeModal, fetchGrnReturnStocks, refreshSuppli
   useEffect(() => {
     const fetchReturnedValue = async () => {
       try {
-        const response = await fetch(`https://raxwo-management.onrender.com/api/suppliers/retitems/${encodeURIComponent(supplier.supplierName)}`);
+        const response = await fetch(`https://igeniusmobileshopapp.onrender.com/api/suppliers/retitems/${encodeURIComponent(supplier.supplierName)}`);
         if (!response.ok) throw new Error("Failed to fetch products");
         const products = await response.json();
         setProducts(Array.isArray(products) ? products : []);
@@ -325,7 +325,7 @@ const paidForPastPayments = supplier.paymentHistory
     try {
       // Submit each payment individually
       for (const pay of validPayments) {
-        const response = await fetch(`https://raxwo-management.onrender.com/api/suppliers/${supplier._id}/payments`, {
+        const response = await fetch(`https://igeniusmobileshopapp.onrender.com/api/suppliers/${supplier._id}/payments`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json', 

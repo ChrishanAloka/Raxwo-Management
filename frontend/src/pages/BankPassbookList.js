@@ -13,13 +13,13 @@ import Highcharts from "highcharts";
 import "highcharts/highcharts-3d";
 import HighchartsReact from "highcharts-react-official";
 
-const API_URL = "https://raxwo-management.onrender.com/api/bank-passbook";
-const PRODUCTS_REPAIR_API_URL = "https://raxwo-management.onrender.com/api/productsRepair"; // Adjust if needed
-const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments/forsummery';
-const EXTRA_INCOME_API_URL = 'https://raxwo-management.onrender.com/api/extra-income';
-const SALARIES_API_URL = 'https://raxwo-management.onrender.com/api/salaries';
-const MAINTENANCE_API_URL = 'https://raxwo-management.onrender.com/api/maintenance';
-const SUPPLIERS_API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/bank-passbook";
+const PRODUCTS_REPAIR_API_URL = "https://igeniusmobileshopapp.onrender.com/api/productsRepair"; // Adjust if needed
+const PAYMENTS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/payments/forsummery';
+const EXTRA_INCOME_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/extra-income';
+const SALARIES_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/salaries';
+const MAINTENANCE_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/maintenance';
+const SUPPLIERS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/suppliers';
 
 // Allowed bank-based payment methods
 const BANK_PAYMENT_METHODS = ["Bank-Transfer", "Card", "Bank-Check"];

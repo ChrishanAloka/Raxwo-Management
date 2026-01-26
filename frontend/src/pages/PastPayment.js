@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../styles/Products.css';
 import { useNavigate, Link } from 'react-router-dom';
 
-const API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
+const API_URL = 'https://igeniusmobileshopapp.onrender.com/api/suppliers';
 
 const CartForm = ({ supplier, closeModal, darkMode, refreshProducts }) => {
   const [items, setItems] = useState([{

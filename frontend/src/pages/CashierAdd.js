@@ -5,7 +5,7 @@ import { faPlus, faFile, faFilePdf, faFileExcel, faSearch, faTimes } from '@fort
 
 import "../styles/CashierAdd.css";
 
-const API_URL = "https://raxwo-management.onrender.com/api/cashiers";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/cashiers";
 
 const CashierAdd = ({ isOpen, onClose, refreshCashiers, darkMode }) => {
   const [cashier, setCashier] = useState({

@@ -33,7 +33,7 @@ const CustomerForm = ({ totalAmount, paymentType, onClose, darkMode, onSubmit })
     }
 
     try {
-      await axios.post("https://raxwo-management.onrender.com/api/customers", customerData, {
+      await axios.post("https://igeniusmobileshopapp.onrender.com/api/customers", customerData, {
         headers: {
           "Authorization": `Bearer ${token}`,
         },

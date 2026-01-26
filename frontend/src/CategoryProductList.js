@@ -10,13 +10,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile, faFilePdf, faFileExcel, faSearch } from '@fortawesome/free-solid-svg-icons';
 import EditProduct from './EditProduct';
 
-const API_URL = "https://raxwo-management.onrender.com/api/products";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/products";
 const itemsPerPage = 20;
 
-const PRODUCT_API_URL = 'https://raxwo-management.onrender.com/api/products';
+const PRODUCT_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/products';
 
-const REPAIRS_API_URL = 'https://raxwo-management.onrender.com/api/productsRepair';
-const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments';
+const REPAIRS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/productsRepair';
+const PAYMENTS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/payments';
 
 const CategoryProductList = ({ darkMode }) => {
   const [products, setProducts] = useState([]);
@@ -62,7 +62,7 @@ const CategoryProductList = ({ darkMode }) => {
   const fetchProducts = () => {
     setLoading(true);
     setError("");
-    let url = `https://raxwo-management.onrender.com/api/product-uploads`;
+    let url = `https://igeniusmobileshopapp.onrender.com/api/product-uploads`;
     fetch(url)
       .then((response) => {
         if (!response.ok) throw new Error(`Server error: ${response.statusText}`);

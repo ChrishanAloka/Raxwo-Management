@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
-const PRODUCTS_API = 'https://raxwo-management.onrender.com/api/products';
-const DELETED_PRODUCTS_API = 'https://raxwo-management.onrender.com/api/products/deleted';
-const DELETION_LOGS_API = 'https://raxwo-management.onrender.com/api/products/deleted-logs';
-const INACTIVE_PRODUCTS_API = 'https://raxwo-management.onrender.com/api/products/inactive';
+const PRODUCTS_API = 'https://igeniusmobileshopapp.onrender.com/api/products';
+const DELETED_PRODUCTS_API = 'https://igeniusmobileshopapp.onrender.com/api/products/deleted';
+const DELETION_LOGS_API = 'https://igeniusmobileshopapp.onrender.com/api/products/deleted-logs';
+const INACTIVE_PRODUCTS_API = 'https://igeniusmobileshopapp.onrender.com/api/products/inactive';
 
 const DeletedProducts = () => {
   const [deletedProducts, setDeletedProducts] = useState([]);

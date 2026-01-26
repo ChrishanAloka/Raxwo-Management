@@ -14,7 +14,7 @@ const ForgotPassword = ({darkMode}) => {
     setMessage('');
     setError('');
     try {
-      const res = await axios.post('https://raxwo-management.onrender.com/api/auth/forgot-password', { email });
+      const res = await axios.post('https://igeniusmobileshopapp.onrender.com/api/auth/forgot-password', { email });
       setMessage(res.data.msg || 'Password reset email sent!');
     } catch (err) {
       setError(err.response?.data?.msg || 'Failed to send reset email.');

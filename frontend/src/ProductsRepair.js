@@ -24,9 +24,9 @@ import { faFile, faFilePdf, faFileExcel, faSearch, faPlus, faTimes, faHistory } 
 import ChangeHistory from './components/ChangeHistory';
 
 
-const API_URL = "https://raxwo-management.onrender.com/api/productsRepair";
-const PRODUCT_API_URL = "https://raxwo-management.onrender.com/api/product-uploads";
-const JOB_API = 'https://raxwo-management.onrender.com/api/productsRepair';
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/productsRepair";
+const PRODUCT_API_URL = "https://igeniusmobileshopapp.onrender.com/api/product-uploads";
+const JOB_API = 'https://igeniusmobileshopapp.onrender.com/api/productsRepair';
 
 // Add flattenLogs function directly here:
 function flattenLogs(data, entityType, entityIdField, entityNameField) {
@@ -1885,9 +1885,10 @@ const ProductRepairList = ({ darkMode }) => {
           <div class="bill-container">
             <div class="header">
               <h1>Repair Bill</h1>
-              <p>EXXPLAN Repair Services</p>
-              <p>456 123 Repair Lane, Tech City, TC 45678</p>
-              <p>Phone: (555) 123-4567 | Email: support@exxplan.com</p>
+              <p>I Genius Pvt Ltd</p>
+              <p>No 422, Thimbirigasyaya Road, Colombo 05</p>
+              <p>Phone: (+94)77 2025 330</p>
+
             </div>
             <div class="details">
               <p><strong>Job Number:</strong> ${repair.repairInvoice || repair.repairCode}</p>
@@ -2230,7 +2231,6 @@ const ProductRepairList = ({ darkMode }) => {
 
         <div class="container">
           <div class="header">
-           <!-- <h1 class="company-name">EXXPLAN Repair Services</h1> -->
             <img src=${gelogo} alt="GE Logo" style="height: 40px; margin-bottom: 0px;" />
             <p class="tagline">Your Trusted Repair Partner</p>
           </div>

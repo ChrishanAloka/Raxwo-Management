@@ -4,13 +4,13 @@ import * as XLSX from 'xlsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileExcel } from '@fortawesome/free-solid-svg-icons';
 
-const PRODUCTS_API_URL = 'https://raxwo-management.onrender.com/api/products';
-const SUPPLIERS_API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
-const PRODUCTS_REPAIR_API_URL = 'https://raxwo-management.onrender.com/api/productsRepair';
-const SALARIES_API_URL = 'https://raxwo-management.onrender.com/api/salaries';
-const MAINTENANCE_API_URL = 'https://raxwo-management.onrender.com/api/maintenance';
-const EXTRA_INCOME_API_URL = 'https://raxwo-management.onrender.com/api/extra-income';
-const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments/with-categories';
+const PRODUCTS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/products';
+const SUPPLIERS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/suppliers';
+const PRODUCTS_REPAIR_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/productsRepair';
+const SALARIES_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/salaries';
+const MAINTENANCE_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/maintenance';
+const EXTRA_INCOME_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/extra-income';
+const PAYMENTS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/payments/with-categories';
 
 const AllSummary = ({ darkMode }) => {
   // State for expenses

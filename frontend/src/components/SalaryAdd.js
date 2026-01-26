@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import "../styles/SalaryAdd.css";
 
-const API_URL = "https://raxwo-management.onrender.com/api/salaries";
-const EMPLOYEE_API_URL = "https://raxwo-management.onrender.com/api/salaries/employee";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/salaries";
+const EMPLOYEE_API_URL = "https://igeniusmobileshopapp.onrender.com/api/salaries/employee";
 
 const SalaryAdd = ({ isOpen, onClose, refreshSalaries, darkMode }) => {
   const today = new Date().toISOString().split('T')[0]; // "2024-06-15"

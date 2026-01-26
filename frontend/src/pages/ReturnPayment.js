@@ -22,7 +22,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
     }
 
     // Fetch all products with authorization header
-    axios.get('https://raxwo-management.onrender.com/api/products', {
+    axios.get('https://igeniusmobileshopapp.onrender.com/api/products', {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -329,7 +329,7 @@ const ReturnPayment = ({ onClose, darkMode, cashierId, cashierName }) => {
     setLoading(true);
 
     try {
-      const response = await fetch("https://raxwo-management.onrender.com/api/payments/return", {
+      const response = await fetch("https://igeniusmobileshopapp.onrender.com/api/payments/return", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

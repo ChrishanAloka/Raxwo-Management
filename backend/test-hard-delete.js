@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 
-const API_URL = 'https://raxwo-management.onrender.com/api/products';
+const API_URL = 'https://igeniusmobileshopapp.onrender.com/api/products';
 
 async function testHardDelete() {
   console.log('🧪 Testing Hard Delete Functionality...\n');

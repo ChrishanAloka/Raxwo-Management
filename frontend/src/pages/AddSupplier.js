@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "../styles/SupplierAdd.css";
 
-const API_URL = "https://raxwo-management.onrender.com/api/suppliers";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/suppliers";
 
 const AddSupplier = ({ supplier, closeModal, darkMode, refreshSuppliers }) => {
   const [formData, setFormData] = useState({

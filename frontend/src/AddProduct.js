@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./AddProduct.css";
 
-const API_URL = 'https://raxwo-management.onrender.com/api/products';
+const API_URL = 'https://igeniusmobileshopapp.onrender.com/api/products';
 
 const AddProduct = ({ darkMode }) => {
   const navigate = useNavigate();

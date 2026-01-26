@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "./EditProduct.css";
 
-const API_URL = "https://raxwo-management.onrender.com/api/products";
-const SUPPLIER_API_URL = "https://raxwo-management.onrender.com/api/suppliers";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/products";
+const SUPPLIER_API_URL = "https://igeniusmobileshopapp.onrender.com/api/suppliers";
 
 const EditProduct = ({ product, closeModal, darkMode, showGRN }) => {
   const [formData, setFormData] = useState({

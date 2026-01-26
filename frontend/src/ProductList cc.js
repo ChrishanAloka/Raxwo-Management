@@ -20,12 +20,12 @@ import { faPlus, faChartSimple, faFile, faFilePdf, faFileExcel, faSearch, faTime
 import { v4 as uuidv4 } from 'uuid';
 import { useMemo } from "react";
 
-//const API_URL = 'https://raxwo-management.onrender.com/api/products';
- const API_URL = 'https://raxwo-management.onrender.com/api/products';
-const CLICKED_PRODUCTS_API_URL = 'https://raxwo-management.onrender.com/api/clicked-products';
+//const API_URL = 'https://igeniusmobileshopapp.onrender.com/api/products';
+ const API_URL = 'https://igeniusmobileshopapp.onrender.com/api/products';
+const CLICKED_PRODUCTS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/clicked-products';
 
-const REPAIRS_API_URL = 'https://raxwo-management.onrender.com/api/productsRepair';
-const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments';
+const REPAIRS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/productsRepair';
+const PAYMENTS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/payments';
 
 const ProductList = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -101,7 +101,7 @@ const ProductList = ({ darkMode }) => {
   const fetchProducts = () => {
     setLoading(true);
     setRefreshing(true);
-    let url = `https://raxwo-management.onrender.com/api/product-uploads`;
+    let url = `https://igeniusmobileshopapp.onrender.com/api/product-uploads`;
     fetch(url)
       .then((response) => {
         if (!response.ok) {
@@ -884,7 +884,7 @@ const ProductList = ({ darkMode }) => {
       // Optionally, add a unique uploadId if needed
       // formData.append('uploadId', uuidv4());
     
-      const response = await fetch('https://raxwo-management.onrender.com/api/product-uploads/bulk-upload',
+      const response = await fetch('https://igeniusmobileshopapp.onrender.com/api/product-uploads/bulk-upload',
       {
         method: 'POST',
         headers: {  "Authorization": `Bearer ${token}` },
@@ -910,7 +910,7 @@ const ProductList = ({ darkMode }) => {
     setUploadedLoading(true);
     setUploadedError('');
     try {
-      const res = await fetch(`https://raxwo-management.onrender.com/api/product-uploads?page=${page}&limit=20`);
+      const res = await fetch(`https://igeniusmobileshopapp.onrender.com/api/product-uploads?page=${page}&limit=20`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to fetch uploaded records');
       setUploadedRecords(data.records || []);
@@ -930,7 +930,7 @@ const ProductList = ({ darkMode }) => {
 
   const handleExportAllUploaded = async () => {
     try {
-      const res = await fetch('https://raxwo-management.onrender.com/api/product-uploads/export-all');
+      const res = await fetch('https://igeniusmobileshopapp.onrender.com/api/product-uploads/export-all');
       if (!res.ok) throw new Error('Failed to export records');
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);

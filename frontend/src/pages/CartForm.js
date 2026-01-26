@@ -5,8 +5,8 @@ import Select from 'react-select';
 import axios from 'axios';
 import CreatableSelect from 'react-select/creatable';
 
-const API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
-const PRODUCTS_API_URL = 'https://raxwo-management.onrender.com/api/products';
+const API_URL = 'https://igeniusmobileshopapp.onrender.com/api/suppliers';
+const PRODUCTS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/products';
 
 const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => {
   const [grn, setGrn] = useState('');
@@ -39,10 +39,10 @@ const CartForm = ({ supplier, item, closeModal, darkMode, refreshProducts }) => 
       // const response = await fetch(`${API_URL}/${supplier._id}`, {
       // });
 
-      const response = await fetch(`https://raxwo-management.onrender.com/api/product-uploads`, {
+      const response = await fetch(`https://igeniusmobileshopapp.onrender.com/api/product-uploads`, {
       });
 
-      // const response = await axios.get('https://raxwo-management.onrender.com/api/products', {
+      // const response = await axios.get('https://igeniusmobileshopapp.onrender.com/api/products', {
       //   headers: {
       //     Authorization: `Bearer ${token}`,
       //   },

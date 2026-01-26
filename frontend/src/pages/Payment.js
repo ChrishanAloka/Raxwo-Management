@@ -76,7 +76,7 @@ const Payment = ({ darkMode }) => {
         return;
       }
 
-      const response = await axios.get('https://raxwo-management.onrender.com/api/products', {
+      const response = await axios.get('https://igeniusmobileshopapp.onrender.com/api/products', {
         headers: {
           Authorization: `Bearer ${token}`,
         },

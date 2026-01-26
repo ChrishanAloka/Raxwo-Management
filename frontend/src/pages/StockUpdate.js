@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/StockUpdate.css"; // Ensure you have dark mode styles
 import EditProduct from '../EditProduct';
 
-const API_URL = "https://raxwo-management.onrender.com/api/products";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/products";
 
 // Helper to compute stock from changeHistory
 function computeStockFromHistory(product) {

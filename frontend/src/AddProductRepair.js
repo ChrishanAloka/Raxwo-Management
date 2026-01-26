@@ -4,7 +4,7 @@ import "jspdf-autotable";
 import "./AddProductRepair.css";
 import Select from 'react-select';
 
-const API_URL = "https://raxwo-management.onrender.com/api/productsRepair";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/productsRepair";
 
 const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
   const [formData, setFormData] = useState({
@@ -55,7 +55,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
     const fetchCustomers = async () => {
       try {
         setLoadingCustomers(true);
-        const response = await fetch("https://raxwo-management.onrender.com/api/productsRepair");
+        const response = await fetch("https://igeniusmobileshopapp.onrender.com/api/productsRepair");
         if (response.ok) {
           const data = await response.json();
           const options = data
@@ -82,7 +82,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
     const fetchDeviceIssues = async () => {
       try {
         setLoadingIssues(true);
-        const response = await fetch("https://raxwo-management.onrender.com/api/deviceIssues");
+        const response = await fetch("https://igeniusmobileshopapp.onrender.com/api/deviceIssues");
         if (response.ok) {
           const data = await response.json();
           setDeviceIssues(data);
@@ -112,7 +112,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
     const fetchDeviceTypes = async () => {
       try {
         setLoadingDeviceType(true);
-        const response = await fetch("https://raxwo-management.onrender.com/api/deviceTypes");
+        const response = await fetch("https://igeniusmobileshopapp.onrender.com/api/deviceTypes");
         if (response.ok) {
           const data = await response.json();
           setDeviceTypes(data);
@@ -151,7 +151,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
     if (!newIssue.trim()) return;
     
     try {
-      const response = await fetch("https://raxwo-management.onrender.com/api/deviceIssues", {
+      const response = await fetch("https://igeniusmobileshopapp.onrender.com/api/deviceIssues", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -189,7 +189,7 @@ const AddProductRepair = ({ closeModal, darkMode, onAddSuccess }) => {
     if (!newDeviceType.trim()) return;
 
     try {
-      const response = await fetch("https://raxwo-management.onrender.com/api/deviceTypes", {
+      const response = await fetch("https://igeniusmobileshopapp.onrender.com/api/deviceTypes", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

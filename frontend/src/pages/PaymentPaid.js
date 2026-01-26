@@ -585,7 +585,7 @@ const PaymentPaid = ({ totalAmount, items, onClose, darkMode, cashierId, cashier
     setLoading(true);
 
     try {
-      const response = await fetch("https://raxwo-management.onrender.com/api/payments", {
+      const response = await fetch("https://igeniusmobileshopapp.onrender.com/api/payments", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

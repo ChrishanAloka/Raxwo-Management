@@ -58,7 +58,7 @@ const SupplierList = ({ darkMode }) => {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch('https://raxwo-management.onrender.com/api/suppliers', {
+      const response = await fetch('https://igeniusmobileshopapp.onrender.com/api/suppliers', {
       });
       clearTimeout(timeoutId);
       if (!response.ok) {
@@ -76,7 +76,7 @@ const SupplierList = ({ darkMode }) => {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('https://raxwo-management.onrender.com/api/products');
+      const response = await fetch('https://igeniusmobileshopapp.onrender.com/api/products');
       if (!response.ok) {
         throw new Error(`Failed to fetch products: ${response.statusText}`);
       }
@@ -96,7 +96,7 @@ const SupplierList = ({ darkMode }) => {
     try {
       // 1. Fetch items for this GRN
       const response = await fetch(
-        `https://raxwo-management.onrender.com/api/suppliers/${supplierId}/items/grn/${encodeURIComponent(grnNumber)}`
+        `https://igeniusmobileshopapp.onrender.com/api/suppliers/${supplierId}/items/grn/${encodeURIComponent(grnNumber)}`
       );
       if (!response.ok) throw new Error('Failed to fetch GRN items');
       
@@ -110,7 +110,7 @@ const SupplierList = ({ darkMode }) => {
       for (const item of items) {
         if (item.itemCode) {
           try {
-            const prodRes = await fetch(`https://raxwo-management.onrender.com/api/products/${encodeURIComponent(item.itemCode)}`);
+            const prodRes = await fetch(`https://igeniusmobileshopapp.onrender.com/api/products/${encodeURIComponent(item.itemCode)}`);
             if (prodRes.ok) {
               const product = await prodRes.json();
               const returnedQty = product.returnstock || 0;
@@ -155,7 +155,7 @@ const SupplierList = ({ darkMode }) => {
     if (window.confirm('Are you sure you want to delete this supplier?')) {
       try {
         const changedBy = localStorage.getItem('username') || localStorage.getItem('cashierName') || 'system';
-        const response = await fetch(`https://raxwo-management.onrender.com/api/suppliers/${id}`, {
+        const response = await fetch(`https://igeniusmobileshopapp.onrender.com/api/suppliers/${id}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ changedBy }),
@@ -213,7 +213,7 @@ const SupplierList = ({ darkMode }) => {
 
   const fetchReturnStock = async (itemCode) => {
     try {
-      const response = await fetch(`https://raxwo-management.onrender.com/api/products/${encodeURIComponent(itemCode)}`);
+      const response = await fetch(`https://igeniusmobileshopapp.onrender.com/api/products/${encodeURIComponent(itemCode)}`);
       if (!response.ok) {
         console.warn(`Product ${itemCode} not found`);
         return 0;
@@ -231,7 +231,7 @@ const SupplierList = ({ darkMode }) => {
     for (const item of itemsInGrn) {
       if (item.itemCode) {
         try {
-          const response = await fetch(`https://raxwo-management.onrender.com/api/products/${encodeURIComponent(item.itemCode)}`);
+          const response = await fetch(`https://igeniusmobileshopapp.onrender.com/api/products/${encodeURIComponent(item.itemCode)}`);
           if (response.ok) {
             const product = await response.json();
             // Add the returnstock for this item
@@ -255,7 +255,7 @@ const SupplierList = ({ darkMode }) => {
     setReturnStocks({});
     try {
       const response = await fetch(
-        `https://raxwo-management.onrender.com/api/suppliers/${selectedSupplier._id}/items/grn/${encodeURIComponent(selectedItemCode)}`
+        `https://igeniusmobileshopapp.onrender.com/api/suppliers/${selectedSupplier._id}/items/grn/${encodeURIComponent(selectedItemCode)}`
       );
 
       if (!response.ok) {

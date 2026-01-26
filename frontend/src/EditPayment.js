@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "./EditPayment.css";
 
-const API_URL = "https://raxwo-management.onrender.com/api/payments";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/payments";
 
 const EditPayment = ({ payment, closeModal, darkMode }) => {
   // Top-level editable fields

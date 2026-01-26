@@ -13,7 +13,7 @@ import "../styles/ExtraIncome.css";
 import Select from 'react-select/creatable';
 import { components } from 'react-select';
 
-const API_URL = "https://raxwo-management.onrender.com/api/extra-income";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/extra-income";
 
 const ExtraIncome = ({ darkMode }) => {
   // State for form inputs

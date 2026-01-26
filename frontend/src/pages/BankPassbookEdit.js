@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import "../styles/BankPassbookEdit.css";
 
-const API_URL = "https://raxwo-management.onrender.com/api/bank-passbook";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/bank-passbook";
 
 const BankPassbookEdit = ({ transaction, onClose, onUpdate, darkMode }) => {
   const [edited, setEdited] = useState({ ...transaction });

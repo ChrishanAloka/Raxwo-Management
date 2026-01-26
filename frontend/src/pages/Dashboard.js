@@ -12,14 +12,14 @@ import repairingIcon from "../icon/00.png";
 import { FaChartLine } from "react-icons/fa";
 import "../styles/Dashboard.css";
 
-const API_URL = "https://raxwo-management.onrender.com/api/dashboard";
-const PRODUCTS_REPAIR_API_URL = 'https://raxwo-management.onrender.com/api/productsRepair';
-const EXTRA_INCOME_API_URL = 'https://raxwo-management.onrender.com/api/extra-income';
-const SALARIES_API_URL = 'https://raxwo-management.onrender.com/api/salaries';
-const MAINTENANCE_API_URL = 'https://raxwo-management.onrender.com/api/maintenance';
-const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments/forsummery';
-const PRODUCTS_API_URL = 'https://raxwo-management.onrender.com/api/products';
-const SUPPLIERS_API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/dashboard";
+const PRODUCTS_REPAIR_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/productsRepair';
+const EXTRA_INCOME_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/extra-income';
+const SALARIES_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/salaries';
+const MAINTENANCE_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/maintenance';
+const PAYMENTS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/payments/forsummery';
+const PRODUCTS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/products';
+const SUPPLIERS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/suppliers';
 
 const Dashboard = ({ darkMode }) => {
   const navigate = useNavigate();

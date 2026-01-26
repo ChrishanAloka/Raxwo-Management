@@ -4,7 +4,7 @@ import { faSearch, faTimes } from '@fortawesome/free-solid-svg-icons';
 import '../styles/CustomerDetailsTable.css';
 import deleteIcon from '../icon/delete.png';
 
-const API_URL = 'https://raxwo-management.onrender.com/api/payments';
+const API_URL = 'https://igeniusmobileshopapp.onrender.com/api/payments';
 
 const CustomerDetailsTable = ({ darkMode }) => {
   const [payments, setPayments] = useState([]);

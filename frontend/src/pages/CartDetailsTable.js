@@ -13,11 +13,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { useMemo } from "react";
 
-const API_URL = 'https://raxwo-management.onrender.com/api/suppliers';
-const PRODUCT_API_URL = 'https://raxwo-management.onrender.com/api/products';
+const API_URL = 'https://igeniusmobileshopapp.onrender.com/api/suppliers';
+const PRODUCT_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/products';
 
-const REPAIRS_API_URL = 'https://raxwo-management.onrender.com/api/productsRepair';
-const PAYMENTS_API_URL = 'https://raxwo-management.onrender.com/api/payments';
+const REPAIRS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/productsRepair';
+const PAYMENTS_API_URL = 'https://igeniusmobileshopapp.onrender.com/api/payments';
 
 const CartDetailsTable = ({ supplierId, darkMode, refreshSuppliers }) => {
   const [items, setItems] = useState([]);

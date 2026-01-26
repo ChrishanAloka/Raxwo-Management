@@ -20,7 +20,7 @@ const UserLogin = ({ darkMode }) => {
     setError("");
 
     try {
-      const res = await axios.post("https://raxwo-management.onrender.com/api/auth/login", {
+      const res = await axios.post("https://igeniusmobileshopapp.onrender.com/api/auth/login", {
         email: formData.email,
         password: formData.password,
       });

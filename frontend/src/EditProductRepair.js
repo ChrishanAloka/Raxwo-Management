@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import "./AddProductRepair.css";
 
-const API_URL = "https://raxwo-management.onrender.com/api/productsRepair";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/productsRepair";
 
 const EditProductRepair = ({ repair, closeModal, darkMode }) => {
   const [formData, setFormData] = useState({
@@ -75,7 +75,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
   useEffect(() => {
     const fetchDeviceIssues = async () => {
       try {
-        const response = await fetch('https://raxwo-management.onrender.com/api/deviceIssues');
+        const response = await fetch('https://igeniusmobileshopapp.onrender.com/api/deviceIssues');
         if (response.ok) {
           const data = await response.json();
           setDeviceIssues(data);
@@ -93,7 +93,7 @@ const EditProductRepair = ({ repair, closeModal, darkMode }) => {
     if (!newIssue.trim()) return;
     
     try {
-      const response = await fetch('https://raxwo-management.onrender.com/api/deviceIssues', {
+      const response = await fetch('https://igeniusmobileshopapp.onrender.com/api/deviceIssues', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

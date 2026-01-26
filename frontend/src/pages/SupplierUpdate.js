@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "../styles/SupplierAdd.css";
 import '../styles/EditUser.css';
 
-const API_URL = "https://raxwo-management.onrender.com/api/suppliers";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/suppliers";
 
 const SupplierUpdate = ({ isOpen, onClose, supplierId, refreshSuppliers, darkMode }) => {
   const [formData, setFormData] = useState({

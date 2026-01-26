@@ -11,7 +11,7 @@ import editicon from "../icon/edit.png";
 import deleteicon from "../icon/delete.png";
 import attendlisticon from "../icon/marking.png";
 
-const API_URL = "https://raxwo-management.onrender.com/api/attendance";
+const API_URL = "https://igeniusmobileshopapp.onrender.com/api/attendance";
 
 const CashierAttendanceTable = ({ darkMode }) => {
   const [attendanceData, setAttendanceData] = useState([]);
