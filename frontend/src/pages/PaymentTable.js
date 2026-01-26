@@ -358,7 +358,7 @@ const PaymentTable = ({ darkMode }) => {
   };
 
   const generateCustomBill = (paymentData) => {
-    const shopName = localStorage.getItem('shopName') || 'I Genius Pvt Ltdp';
+    const shopName = localStorage.getItem('shopName') || 'I Genius Pvt Ltd';
     const shopAddress = localStorage.getItem('shopAddress') || 'No 422, Thimbirigasyaya Road, Colombo 05';
     const shopPhone = localStorage.getItem('shopPhone') || '(+94)77 2025 330';
     const shopLogo = localStorage.getItem('shopLogo') || '';
