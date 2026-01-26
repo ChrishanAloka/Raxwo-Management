@@ -122,7 +122,7 @@ const PaymentTable = ({ darkMode }) => {
   };
 
   const generatePaymentBill = (paymentData) => {
-    const shopName = localStorage.getItem('shopName') || 'GENIUS';
+    const shopName = localStorage.getItem('shopName') || 'I GENIUS Pvt Ltd';
     const shopAddress = localStorage.getItem('shopAddress') || '#422 Thimbirigasyaya Road, Colombo 05';
     const shopPhone = localStorage.getItem('shopPhone') || '0770235330';
     const shopEmail = localStorage.getItem('shopEmail') || 'igentuslk@gmail.com';
