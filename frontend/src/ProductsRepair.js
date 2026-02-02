@@ -2053,8 +2053,8 @@ const ProductRepairList = ({ darkMode }) => {
     const baseRepairCost = parseFloat(repair.totalRepairCost || 0).toFixed(2);
     const finalAmount = isPaid ? 0 : (parseFloat(baseRepairCost) + parseFloat(unpaidServicesAmount)).toFixed(2);
 
-    const issueDate = new Date().toLocaleDateString('en-GB');
-    const issueTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const issueDate = new Date(repair.createdAt).toLocaleDateString('en-GB');
+    const issueTime = new Date(repair.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 
     const htmlContent = `
       <!DOCTYPE html>
