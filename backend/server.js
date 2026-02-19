@@ -72,6 +72,11 @@ app.use("/api/salaries", salaryRoutes);
 // app.js
 app.use('/api/activity',activitylog);
 
+// Health check
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'OK', message: 'Server is running' });
+});
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Global error handler caught:', err);

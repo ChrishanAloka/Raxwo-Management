@@ -362,7 +362,7 @@ const PaymentTable = ({ darkMode }) => {
     const shopAddress = localStorage.getItem('shopAddress') || 'No 422, Thimbirigasyaya Road, Colombo 05';
     const shopPhone = localStorage.getItem('shopPhone') || '(+94)77 2025 330';
     const shopLogo = localStorage.getItem('shopLogo') || '';
-    const currentDate = new Date(paymentData.date).toLocaleString();
+    const currentDate = new Date(paymentData.date).toLocaleDateString();
 
     const customerName = paymentData.customerName || "N/A";
     const contactNumber = paymentData.contactNumber || "N/A";
